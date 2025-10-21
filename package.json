@@ -1,0 +1,8 @@
+{
+  "name": "hr-management-system",
+  "version": "1.0.0",
+  "description": "HR Management System with Google Sheets backend",
+  "dependencies": {
+    "googleapis": "^105.0.0"
+  }
+}
