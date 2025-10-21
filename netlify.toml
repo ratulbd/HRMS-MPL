@@ -1,8 +1,33 @@
 [build]
-  functions = "netlify/functions"
-  publish = "/"
+
+  functions = "netlify/functions"
+
+  publish = "/"
+
+
+
+# This rule MUST come first. It tells Netlify to send any request
+
+# starting with /api/ to your backend serverless function.
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+
+  from = "/api/*"
+
+  to = "/.netlify/functions/api/:splat"
+
+  status = 200
+
+
+
+# This is the "catch-all" rule. It should come LAST.
+
+# It serves your main index.html for any other request.
+
+[[redirects]]
+
+  from = "/*"
+
+  to = "/index.html"
+
+  status = 200

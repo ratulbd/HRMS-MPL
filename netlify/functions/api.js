@@ -7,7 +7,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
 
 // Maps frontend object keys to sheet header names (after normalization).
@@ -22,106 +22,105 @@ const HEADER_MAPPING = {
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber',
     status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate'
 };
-const NORMALIZED_HEADER_TO_KEY = Object.fromEntries(Object.entries(HEADER_MAPPING).map(([k, v]) => [v, k]));
+const NORMALIZED_HEADERS = Object.values(HEADER_MAPPING);
 
-
-function sheetDataToObjects(data) {
-    if (!data || data.length < 2) return [];
-    const headers = data[0].map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
-    
-    return data.slice(1).map((row, index) => {
-        const obj = { id: index + 2 }; // Sheet row number as unique ID for the session
-        headers.forEach((header, i) => {
-            const key = NORMALIZED_HEADER_TO_KEY[header];
-            if (key) {
-                obj[key] = row[i] || '';
-            }
-        });
-        return obj;
-    });
-}
-
+// --- Main Handler ---
 exports.handler = async (event) => {
-    try {
-        const { action } = event.queryStringParameters;
-        const body = event.body ? JSON.parse(event.body) : {};
+    const { action } = event.queryStringParameters;
 
+    try {
         switch (action) {
             case 'getEmployees':
                 return await getEmployees();
             case 'saveEmployee':
-                return await saveEmployee(body);
+                return await saveEmployee(JSON.parse(event.body));
             default:
-                return { statusCode: 400, body: JSON.stringify({ error: 'Invalid action specified.' }) };
+                return { statusCode: 400, body: JSON.stringify({ error: 'Invalid action' }) };
         }
     } catch (error) {
-        console.error('Function Error:', error);
-        return { statusCode: 500, body: JSON.stringify({ error: 'An internal server error occurred.', details: error.message }) };
+        console.error('API Error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'An internal server error occurred.', details: error.message }),
+        };
     }
 };
 
+// --- Data Fetching ---
 async function getEmployees() {
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${EMPLOYEE_SHEET_NAME}!A:Z`,
+        range: `${EMPLOYEE_SHEET_NAME}!A:AZ`, // Read a wide range to capture all possible columns
     });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) {
+        return { statusCode: 200, body: JSON.stringify([]) }; // No data
+    }
+
+    const headerRow = rows[0].map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
+    const dataRows = rows.slice(1);
     
-    const data = sheetDataToObjects(response.data.values);
-    
-    return { statusCode: 200, body: JSON.stringify(data) };
+    const employees = dataRows.map((row, index) => {
+        const emp = { id: index + 2 }; // Use row number as a unique ID
+        headerRow.forEach((header, i) => {
+            const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
+            if (key) {
+                emp[key] = row[i] || ''; // Default to empty string
+            }
+        });
+        return emp;
+    });
+
+    return { statusCode: 200, body: JSON.stringify(employees) };
 }
 
-async function saveEmployee(employee) {
-    const headerResponse = await sheets.spreadsheets.values.get({
+// --- Data Saving ---
+async function saveEmployee(employeeData) {
+    const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${EMPLOYEE_SHEET_NAME}!1:1`,
+        range: `${EMPLOYEE_SHEET_NAME}!A:AZ`,
     });
-
-    if (!headerResponse.data.values) {
-        throw new Error("Could not find the header row in the 'Employees' sheet.");
-    }
-
-    const headers = headerResponse.data.values[0];
-    const normalizedHeaders = headers.map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
     
-    // Ensure all required fields are present
-    if (!employee.employeeId || !employee.name) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Employee ID and Name are required.' }) };
+    const rows = response.data.values || [];
+    const headerRow = (rows[0] || []).map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
+
+    // Map the employeeData object to a row array in the correct order
+    const newRow = headerRow.map(header => {
+        const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
+        return key ? (employeeData[key] || '') : '';
+    });
+    
+    // Find existing employee by ID to update, or add a new one
+    const employeeIdIndex = headerRow.indexOf('employeeid');
+    let rowIndex = -1;
+    if (employeeIdIndex !== -1 && employeeData.employeeId) {
+        for(let i = 1; i < rows.length; i++) {
+            if (rows[i][employeeIdIndex] === employeeData.employeeId) {
+                rowIndex = i + 1; // 1-based index
+                break;
+            }
+        }
     }
-
-    const allData = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${EMPLOYEE_SHEET_NAME}!A:A`,
-    });
-
-    const employeeIds = (allData.data.values || []).slice(1).map(row => row[0]);
-    const rowIndex = employeeIds.indexOf(employee.employeeId);
-
-    // Build the row in the correct order based on sheet headers
-    const rowData = normalizedHeaders.map(header => {
-        const key = NORMALIZED_HEADER_TO_KEY[header];
-        return employee[key] === undefined ? '' : employee[key];
-    });
-
-    if (rowIndex === -1) {
-        // Add New Employee
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: SPREADSHEET_ID,
-            range: EMPLOYEE_SHEET_NAME,
-            valueInputOption: 'USER_ENTERED',
-            resource: { values: [rowData] },
-        });
-        return { statusCode: 201, body: JSON.stringify({ message: 'Employee added successfully' }) };
-    } else {
-        // Update Existing Employee
-        const range = `${EMPLOYEE_SHEET_NAME}!A${rowIndex + 2}:${String.fromCharCode(65 + headers.length - 1)}${rowIndex + 2}`;
+    
+    if (rowIndex !== -1) {
+        // Update existing row
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range,
+            range: `${EMPLOYEE_SHEET_NAME}!A${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
-            resource: { values: [rowData] },
+            resource: { values: [newRow] },
         });
-        return { statusCode: 200, body: JSON.stringify({ message: 'Employee updated successfully' }) };
+        return { statusCode: 200, body: JSON.stringify({ message: 'Employee updated successfully!' }) };
+    } else {
+        // Append new row
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${EMPLOYEE_SHEET_NAME}!A1`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [newRow] },
+        });
+        return { statusCode: 200, body: JSON.stringify({ message: 'Employee added successfully!' }) };
     }
 }
 
