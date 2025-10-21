@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Management System</title>
+    <title>HR Management System MPL-TELECOM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -35,7 +35,7 @@
         <!-- Header -->
         <header class="mb-8">
             <h1 class="text-3xl font-bold text-slate-900">HR Management System</h1>
-            <p class="text-slate-500 mt-1">A unified dashboard to manage your employees and payroll.</p>
+            <p class="text-slate-500 mt-1">A unified dashboard to manage employees and payroll.</p>
         </header>
 
         <!-- Main Actions -->
@@ -508,7 +508,7 @@
                         <div class="text-sm space-y-2">
                            <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                            <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
-                           <p><strong>Salary:</strong> ₹${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
+                           <p><strong>Salary:</strong> ৳${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
                            <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : 'N/A'}</p>
                            ${emp.status !== 'Active' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate).toLocaleDateString()}</p>` : ''}
                         </div>
