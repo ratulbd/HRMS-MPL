@@ -200,16 +200,18 @@ function formatDateForSheet(date) {
     let formatted = new Intl.DateTimeFormat('en-GB', options).format(date);
     // Intl gives "23 Oct 25, 14:52" or "23 Oct 25, 2:52 pm"
     // We need to make it "23-OCT-25 2:52 PM"
-    formatted = formatted.replace(',', '')
-                         .replace(/ /g, '-') // Replace all spaces with dashes
-                         .toUpperCase()
-                         .replace('PM', ' PM') // Ensure space
-                         .replace('AM', ' AM'); // Ensure space
-    
-    // Fix for potential double dash if locale adds space (e.g., "23-OCT-25--2:52-PM")
-    formatted = formatted.replace('--', '-') 
-                         .replace('-PM', ' PM')
-                         .replace('-AM', ' AM');
+ // --- FIX ---
+    // 1. Remove comma
+    formatted = formatted.replace(',', '');
+    // 2. Replace first space (after day) with dash
+    formatted = formatted.replace(' ', '-');
+    // 3. Replace second space (after month) with dash
+    formatted = formatted.replace(' ', '-');
+    // 4. Uppercase everything
+    formatted = formatted.toUpperCase();
+    // 5. Ensure space before AM/PM (which was uppercased)
+    formatted = formatted.replace('PM', ' PM').replace('AM', ' AM');
+    // --- END FIX ---
                          
     return formatted;
 }
