@@ -245,6 +245,20 @@ async function getEmployeeSalary(employeeId) {
     }
 }
 
+//
+// --- NEW HELPER FUNCTION ---
+// Converts a 0-based column index into a Sheets column letter (e.g., 0 -> A, 27 -> AB)
+//
+function getColumnLetter(colIndex) { // 0-based index
+    let col = '';
+    let num = colIndex;
+    do {
+        col = String.fromCharCode('A'.charCodeAt(0) + (num % 26)) + col;
+        num = Math.floor(num / 26) - 1;
+    } while (num >= 0);
+    return col;
+}
+
 
 // --- Main Handler ---
 exports.handler = async (event) => {
@@ -336,7 +350,14 @@ async function getEmployees() {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    const lastColumnLetter = String.fromCharCode('A'.charCodeAt(0) + headers.length - 1);
+    //
+    // --- THIS IS THE FIXED LINE ---
+    //
+    const lastColumnLetter = getColumnLetter(headers.length - 1);
+    //
+    // --- END FIX ---
+    //
+
     const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`;
     console.log(`Fetching employee data from range: ${range}`);
 
