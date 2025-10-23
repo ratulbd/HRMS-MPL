@@ -7,7 +7,7 @@ const auth = new google.auth.GoogleAuth({
 });
 
 const sheets = google.sheets({ version: 'v4', auth });
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ'; // Use environment variable or default
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
 const SALARY_SHEET_PREFIX = 'Salary_'; // Prefix for salary sheets
 const HOLD_LOG_SHEET_NAME = 'Hold_Log'; // New sheet for hold/unhold actions
