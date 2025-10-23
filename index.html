@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Management System MPL-TELECOM</title>
+    <title>HR Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -22,10 +22,11 @@
             font-size: 0.75rem;
             font-weight: 500;
         }
-        .status-active { background-color: #dcfce7; color: #166534; }
-        .status-resigned { background-color: #fef9c3; color: #854d0e; }
-        .status-terminated { background-color: #fee2e2; color: #991b1b; }
-        .status-held { background-color: #ffedd5; color: #9a3412; }
+        /* Status Colors */
+        .status-active { background-color: #dcfce7; color: #166534; } /* Green */
+        .status-held { background-color: #ffedd5; color: #9a3412; } /* Orange */
+        .status-resigned { background-color: #fef9c3; color: #854d0e; } /* Yellow */
+        .status-terminated { background-color: #fee2e2; color: #991b1b; } /* Red */
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -35,8 +36,7 @@
         <!-- Header -->
         <header class="mb-8">
             <h1 class="text-3xl font-bold text-slate-900">HR Management System</h1>
-	    <h2 class="text-xl font-bold text-slate-900">MPL-TELECOM</h2>
-            <p class="text-slate-500 mt-1">A unified dashboard to manage employees and payroll.</p>
+            <p class="text-slate-500 mt-1">A unified dashboard to manage your employees and payroll.</p>
         </header>
 
         <!-- Main Actions -->
@@ -70,6 +70,7 @@
                     <select id="filterStatus" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                         <option value="">All</option>
                         <option value="Active">Active</option>
+                        <option value="Salary Held">Salary Held</option>
                         <option value="Resigned">Resigned</option>
                         <option value="Terminated">Terminated</option>
                     </select>
@@ -112,8 +113,15 @@
             <h2 id="modalTitle" class="text-2xl font-bold mb-6 flex-shrink-0">Add New Employee</h2>
             <form id="employeeForm" class="flex-grow overflow-y-auto pr-4">
                 <input type="hidden" id="employeeDocId">
+                <!-- Add hidden fields to preserve status -->
+                <input type="hidden" id="employeeStatus">
+                <input type="hidden" id="employeeSalaryHeld">
+                 <input type="hidden" id="separationDateHidden">
+                 <input type="hidden" id="remarksHidden">
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     
+                    <!-- Mandatory Fields -->
                     <div class="md:col-span-2 font-semibold text-slate-600 pb-1 border-b">Basic Information</div>
                     <div>
                         <label for="employeeId" class="block text-sm font-medium text-slate-700">Employee ID</label>
@@ -388,15 +396,14 @@
         </div>
     </div>
 
-    <script>
+
+    <script type="module">
         // --- UI Element Getters ---
         const $ = (id) => document.getElementById(id);
-
+        
         // --- Global State ---
-        let localEmployees = [];
-
-        // --- API Endpoint ---
-        const API_ENDPOINT = '/api';
+        let localEmployees = []; // Local cache of employees
+        const API_URL = '/api/proxy'; // Use the proxied API endpoint
 
         // --- Modal Management ---
         const openModal = (modalId) => $(modalId).classList.remove('hidden');
@@ -429,23 +436,47 @@
             confirmCallback = null;
             closeModal('confirmModal');
         });
+        
+        // --- API Fetch Helper ---
+        async function apiCall(action, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                };
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await window.fetch(`${API_URL}?action=${action}`, options);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: "Unknown server error" }));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                // Handle cases where the response might be empty (e.g., successful update with no body)
+                 const text = await response.text();
+                return text ? JSON.parse(text) : { success: true }; // Return a success object if empty
+
+            } catch (error) {
+                console.error(`API Call Error (${action}):`, error);
+                throw error; // Re-throw to be caught by the caller
+            }
+        }
 
         // --- Employee Data Handling ---
         async function fetchEmployees() {
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=getEmployees`);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const employees = await response.json();
-                localEmployees = employees;
+                const employees = await apiCall('getEmployees');
+                localEmployees = employees; // Update local cache
                 populateFilterDropdowns(employees);
                 filterAndRenderEmployees();
             } catch (error) {
                 console.error("Error fetching employees:", error);
-                customAlert("Error", "Could not fetch employee data from the server.");
+                customAlert("Error", `Could not fetch employee data: ${error.message}`);
                 const loadingIndicator = $('loading');
-                if (loadingIndicator) {
-                    loadingIndicator.innerHTML = '<p class="text-red-500 font-semibold">Could not load data. Please check the backend setup and your Google Sheet permissions.</p>';
-                }
+                if(loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500 font-semibold">Could not load data. Please refresh.</p>`;
             }
         }
         
@@ -453,6 +484,7 @@
             const designationFilter = $('filterDesignation');
             const designations = [...new Set(employees.map(e => e.designation).filter(Boolean))];
             
+            // Preserve the current value
             const currentVal = designationFilter.value;
             designationFilter.innerHTML = '<option value="">All</option>';
             designations.sort().forEach(d => {
@@ -471,8 +503,15 @@
             const typeFilter = $('filterType').value;
 
             const filtered = localEmployees.filter(emp => {
-                const nameMatch = nameFilter === '' || (emp.name && emp.name.toLowerCase().includes(nameFilter)) || (emp.employeeId && emp.employeeId.toLowerCase().includes(nameFilter));
-                const statusMatch = statusFilter === '' || emp.status === statusFilter;
+                // Determine the effective status for filtering
+                let effectiveStatus = emp.status;
+                // Treat salaryHeld boolean correctly
+                if (emp.status === 'Active' && emp.salaryHeld === true) {
+                    effectiveStatus = 'Salary Held';
+                }
+
+                const nameMatch = nameFilter === '' || emp.name.toLowerCase().includes(nameFilter) || emp.employeeId.toLowerCase().includes(nameFilter);
+                const statusMatch = statusFilter === '' || effectiveStatus === statusFilter;
                 const designationMatch = designationFilter === '' || emp.designation === designationFilter;
                 const typeMatch = typeFilter === '' || emp.employeeType === typeFilter;
                 
@@ -483,7 +522,7 @@
 
         function renderEmployeeList(employees) {
             const listContainer = $('employee-list');
-            listContainer.innerHTML = '';
+            listContainer.innerHTML = ''; // Clear previous list
             
             const loadingIndicator = $('loading');
             if(loadingIndicator) loadingIndicator.remove();
@@ -494,33 +533,52 @@
             }
 
             employees.forEach(emp => {
-                const statusClass = emp.status === 'Active' ? 'status-active' : (emp.status === 'Resigned' ? 'status-resigned' : 'status-terminated');
+                // Determine status and class
+                let statusText = emp.status;
+                let statusClass = '';
+                const isHeld = emp.salaryHeld === true; // Check boolean directly
+
+                if (emp.status === 'Active') {
+                    if (isHeld) {
+                        statusText = 'Salary Held';
+                        statusClass = 'status-held';
+                    } else {
+                        statusText = 'Active';
+                        statusClass = 'status-active';
+                    }
+                } else if (emp.status === 'Resigned') {
+                    statusText = 'Resigned';
+                    statusClass = 'status-resigned';
+                } else { // Terminated
+                    statusText = 'Terminated';
+                    statusClass = 'status-terminated';
+                }
+
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow-md p-6 flex flex-col';
                 card.innerHTML = `
                     <div class="flex-grow">
                         <div class="flex justify-between items-start">
-                             <h3 class="text-xl font-bold text-slate-900">${emp.name || 'No Name'}</h3>
-                             <span class="status-badge ${statusClass}">${emp.status || 'Active'}</span>
+                             <h3 class="text-xl font-bold text-slate-900">${emp.name}</h3>
+                             <span class="status-badge ${statusClass}">${statusText}</span>
                         </div>
-                        <p class="text-slate-500">${emp.designation || 'N/A'}</p>
-                        <p class="text-sm text-slate-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
+                        <p class="text-slate-500">${emp.designation}</p>
+                        <p class="text-sm text-slate-500 mb-4">ID: ${emp.employeeId}</p>
                         
                         <div class="text-sm space-y-2">
                            <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                            <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
-                           <p><strong>Salary:</strong> ৳${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
-                           <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : 'N/A'}</p>
-                           ${emp.status !== 'Active' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate).toLocaleDateString()}</p>` : ''}
+                           <p><strong>Salary:</strong> ₹${Number(emp.salary).toLocaleString('en-IN')}</p>
+                           <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate + 'T00:00:00').toLocaleDateString() : 'N/A'}</p> <!-- Add Timezone info if needed -->
+                           ${emp.status !== 'Active' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate + 'T00:00:00').toLocaleDateString()}</p>` : ''}
                         </div>
-                        ${emp.salaryHeld ? `<div class="mt-2"><span class="status-badge status-held">Salary Held</span></div>` : ''}
                         ${emp.remarks ? `<div class="mt-2 text-xs text-slate-600 bg-slate-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     </div>
                     <div class="border-t border-slate-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
                          <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-800" data-id="${emp.id}">View Details</button>
                          <button class="edit-btn text-sm font-medium text-blue-600 hover:text-blue-800" data-id="${emp.id}">Edit</button>
-                        ${(emp.status || 'Active') === 'Active' ? `
-                            <button class="toggle-hold-btn text-sm font-medium ${emp.salaryHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${emp.salaryHeld}">${emp.salaryHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
+                        ${emp.status === 'Active' ? `
+                            <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
                             <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button>
                             <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button>
                         ` : ''}
@@ -534,24 +592,39 @@
         $('employee-list').addEventListener('click', async (e) => {
             const target = e.target;
             const docId = target.dataset.id;
-            if (docId === undefined) return;
-            
-            const employee = localEmployees.find(emp => emp.id == docId);
-            if (!employee) return;
+            if (!docId) return;
+
+            // Use == for comparison as id from sheet might be string or number
+            const employee = localEmployees.find(emp => emp.id == docId); 
+            if (!employee) {
+                console.error("Employee not found in local cache for ID:", docId);
+                return;
+            }
             
             if (target.classList.contains('view-details-btn')) {
                 openViewDetailsModal(employee);
             } else if (target.classList.contains('edit-btn')) {
                 openEmployeeModal(employee);
             } else if (target.classList.contains('resign-btn')) {
-                openStatusChangeModal(employee.employeeId, 'Resigned');
+                openStatusChangeModal(employee, 'Resigned');
             } else if (target.classList.contains('terminate-btn')) {
-                openStatusChangeModal(employee.employeeId, 'Terminated');
+                openStatusChangeModal(employee, 'Terminated');
             } else if (target.classList.contains('toggle-hold-btn')) {
                 const isHeld = target.dataset.held === 'true';
-                employee.salaryHeld = !isHeld;
-                await saveEmployee(employee);
-                fetchEmployees();
+                const newHeldStatus = !isHeld;
+                try {
+                    // Show loading state?
+                    await apiCall('updateStatus', 'POST', { 
+                        employeeId: employee.employeeId, 
+                        salaryHeld: newHeldStatus // Send boolean
+                    });
+                    customAlert("Success", `Salary for ${employee.name} has been ${newHeldStatus ? 'Held' : 'Unhold'}.`);
+                    fetchEmployees(); // Re-fetch to update UI
+                } catch (error) {
+                    customAlert("Error", `Failed to update salary status: ${error.message}`);
+                } finally {
+                    // Hide loading state?
+                }
             }
         });
 
@@ -567,19 +640,47 @@
             filterAndRenderEmployees();
         });
 
+
         // --- Employee Form Modal Logic ---
         function openEmployeeModal(employee = null) {
             $('employeeForm').reset();
             if (employee) {
+                // Edit mode
                 $('modalTitle').textContent = 'Edit Employee';
+                $('employeeDocId').value = employee.id; // Store the relative sheet row ID
+                
+                // Populate all fields
                 Object.keys(employee).forEach(key => {
                     const input = $(key);
-                    if (input) input.value = employee[key] || '';
+                     // Special handling for hidden fields
+                    if (key === 'status') {
+                        $('employeeStatus').value = employee[key] || 'Active';
+                    } else if (key === 'salaryHeld') {
+                        $('employeeSalaryHeld').value = employee[key] || false; // Store boolean
+                    } else if (key === 'separationDate') {
+                         $('separationDateHidden').value = employee[key] || '';
+                    } else if (key === 'remarks') {
+                         $('remarksHidden').value = employee[key] || '';
+                    } else if (input) { // Populate visible form fields
+                        input.value = employee[key] || '';
+                    }
                 });
+                
+                // Employee ID should not be editable after creation
                 $('employeeId').setAttribute('readonly', true);
                 $('employeeId').classList.add('bg-slate-100');
+
             } else {
+                // Add mode
                 $('modalTitle').textContent = 'Add New Employee';
+                $('employeeDocId').value = ''; // No ID for new employee yet
+                
+                // Set defaults for new employee in hidden fields
+                $('employeeStatus').value = 'Active';
+                $('employeeSalaryHeld').value = 'false'; // Store as string initially, will be converted
+                $('separationDateHidden').value = '';
+                $('remarksHidden').value = '';
+
                 $('employeeId').removeAttribute('readonly');
                 $('employeeId').classList.remove('bg-slate-100');
             }
@@ -591,37 +692,69 @@
 
         $('employeeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const form = e.target;
-            const employeeData = {};
-            new FormData(form).forEach((value, key) => {
-                const input = form.querySelector(`[name=${key}]`);
-                if(input) employeeData[key] = value;
-            });
-            // Manual population since FormData doesn't get all fields
-            document.querySelectorAll('#employeeForm input, #employeeForm select').forEach(el => {
-                if(el.id) employeeData[el.id] = el.value;
-            });
+            const docId = $('employeeDocId').value; // This is the relative row ID for updates
+            
+            // Gather data from visible form fields
+            const employeeData = {
+                employeeId: $('employeeId').value,
+                name: $('name').value,
+                employeeType: $('employeeType').value,
+                designation: $('designation').value,
+                joiningDate: $('joiningDate').value,
+                project: $('project').value,
+                projectOffice: $('projectOffice').value,
+                reportProject: $('reportProject').value,
+                subCenter: $('subCenter').value,
+                personalMobile: $('personalMobile').value,
+                officialMobile: $('officialMobile').value || '',
+                mobileLimit: parseFloat($('mobileLimit').value) || 0,
+                workExperience: parseFloat($('workExperience').value),
+                education: $('education').value,
+                fatherName: $('fatherName').value,
+                motherName: $('motherName').value,
+                identification: $('identification').value,
+                dob: $('dob').value,
+                bloodGroup: $('bloodGroup').value,
+                address: $('address').value,
+                nomineeName: $('nomineeName').value,
+                nomineeMobile: $('nomineeMobile').value,
+                salary: parseFloat($('salary').value),
+                bankAccount: $('bankAccount').value || '',
+                // Preserve existing status/held/remarks/separation from hidden fields
+                status: $('employeeStatus').value,
+                salaryHeld: $('employeeSalaryHeld').value === 'true' || $('employeeSalaryHeld').value === true, // Convert to boolean for consistency
+                separationDate: $('separationDateHidden').value,
+                remarks: $('remarksHidden').value
+            };
+            
+            try {
+                 if (docId) { // If docId exists, it's an update, send the original employeeId
+                     employeeData.originalEmployeeId = employeeData.employeeId; // Send original ID for lookup
+                 } else { // New employee, check for duplicates client-side
+                     const empExists = localEmployees.some(emp => emp.employeeId === employeeData.employeeId);
+                     if (empExists) {
+                         customAlert("Error", "An employee with this ID already exists.");
+                         return;
+                     }
+                      // Ensure status/held are set correctly for a new employee
+                     employeeData.status = 'Active';
+                     employeeData.salaryHeld = false;
+                     employeeData.separationDate = '';
+                     employeeData.remarks = '';
+                 }
 
-            await saveEmployee(employeeData);
-            closeModal('employeeModal');
-            fetchEmployees();
-        });
+                // Call the unified saveEmployee endpoint
+                await apiCall('saveEmployee', 'POST', employeeData);
+                customAlert("Success", docId ? "Employee details updated." : "New employee added.");
+                
+                closeModal('employeeModal');
+                fetchEmployees(); // Re-fetch to update UI
 
-        async function saveEmployee(employee) {
-             try {
-                const response = await fetch(`${API_ENDPOINT}?action=saveEmployee`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(employee)
-                });
-                if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
-                const result = await response.json();
-                customAlert("Success", result.message);
             } catch (error) {
                 console.error("Error saving employee:", error);
-                customAlert("Error", `Failed to save employee data. ${error.message}`);
+                customAlert("Error", `Failed to save employee data: ${error.message}`);
             }
-        }
+        });
 
         // --- Bulk Upload & Export Logic ---
         $('bulkUploadBtn').addEventListener('click', () => {
@@ -639,133 +772,265 @@
         });
 
         function exportEmployeesToCSV() {
-            // Use the exact headers from the template
-            const headers = getTemplateHeaders();
-            const headerKeys = headers.map(h => {
-                const normalized = h.toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, '');
-                return Object.keys(HEADER_MAPPING).find(key => HEADER_MAPPING[key] === normalized);
-            }).filter(Boolean);
+            const headers = [
+                "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date",
+                "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)",
+                "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth",
+                "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number",
+                "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number",
+                "Status", "Salary Held", "Separation Date", "Remarks" // Added status fields
+            ];
 
+            const headerKeys = [ // Order must match headers
+                "employeeId", "name", "employeeType", "designation", "joiningDate",
+                "project", "projectOffice", "reportProject", "subCenter", "workExperience",
+                "education", "fatherName", "motherName", "personalMobile", "dob",
+                "bloodGroup", "address", "identification", "nomineeName", "nomineeMobile",
+                "salary", "officialMobile", "mobileLimit", "bankAccount",
+                "status", "salaryHeld", "separationDate", "remarks" // Added status fields
+            ];
 
             let csvContent = headers.join(',') + '\n';
 
             localEmployees.forEach(emp => {
                 const row = headerKeys.map(key => {
-                    let value = emp[key] === undefined || emp[key] === null ? '' : String(emp[key]);
-                    if (value.includes(',')) {
-                        return `"${value.replace(/"/g, '""')}"`;
+                     let value = emp[key] === undefined || emp[key] === null ? '' : String(emp[key]);
+                     // Ensure boolean TRUE/FALSE for salaryHeld
+                     if (key === 'salaryHeld') {
+                         value = (emp[key] === true || String(emp[key]).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+                     }
+                    // Basic CSV escaping for values containing commas or quotes
+                    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                        return `"${value.replace(/"/g, '""')}"`; // Escape quotes by doubling them
                     }
                     return value;
                 });
                 csvContent += row.join(',') + '\n';
             });
 
-            downloadCSV(csvContent, "employee_data_export.csv");
-        }
-
-        function getTemplateHeaders() {
-            return [
-                "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", 
-                "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)", 
-                "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth", 
-                "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number", 
-                "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number"
-            ];
-        }
-        
-        $('downloadTemplateBtn').addEventListener('click', () => {
-            const headers = getTemplateHeaders();
-            const csvContent = headers.join(',');
-            downloadCSV(csvContent, "employee_upload_template.csv");
-        });
-        
-        function downloadCSV(content, fileName) {
-            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8,' });
             const link = document.createElement("a");
             if (link.download !== undefined) {
                 const url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                link.setAttribute("download", fileName);
+                link.setAttribute("download", "employee_data_export.csv");
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             }
         }
+        
+        $('downloadTemplateBtn').addEventListener('click', () => {
+            const headers = [
+                // Required
+                "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", 
+                "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)", 
+                "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth", 
+                "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number", 
+                "Gross Salary",
+                // Optional
+                "Official Mobile Number", "Mobile Limit", "Bank Account Number"
+                 // Status fields are NOT included in the upload template, handled by actions
+            ];
+            
+            const csvContent = headers.join(',');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8,' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "employee_upload_template.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
 
         $('bulkUploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const file = $('employeeFile').files[0];
-            if (!file) return customAlert("Warning", "Please select a file to upload.");
+            if (!file) {
+                customAlert("Warning", "Please select a file to upload.");
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = async (event) => {
                 const csvData = event.target.result;
                 const newEmployees = parseEmployeeCSV(csvData);
                 if (newEmployees && newEmployees.length > 0) {
-                    for (const emp of newEmployees) {
-                        await saveEmployee(emp);
-                    }
-                    closeModal('bulkUploadModal');
-                    customAlert("Bulk Upload", "Upload process completed.");
-                    fetchEmployees();
+                    bulkAddEmployees(newEmployees);
                 }
             };
             reader.readAsText(file);
         });
 
         function parseEmployeeCSV(data) {
-           try {
+             try {
+                // This function robustly splits a CSV line, handling quoted fields.
                 const parseCsvLine = (line) => {
                     const values = [];
                     let currentVal = '';
                     let inQuotes = false;
+
                     for (let i = 0; i < line.length; i++) {
                         const char = line[i];
-                        if (char === '"' && (i === 0 || line[i - 1] !== '"')) {
-                            inQuotes = !inQuotes;
-                            continue;
-                        }
-                        if (char === ',' && !inQuotes) {
-                            values.push(currentVal.replace(/""/g, '"'));
+                        
+                        // Handle quotes
+                        if (char === '"') {
+                            if (inQuotes && line[i+1] === '"') {
+                                // This is an escaped quote " "
+                                currentVal += '"';
+                                i++; // Skip the next quote
+                            } else {
+                                // This is the start or end of a quoted field
+                                inQuotes = !inQuotes;
+                            }
+                        } 
+                        // Handle comma
+                        else if (char === ',' && !inQuotes) {
+                            values.push(currentVal.trim()); // Trim whitespace around commas
                             currentVal = '';
-                        } else {
+                        } 
+                        // Handle other characters
+                        else {
                             currentVal += char;
                         }
                     }
-                    values.push(currentVal.replace(/""/g, '"'));
+                    values.push(currentVal.trim()); // Add the last value and trim it
                     return values;
                 };
 
-                const lines = data.split(/\r\n|\n/).filter(line => line.trim() !== '');
-                if (lines.length < 2) throw new Error("CSV must have a header and at least one data row.");
+                const lines = data.split(/[\r\n]+/).filter(line => line.trim() !== ''); // Split by newline, handle CR+LF
+                if (lines.length < 1) throw new Error("CSV file is empty or has no header.");
 
                 const rawHeader = parseCsvLine(lines.shift());
-                const normalizedHeaders = rawHeader.map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
-                
-                return lines.map(line => {
+                const header = rawHeader.map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, '')); // Normalize headers
+
+                // Map required/optional fields to their normalized header names
+                 const fieldMapping = {
+                    employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
+                    designation: 'designation', joiningDate: 'joiningdate', project: 'project',
+                    projectOffice: 'projectoffice', reportProject: 'reportproject', subCenter: 'subcenter',
+                    workExperience: 'workexperience', education: 'education', fatherName: 'fathersname',
+                    motherName: 'mothersname', personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
+                    bloodGroup: 'bloodgroup', address: 'address', identification: 'identification',
+                    nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
+                    officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber'
+                };
+                 const requiredNormalizedFields = [
+                     'employeeid', 'employeename', 'employeetype', 'designation', 'joiningdate', 'project',
+                     'projectoffice', 'reportproject', 'subcenter', 'workexperience', 'education', 'fathersname',
+                     'mothersname', 'personalmobilenumber', 'dob', 'bloodgroup', 'address', 'identification',
+                     'nomineesname', 'nomineesmobilenumber', 'grosssalary'
+                 ];
+
+
+                const colIndexes = {};
+                // Find index for each field in the mapping
+                 for (const key in fieldMapping) {
+                     const normalizedHeader = fieldMapping[key];
+                     const index = header.indexOf(normalizedHeader);
+                     if (index !== -1) {
+                         colIndexes[key] = index;
+                     } else if (requiredNormalizedFields.includes(normalizedHeader)) {
+                         // Throw error only if a *required* field is missing
+                         throw new Error(`Missing required column: '${normalizedHeader}' (mapped from '${key}')`);
+                     }
+                 }
+
+
+                return lines.map((line, lineIndex) => {
                     const values = parseCsvLine(line);
-                    const emp = {};
-                    normalizedHeaders.forEach((header, i) => {
-                        const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
-                        if (key) {
-                            emp[key] = values[i] || '';
-                        }
-                    });
-                    return emp;
-                });
+                     // Check if column count matches header count, allowing for trailing commas
+                    if (values.length < header.length) {
+                         console.warn(`Skipping line ${lineIndex + 2}: Mismatched column count. Expected ${header.length}, got ${values.length}. Line: "${line}"`);
+                        return null; // Skip this malformed line
+                    }
+
+                    const empData = {};
+                     // Populate empData based on found column indexes
+                     for (const key in colIndexes) {
+                         const index = colIndexes[key];
+                         empData[key] = values[index] !== undefined ? values[index] : ''; // Use empty string if value missing
+                     }
+
+                    // Perform type conversions and add defaults
+                    empData.workExperience = parseFloat(empData.workExperience) || 0;
+                    empData.salary = parseFloat(empData.salary) || 0;
+                    empData.mobileLimit = parseFloat(empData.mobileLimit) || 0;
+                    empData.officialMobile = empData.officialMobile || '';
+                    empData.bankAccount = empData.bankAccount || '';
+                    empData.status = 'Active'; // Default for bulk upload
+                    empData.salaryHeld = false; // Default for bulk upload
+
+                    // Basic validation for required fields before returning
+                     if (!empData.employeeId || !empData.name || !empData.joiningDate) {
+                        console.warn(`Skipping line ${lineIndex + 2}: Missing essential data (ID, Name, or Joining Date). Line: "${line}"`);
+                         return null;
+                     }
+
+                    return empData;
+                }).filter(emp => emp !== null); // Filter out any skipped lines
             } catch (error) {
-                customAlert("CSV Parse Error", `Could not read the file. Error: ${error.message}`);
-                return null;
+                 customAlert("CSV Parse Error", `Could not read the file. Please check its format. Error: ${error.message}`);
+                 console.error("CSV Parsing Detailed Error:", error);
+                 return null;
             }
         }
-        
+
+
+        async function bulkAddEmployees(employees) {
+            const existingIds = new Set(localEmployees.map(emp => emp.employeeId));
+            let addedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
+            
+            for (const emp of employees) {
+                // Ensure required fields have valid values after parsing
+                if (!emp.employeeId || existingIds.has(emp.employeeId)) {
+                    console.warn(`Skipping employee (duplicate or missing ID): ${emp.employeeId || 'N/A'}`);
+                    skippedCount++;
+                    continue;
+                }
+                if (!emp.name || !emp.joiningDate || isNaN(emp.salary)) {
+                     console.warn(`Skipping employee (invalid essential data): ${emp.employeeId}`);
+                    skippedCount++;
+                    continue;
+                }
+
+                try {
+                     // Set default status fields explicitly for bulk add
+                     emp.status = 'Active';
+                     emp.salaryHeld = false;
+                     emp.separationDate = ''; // Ensure these are empty
+                     emp.remarks = '';
+
+                    await apiCall('saveEmployee', 'POST', emp);
+                    addedCount++;
+                    existingIds.add(emp.employeeId);
+                } catch (error) {
+                    console.error(`Error adding employee via API ${emp.employeeId}:`, error);
+                    errorCount++;
+                }
+            }
+
+            closeModal('bulkUploadModal');
+            customAlert("Bulk Upload Complete", `Added: ${addedCount}. Skipped: ${skippedCount} (duplicates/invalid). Failed: ${errorCount}.`);
+            fetchEmployees(); // Refresh the list
+        }
+
         // --- Status Change Modal Logic ---
-        function openStatusChangeModal(employeeId, newStatus) {
+        function openStatusChangeModal(employee, newStatus) {
             $('statusChangeForm').reset();
-            $('statusChangeEmployeeId').value = employeeId;
+            $('statusChangeEmployeeId').value = employee.employeeId; // Use employeeId
             $('statusChangeNewStatus').value = newStatus;
-            $('separationDate').valueAsDate = new Date();
+            
+            // Pre-fill existing data if it exists, default to today if not set
+            $('separationDate').value = employee.separationDate || new Date().toISOString().split('T')[0]; 
+            $('remarks').value = employee.remarks || '';
 
             const title = `Mark as ${newStatus}`;
             const dateLabel = newStatus === 'Resigned' ? 'Resignation Date' : 'Termination Date';
@@ -780,21 +1045,54 @@
 
         function openViewDetailsModal(employee) {
             const content = $('viewDetailsContent');
+             const isHeld = employee.salaryHeld === true; // Check boolean
             const detailsMap = {
-                "Employee ID": employee.employeeId, "Employee Name": employee.name, "Status": employee.status,
-                "Employee Type": employee.employeeType, "Designation": employee.designation, "Joining Date": employee.joiningDate,
-                "Work Experience (Years)": employee.workExperience, "Education": employee.education, "Project": employee.project,
-                "Project Office": employee.projectOffice, "Report Project": employee.reportProject, "Sub Center": employee.subCenter,
-                "Father's Name": employee.fatherName, "Mother's Name": employee.motherName, "Personal Mobile": employee.personalMobile,
-                "Date of Birth": employee.dob, "Blood Group": employee.bloodGroup, "Address": employee.address,
-                "Identification (NID/etc.)": employee.identification, "Nominee's Name": employee.nomineeName, "Nominee's Mobile": employee.nomineeMobile,
-                "Official Mobile": employee.officialMobile, "Mobile Limit": employee.mobileLimit,
-                "Gross Salary": `₹${Number(employee.salary).toLocaleString('en-IN')}`, "Bank Account": employee.bankAccount,
+                "Employee ID": employee.employeeId,
+                "Employee Name": employee.name,
+                "Status": employee.status,
+                "Salary Held": isHeld ? 'Yes' : 'No', // Display Yes/No based on boolean
+                "Employee Type": employee.employeeType,
+                "Designation": employee.designation,
+                "Joining Date": employee.joiningDate,
+                "Work Experience (Years)": employee.workExperience,
+                "Education": employee.education,
+                "Project": employee.project,
+                "Project Office": employee.projectOffice,
+                "Report Project": employee.reportProject,
+                "Sub Center": employee.subCenter,
+                "Father's Name": employee.fatherName,
+                "Mother's Name": employee.motherName,
+                "Personal Mobile": employee.personalMobile,
+                "Date of Birth": employee.dob,
+                "Blood Group": employee.bloodGroup,
+                "Address": employee.address,
+                "Identification (NID/etc.)": employee.identification,
+                "Nominee's Name": employee.nomineeName,
+                "Nominee's Mobile": employee.nomineeMobile,
+                "Official Mobile": employee.officialMobile,
+                "Mobile Limit": employee.mobileLimit,
+                "Gross Salary": `₹${Number(employee.salary).toLocaleString('en-IN')}`,
+                "Bank Account": employee.bankAccount,
+                "Separation Date": employee.separationDate || 'N/A',
+                "Remarks": employee.remarks || 'N/A',
             };
 
             let html = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">';
             for (const [label, value] of Object.entries(detailsMap)) {
-                html += `<div class="border-b pb-2"><dt class="text-sm font-medium text-slate-500">${label}</dt><dd class="mt-1 text-sm text-slate-900">${value || 'N/A'}</dd></div>`;
+                 // Format date fields nicely if they exist
+                 let displayValue = value;
+                 if ((label === "Joining Date" || label === "Date of Birth" || label === "Separation Date") && value && value !== 'N/A') {
+                     try {
+                         displayValue = new Date(value + 'T00:00:00').toLocaleDateString();
+                     } catch (e) { /* Ignore formatting errors, show original value */ }
+                 }
+
+                html += `
+                    <div class="border-b pb-2">
+                        <dt class="text-sm font-medium text-slate-500">${label}</dt>
+                         <dd class="mt-1 text-sm text-slate-900">${displayValue || 'N/A'}</dd>
+                    </div>
+                `;
             }
             html += '</dl>';
             content.innerHTML = html;
@@ -804,42 +1102,253 @@
         $('statusChangeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const employeeId = $('statusChangeEmployeeId').value;
-            const employee = localEmployees.find(emp => emp.employeeId === employeeId);
-            if (!employee) return customAlert("Error", "Employee not found.");
+            const newStatus = $('statusChangeNewStatus').value;
+            const separationDate = $('separationDate').value;
+            const remarks = $('remarks').value;
 
-            employee.status = $('statusChangeNewStatus').value;
-            employee.separationDate = $('separationDate').value;
-            employee.remarks = $('remarks').value;
-
-            await saveEmployee(employee);
-            closeModal('statusChangeModal');
-            fetchEmployees();
+            if (!employeeId || !newStatus || !separationDate) return;
+            
+            try {
+                 // Show loading indicator?
+                await apiCall('updateStatus', 'POST', {
+                    employeeId: employeeId,
+                    status: newStatus,
+                    separationDate: separationDate,
+                    remarks: remarks || ''
+                });
+                closeModal('statusChangeModal');
+                customAlert("Success", "Employee status has been updated.");
+                fetchEmployees(); // Re-fetch to update UI
+            } catch (error) {
+                console.error("Error updating employee status:", error);
+                customAlert("Error", `Failed to update employee status: ${error.message}`);
+            } finally {
+                 // Hide loading indicator?
+            }
         });
 
-        // --- Dummy Salary Sheet Logic (for now) ---
+        // --- Attendance & Salary Sheet Logic ---
         $('uploadAttendanceBtn').addEventListener('click', () => {
-             customAlert("Not Implemented", "Salary Sheet generation is not yet connected in this version.");
+             $('attendanceForm').reset();
+             // Set default month to last month
+            const today = new Date();
+            today.setMonth(today.getMonth() - 1);
+            const year = today.getFullYear();
+            const month = (today.getMonth() + 1).toString().padStart(2, '0');
+            $('salaryMonth').value = `${year}-${month}`;
+
+            openModal('attendanceModal');
+        });
+        $('cancelAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
+        
+        $('attendanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = $('attendanceFile').files[0];
+            const monthYear = $('salaryMonth').value; // YYYY-MM
+            if (!file || !monthYear) {
+                customAlert("Warning", "Please select a month and an attendance file.");
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csvData = event.target.result;
+                const attendance = parseAttendanceCSV(csvData);
+                if (!attendance) return; // Error handled in parseCSV
+
+                generateAndSaveSalarySheet(attendance, monthYear);
+            };
+            reader.readAsText(file);
         });
         
+        function parseAttendanceCSV(data) {
+            try {
+                const lines = data.split(/[\r\n]+/).filter(line => line.trim() !== ''); // Handle different line endings
+                 if (lines.length < 1) throw new Error("Attendance CSV is empty or has no header.");
+
+                const header = lines.shift().toLowerCase().split(',').map(h => h.trim());
+                const idIndex = header.indexOf('employeeid');
+                const daysIndex = header.indexOf('dayspresent');
+
+                if (idIndex === -1 || daysIndex === -1) {
+                    customAlert("Invalid CSV", "Attendance CSV must contain 'employeeId' and 'daysPresent' columns.");
+                    return null;
+                }
+
+                const attendanceMap = new Map();
+                lines.forEach(line => {
+                    const values = line.split(',');
+                     // Ensure we have enough columns before accessing
+                     if (values.length > Math.max(idIndex, daysIndex)) {
+                         const empId = values[idIndex].trim();
+                         const days = parseInt(values[daysIndex].trim(), 10);
+                         if (empId && !isNaN(days)) {
+                             attendanceMap.set(empId, days);
+                         } else {
+                              console.warn(`Skipping invalid attendance line: ${line}`);
+                         }
+                     } else {
+                          console.warn(`Skipping short attendance line: ${line}`);
+                     }
+                });
+                return attendanceMap;
+            } catch (error) {
+                 customAlert("CSV Parse Error", "Could not read the attendance file. Please check its format.");
+                  console.error("Attendance CSV Parsing Error:", error);
+                 return null;
+            }
+        }
+        
+        async function generateAndSaveSalarySheet(attendance, monthYear) {
+            const [year, month] = monthYear.split('-');
+            const daysInMonth = new Date(year, month, 0).getDate();
+            
+            const sheetData = [];
+            // Use localEmployees cache
+            const activeEmployees = localEmployees.filter(e => e.status === 'Active');
+
+            activeEmployees.forEach(emp => {
+                const daysPresent = attendance.get(emp.employeeId) || 0;
+                const grossSalary = parseFloat(emp.salary) || 0;
+                let netSalary = 0;
+                let deduction = grossSalary;
+                let paymentStatus = "Paid";
+                const isHeld = emp.salaryHeld === true; // Check boolean
+                
+                if (isHeld) {
+                    netSalary = 0;
+                    deduction = grossSalary;
+                    paymentStatus = "Held";
+                } else if (daysInMonth > 0) { // Avoid division by zero
+                    netSalary = Math.round((grossSalary / daysInMonth) * daysPresent);
+                    deduction = grossSalary - netSalary;
+                } else { // Handle invalid daysInMonth (shouldn't happen with valid monthYear)
+                     netSalary = 0;
+                     deduction = grossSalary;
+                     console.warn(`Invalid days in month calculated for ${monthYear}`);
+                }
+                
+                sheetData.push({
+                    employeeId: emp.employeeId,
+                    name: emp.name,
+                    salary: grossSalary,
+                    daysPresent: daysPresent,
+                    deduction: deduction < 0 ? 0 : deduction, // Ensure deduction isn't negative
+                    netSalary: netSalary < 0 ? 0 : netSalary, // Ensure net salary isn't negative
+                    status: paymentStatus
+                });
+            });
+            
+            try {
+                 // Show loading indicator?
+                await apiCall('saveSheet', 'POST', {
+                    sheetId: `${year}-${month}`,
+                    sheetData: sheetData
+                });
+
+                closeModal('attendanceModal');
+                displaySalarySheet(sheetData, monthYear);
+                customAlert("Success", `Salary sheet for ${monthYear} has been generated and saved.`);
+            } catch (error) {
+                console.error("Error saving salary sheet:", error);
+                customAlert("Error", `Could not save the salary sheet: ${error.message}`);
+            } finally {
+                 // Hide loading indicator?
+            }
+        }
+        
+        function displaySalarySheet(sheetData, monthYear) {
+            const date = new Date(`${monthYear}-01T12:00:00Z`); // Use T12:00:00Z to avoid timezone issues
+            const monthName = date.toLocaleString('default', { month: 'long', timeZone: 'UTC' });
+            const year = date.getUTCFullYear();
+
+            $('sheetMonthYear').textContent = `For ${monthName}, ${year}`;
+            const tableBody = $('salarySheetBody');
+            tableBody.innerHTML = '';
+
+            sheetData.forEach(row => {
+                 const paymentStatusClass = row.status === 'Held' ? 'status-badge status-held' : 'text-slate-600';
+                 const tr = document.createElement('tr');
+                 tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${row.employeeId}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">₹${row.salary.toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.daysPresent}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">₹${row.deduction.toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700">₹${row.netSalary.toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="${paymentStatusClass}">${row.status}</span></td>
+                 `;
+                 tableBody.appendChild(tr);
+            });
+            
+            openModal('salarySheetModal');
+        }
+
+        $('closeSheetModal').addEventListener('click', () => closeModal('salarySheetModal'));
+
+        // --- View Past Sheets Logic ---
         $('viewSheetsBtn').addEventListener('click', async () => {
-            customAlert("Not Implemented", "Viewing past Salary Sheets is not yet connected in this version.");
+             // Show loading indicator?
+            try {
+                const sheets = await apiCall('getPastSheets');
+                
+                // Sort by most recent first (sheetId is YYYY-MM)
+                sheets.sort((a, b) => b.sheetId.localeCompare(a.sheetId));
+
+                const listEl = $('pastSheetsList');
+                listEl.innerHTML = '';
+                if (sheets.length === 0) {
+                     listEl.innerHTML = '<p class="text-slate-500 text-center">No past salary sheets found.</p>';
+                } else {
+                    sheets.forEach(sheet => {
+                        const date = new Date(`${sheet.sheetId}-01T12:00:00Z`);
+                        const monthName = date.toLocaleString('default', { month: 'long', timeZone: 'UTC' });
+                        const year = date.getUTCFullYear();
+                        const item = document.createElement('div');
+                        item.className = "p-4 border rounded-lg flex justify-between items-center";
+                        item.innerHTML = `
+                            <div>
+                                <p class="font-semibold">${monthName}, ${year}</p>
+                                <p class="text-sm text-slate-500">Sheet ID: ${sheet.sheetId}</p>
+                            </div>
+                            <button data-sheetid="${sheet.sheetId}" class="view-past-sheet-btn bg-blue-100 text-blue-800 text-sm font-semibold py-1 px-3 rounded-full hover:bg-blue-200">View</button>
+                        `;
+                        listEl.appendChild(item);
+                    });
+                }
+                openModal('viewSheetsModal');
+            } catch (error) {
+                console.error("Error fetching past sheets:", error);
+                customAlert("Error", `Could not load past salary sheets: ${error.message}`);
+            } finally {
+                 // Hide loading indicator?
+            }
+        });
+
+        $('closePastSheetsModal').addEventListener('click', () => closeModal('viewSheetsModal'));
+        
+        $('pastSheetsList').addEventListener('click', async (e) => {
+             if (e.target.classList.contains('view-past-sheet-btn')) {
+                 const sheetId = e.target.dataset.sheetid;
+                 // Show loading indicator?
+                 try {
+                     const sheet = await apiCall(`getSheetData&sheetId=${sheetId}`);
+                     if (sheet && sheet.sheetData) {
+                         closeModal('viewSheetsModal');
+                         displaySalarySheet(sheet.sheetData, sheet.sheetId);
+                     } else {
+                         customAlert("Error", "Could not find the selected salary sheet data.");
+                     }
+                 } catch (error) {
+                     customAlert("Error", `Could not load sheet: ${error.message}`);
+                 } finally {
+                      // Hide loading indicator?
+                 }
+             }
         });
 
         // --- Initial Load ---
         fetchEmployees();
-        
-        // --- Header Key Mappings ---
-        const HEADER_MAPPING = {
-            employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
-            designation: 'designation', joiningDate: 'joiningdate', project: 'project',
-            projectOffice: 'projectoffice', reportProject: 'reportproject', subCenter: 'subcenter',
-            workExperience: 'workexperience', education: 'education', fatherName: 'fathersname',
-            motherName: 'mothersname', personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
-            bloodGroup: 'bloodgroup', address: 'address', identification: 'identification',
-            nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
-            officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber',
-            status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate'
-        };
 
     </script>
 </body>
