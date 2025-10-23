@@ -1176,7 +1176,7 @@
                 "Date of Birth": employee.dob, "Blood Group": employee.bloodGroup, "Address": employee.address,
                 "Identification (NID/etc.)": employee.identification, "Nominee's Name": employee.nomineeName, "Nominee's Mobile": employee.nomineeMobile,
                 "Official Mobile": employee.officialMobile, "Mobile Limit": employee.mobileLimit,
-                "Gross Salary": `₹${Number(employee.salary || 0).toLocaleString('en-IN')}`, "Bank Account": employee.bankAccount,
+                "Gross Salary": `৳${Number(employee.salary || 0).toLocaleString('en-IN')}`, "Bank Account": employee.bankAccount,
                 "Separation Date": employee.separationDate || 'N/A', "Remarks": employee.remarks || 'N/A',
              };
             let html = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">';
@@ -1315,8 +1315,8 @@
                  const paymentStatusClass = row.status === 'Held' ? 'status-badge status-held' : 'text-slate-600'; const tr = document.createElement('tr');
                  tr.innerHTML = `
                     <td class="px-6 py-4 ...">${row.employeeId || ''}</td> <td class="px-6 py-4 ...">${row.name || ''}</td>
-                    <td class="px-6 py-4 ...">₹${Number(row.salary || 0).toLocaleString('en-IN')}</td> <td class="px-6 py-4 ...">${row.daysPresent || 0}</td>
-                    <td class="px-6 py-4 ...">₹${Number(row.deduction || 0).toLocaleString('en-IN')}</td> <td class="px-6 py-4 ...">₹${Number(row.netSalary || 0).toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 ...">৳${Number(row.salary || 0).toLocaleString('en-IN')}</td> <td class="px-6 py-4 ...">${row.daysPresent || 0}</td>
+                    <td class="px-6 py-4 ...">৳${Number(row.deduction || 0).toLocaleString('en-IN')}</td> <td class="px-6 py-4 ...">৳${Number(row.netSalary || 0).toLocaleString('en-IN')}</td>
                     <td class="px-6 py-4 ..."><span class="${paymentStatusClass}">${row.status || ''}</span></td>`;
                  tableBody.appendChild(tr);
              }); openModal('salarySheetModal');
