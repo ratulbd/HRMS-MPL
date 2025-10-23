@@ -37,42 +37,43 @@ let headerCache = {}; // Use an object to cache headers for multiple sheets
 let headerCacheTimestamp = {};
 const CACHE_DURATION = 60000; // Cache headers for 60 seconds
 
+
 async function getSheetHeaders(sheetName) {
-    const now = Date.now();
-    if (headerCache[sheetName] && (now - (headerCacheTimestamp[sheetName] || 0) < CACHE_DURATION)) {
-        console.log(`Using cached headers for ${sheetName}.`);
-        return headerCache[sheetName];
-    }
-    console.log(`Fetching fresh headers for ${sheetName}.`);
-    try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!1:1`, // Get only the first row
-        });
-        const headerRow = response.data.values ? response.data.values[0] : [];
-        // Normalize headers: lowercase, remove content in parentheses, remove apostrophes, remove spaces
-        const normalizedHeaders = headerRow.map(h => (h || '').trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
-        console.log(`Normalized headers for ${sheetName}:`, normalizedHeaders); // Log normalized headers
+  const now = Date.now();
+  if (headerCache[sheetName] && (now - (headerCacheTimestamp[sheetName] || 0) < CACHE_DURATION)) {
+    console.log(`Using cached headers for ${sheetName}.`);
+    return headerCache[sheetName];
+  }
+  console.log(`Fetching fresh headers for ${sheetName}.`);
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!1:1`,
+    });
+    const headerRow = response.data.values ? response.data.values[0] : [];
+    const normalizedHeaders = headerRow.map(h => (h || '').trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
+    console.log(`Normalized headers for ${sheetName}:`, normalizedHeaders);
 
-        // Update cache
-        headerCache[sheetName] = normalizedHeaders;
-        headerCacheTimestamp[sheetName] = now;
+    headerCache[sheetName] = normalizedHeaders;
+    headerCacheTimestamp[sheetName] = now;
 
-        return normalizedHeaders;
-    } catch (error) {
-        console.error(`Error getting headers for sheet ${sheetName}:`, error);
-        // Add more context to the error
-        const details = error.errors && error.errors[0] ? error.errors[0].message : error.message;
-        delete headerCache[sheetName]; // Invalidate cache on error
-        delete headerCacheTimestamp[sheetName];
-        // If error is specifically "Range not found", it might mean the sheet exists but is empty
-        if (error.code === 400 && error.message.includes('Unable to parse range')) {
-             console.warn(`Sheet ${sheetName} might be empty. Returning empty headers.`);
-             return []; // Return empty array if sheet/range doesn't exist or is empty
-        }
-        throw new Error(`Could not read headers from sheet: ${sheetName}. Details: ${details}. Make sure the sheet exists and is accessible.`);
+    return normalizedHeaders;
+  } catch (error) {
+    console.error(`Error getting headers for sheet ${sheetName}:`, error.stack || error.message);
+    if (error.response) {
+      console.error("Google API response error:", JSON.stringify(error.response.data));
     }
+    delete headerCache[sheetName];
+    delete headerCacheTimestamp[sheetName];
+    if (error.code === 400 && error.message.includes('Unable to parse range')) {
+      console.warn(`Sheet ${sheetName} might be empty. Returning empty headers.`);
+      return [];
+    }
+    const details = error.errors && error.errors[0] ? error.errors[0].message : error.message;
+    throw new Error(`Could not read headers from sheet: ${sheetName}. Details: ${details}. Make sure the sheet exists and is accessible.`);
+  }
 }
+
 
 
 // --- Helper: Find Row by Employee ID ---
@@ -322,47 +323,68 @@ exports.handler = async (event) => {
 };
 
 // --- API Action: Get Employees ---
+
 async function getEmployees() {
-    console.log("Executing getEmployees");
+  console.log("Executing getEmployees");
+
+  try {
     const headers = await getSheetHeaders(EMPLOYEE_SHEET_NAME);
+    console.log(`Headers fetched: ${JSON.stringify(headers)}`);
+
     if (headers.length === 0) {
-        console.warn(`No headers found in ${EMPLOYEE_SHEET_NAME}. Returning empty list.`);
-        return { statusCode: 200, body: JSON.stringify([]) };
+      console.warn(`No headers found in ${EMPLOYEE_SHEET_NAME}. Returning empty list.`);
+      return { statusCode: 200, body: JSON.stringify([]) };
     }
+
     const lastColumnLetter = String.fromCharCode('A'.charCodeAt(0) + headers.length - 1);
     const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`;
     console.log(`Fetching employee data from range: ${range}`);
 
     const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: range,
+      spreadsheetId: SPREADSHEET_ID,
+      range: range,
     });
 
     const dataRows = response.data.values;
+    console.log(`Data rows fetched: ${dataRows ? dataRows.length : 0}`);
+
     if (!dataRows || dataRows.length === 0) {
-        console.log("No data rows found in Employees sheet.");
-        return { statusCode: 200, body: JSON.stringify([]) };
+      console.log("No data rows found in Employees sheet.");
+      return { statusCode: 200, body: JSON.stringify([]) };
     }
-    console.log(`Fetched ${dataRows.length} employee data rows.`);
 
-    const headerRow = headers; // Use normalized headers
-
+    const headerRow = headers;
     const employees = dataRows.map((row, index) => {
-        const emp = { id: index + 2 }; // Use row number as ID
-        headerRow.forEach((header, i) => {
-            const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
-            if (key) {
-                const value = row[i] !== undefined && row[i] !== null ? row[i] : '';
-                emp[key] = (key === 'salaryHeld') ? (String(value).toUpperCase() === 'TRUE') : value;
-            }
-        });
-        emp.status = emp.status || 'Active';
-        emp.salaryHeld = emp.salaryHeld || false;
-        return emp;
+      const emp = { id: index + 2 };
+      headerRow.forEach((header, i) => {
+        const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
+        if (key) {
+          const value = row[i] !== undefined && row[i] !== null ? row[i] : '';
+          emp[key] = (key === 'salaryHeld') ? (String(value).toUpperCase() === 'TRUE') : value;
+        }
+      });
+      emp.status = emp.status || 'Active';
+      emp.salaryHeld = emp.salaryHeld || false;
+      return emp;
     });
+
     console.log(`Processed ${employees.length} employees.`);
     return { statusCode: 200, body: JSON.stringify(employees) };
+  } catch (error) {
+    console.error("Error in getEmployees:", error.stack || error.message);
+    if (error.response) {
+      console.error("Google API response error:", JSON.stringify(error.response.data));
+    }
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: 'An internal server error occurred.',
+        details: error.message,
+      }),
+    };
+  }
 }
+
 
 // --- API Action: Save Employee (Add or Update) ---
 async function saveEmployee(employeeData) {
