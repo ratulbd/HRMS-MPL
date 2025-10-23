@@ -538,30 +538,30 @@
 
         // --- Employee Data Handling ---
         async function fetchEmployees() {
-            const initialLoadingIndicator = $('initialLoading'); // Target initial loading specifically
+            const initialLoadingIndicator = $('initialLoading');
             const listContainer = $('employee-list');
 
-            // Show initial loading indicator if it exists
-             if (initialLoadingIndicator) initialLoadingIndicator.style.display = 'block';
-             // Clear previous employee cards if any (prevents duplicates during re-fetch)
-             listContainer.querySelectorAll('.employee-card').forEach(card => card.remove());
+            // Show initial loading indicator if it exists and hasn't been removed yet
+            if (initialLoadingIndicator) initialLoadingIndicator.style.display = 'block';
+            // Clear previous employee cards to prevent duplicates during re-fetch
+            listContainer.querySelectorAll('.employee-card').forEach(card => card.remove());
 
             try {
                 const employees = await apiCall('getEmployees');
                 localEmployees = employees; // Update local cache
                 populateFilterDropdowns(employees);
-                filterAndRenderEmployees(); // Render the list, which will implicitly remove initialLoading if successful
+                filterAndRenderEmployees(); // Render the list
             } catch (error) {
                 console.error("Error fetching employees:", error);
                 customAlert("Error", `Could not fetch employee data: ${error.message}`);
-                 // Display error message in the list container
-                 listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load data. Please refresh. (${error.message})</p></div>`;
-            } finally {
-                 // Ensure initial loading indicator is removed regardless of success/failure
+                // Display error message in the list container
+                listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load data. Please refresh. (${error.message})</p></div>`;
+                 // Explicitly remove loading indicator if error occurs AFTER initial setup
                  if (initialLoadingIndicator && initialLoadingIndicator.parentNode) {
                      initialLoadingIndicator.remove();
                  }
             }
+            // FINALLY block removed - indicator removal is handled by filterAndRenderEmployees or error display
         }
 
         function populateFilterDropdowns(employees) {
@@ -589,6 +589,8 @@
 
         function filterAndRenderEmployees() {
             const listContainer = $('employee-list'); // Get container reference
+            const initialLoadingIndicator = $('initialLoading'); // Find indicator
+
             const nameFilter = $('filterName').value.toLowerCase();
             const statusFilter = $('filterStatus').value;
             const designationFilter = $('filterDesignation').value;
@@ -616,10 +618,9 @@
                 return nameMatch && statusMatch && designationMatch && typeMatch;
             });
 
-             // Ensure initial loading indicator is removed before rendering
-             const initialLoadingIndicator = $('initialLoading');
-             if (initialLoadingIndicator && initialLoadingIndicator.parentNode) {
-                 initialLoadingIndicator.remove();
+             // Ensure initial loading indicator is removed *before* rendering the list or no-results message
+             if (initialLoadingIndicator && initialLoadingIndicator.parentNode === listContainer) {
+                 listContainer.removeChild(initialLoadingIndicator);
              }
 
             renderEmployeeList(listContainer, filtered); // Pass container and filtered list
@@ -652,21 +653,14 @@
                 } else if (statusText === 'Terminated') {
                     statusClass = 'status-terminated';
                 } else {
-                    // Handle unexpected status values gracefully
-                     console.warn(`Unexpected employee status: '${statusText}' for ID ${emp.employeeId}. Defaulting display.`);
-                     // Decide on a default display, e.g., show original text with a generic badge
-                     // For now, let's keep the original text but use a neutral badge or Active
-                     // statusClass = 'status-active'; // Or a more generic gray badge class
-                     // Or force to Terminated if that's safer
+                     console.warn(`Unexpected employee status: '${statusText}' for ID ${emp.employeeId}. Defaulting display to Terminated.`);
                      statusText = 'Terminated';
                      statusClass = 'status-terminated';
                 }
 
 
                 const card = document.createElement('div');
-                 // Add a common class for easy selection later if needed
                 card.className = 'employee-card bg-white rounded-lg shadow-md p-6 flex flex-col';
-                 // Use emp.id (which is the row number from initial fetch) for data-id
                 card.setAttribute('data-employee-row-id', emp.id);
                 card.innerHTML = `
                     <div class="flex-grow">
@@ -709,7 +703,7 @@
             const localId = cardElement.dataset.employeeRowId;
             if (!localId) return;
 
-            const employeeIndex = localEmployees.findIndex(emp => emp.id == localId); // Use ==
+            const employeeIndex = localEmployees.findIndex(emp => emp.id == localId); // Use == for potential string/number mismatch
             if (employeeIndex === -1) {
                 console.error("Employee not found in local cache for ID:", localId);
                 customAlert("Error", "Could not find employee data. Please refresh.");
@@ -801,7 +795,7 @@
                     const input = $(key);
                     // Handle hidden fields
                     if (key === 'status') $('employeeStatus').value = employee[key] || 'Active';
-                    else if (key === 'salaryHeld') $('employeeSalaryHeld').value = employee[key] === true; // Store boolean string
+                    else if (key === 'salaryHeld') $('employeeSalaryHeld').value = String(employee[key] === true || String(employee[key]).toUpperCase() === 'TRUE'); // Store 'true'/'false'
                     else if (key === 'separationDate') $('separationDateHidden').value = employee[key] || '';
                     else if (key === 'remarks') $('remarksHidden').value = employee[key] || '';
                     // Populate visible form fields
