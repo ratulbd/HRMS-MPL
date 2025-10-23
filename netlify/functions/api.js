@@ -91,7 +91,11 @@ async function findEmployeeRow(employeeId) {
         console.error(`'${idHeaderNormalized}' header not found in sheet headers:`, headers);
         throw new Error(`Could not find the '${idHeaderNormalized}' column header in the '${EMPLOYEE_SHEET_NAME}' sheet.`);
     }
-    const idColLetter = String.fromCharCode('A'.charCodeAt(0) + idColIndex);
+    
+    // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+    const idColLetter = getColumnLetter(idColIndex);
+    // --- END FIX ---
+    
     console.log(`Employee ID column identified as: ${idColLetter}`);
 
     try {
@@ -228,7 +232,10 @@ async function getEmployeeSalary(employeeId) {
         return null; // Salary column not found
     }
 
-    const salaryColLetter = String.fromCharCode('A'.charCodeAt(0) + salaryColIndex);
+    // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+    const salaryColLetter = getColumnLetter(salaryColIndex);
+    // --- END FIX ---
+    
     const range = `${EMPLOYEE_SHEET_NAME}!${salaryColLetter}${rowIndex}`;
 
     try {
@@ -374,7 +381,6 @@ async function getEmployees() {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    // *** THIS IS THE CORRECTED LINE ***
     const headerRow = headers;
     
     const employees = dataRows.map((row, index) => {
@@ -443,7 +449,11 @@ async function saveEmployee(employeeData) {
             if (idColIndex !== -1) newRow[idColIndex] = employeeData.originalEmployeeId;
         }
         console.log(`Updating employee at row ${rowIndex} with ID: ${lookupId}`);
-        const lastColumnLetter = String.fromCharCode('A'.charCodeAt(0) + headerRow.length - 1);
+        
+        // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+        const lastColumnLetter = getColumnLetter(headerRow.length - 1);
+        // --- END FIX ---
+        
         const range = `${EMPLOYEE_SHEET_NAME}!A${rowIndex}:${lastColumnLetter}${rowIndex}`;
         console.log(`Update range: ${range}`);
         try {
@@ -542,7 +552,11 @@ async function updateStatus(statusData) {
             console.warn(`Header '${headerName}' not found. Skipping.`);
             continue;
         }
-        const colLetter = String.fromCharCode('A'.charCodeAt(0) + colIndex);
+        
+        // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+        const colLetter = getColumnLetter(colIndex);
+        // --- END FIX ---
+
         let valueToSave = updates[key];
         if (key === 'salaryHeld') {
             valueToSave = (valueToSave === true || String(valueToSave).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
@@ -562,7 +576,11 @@ async function updateStatus(statusData) {
         const heldHeader = HEADER_MAPPING.salaryHeld;
         const heldColIndex = headerRow.indexOf(heldHeader);
         if (heldColIndex !== -1) {
-            const heldColLetter = String.fromCharCode('A'.charCodeAt(0) + heldColIndex);
+
+            // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+            const heldColLetter = getColumnLetter(heldColIndex);
+            // --- END FIX ---
+
             // Check if salaryHeld update already exists and overwrite if needed
             let existingUpdateIndex = dataToUpdate.findIndex(d => d.range.startsWith(`${EMPLOYEE_SHEET_NAME}!${heldColLetter}${rowIndex}`));
             if (existingUpdateIndex !== -1) {
@@ -582,7 +600,11 @@ async function updateStatus(statusData) {
         const statusHeader = HEADER_MAPPING.status;
         const statusColIndex = headerRow.indexOf(statusHeader);
         if (statusColIndex !== -1) {
-            const statusColLetter = String.fromCharCode('A'.charCodeAt(0) + statusColIndex);
+
+            // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
+            const statusColLetter = getColumnLetter(statusColIndex);
+            // --- END FIX ---
+
              // Check if status update already exists and overwrite if needed
              let existingUpdateIndex = dataToUpdate.findIndex(d => d.range.startsWith(`${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`));
              if (existingUpdateIndex !== -1) {
@@ -603,7 +625,9 @@ async function updateStatus(statusData) {
         try {
             const batchUpdateResult = await sheets.spreadsheets.values.batchUpdate({
                 spreadsheetId: SPREADSHEET_ID,
+                // --- FIX (Typo) ---
                 resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate },
+                // --- END FIX ---
             });
             console.log("Google Sheets API batchUpdate result:", batchUpdateResult.data);
             // Invalidate header cache after successful update, as structure *might* change (unlikely here)
