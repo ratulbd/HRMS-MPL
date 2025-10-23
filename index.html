@@ -64,7 +64,6 @@
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
             transition-duration: 150ms;
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
-            /* Added text-sm based on inspection */
             font-size: 0.875rem; /* text-sm */
             line-height: 1.25rem;
         }
@@ -81,17 +80,14 @@
         .btn-danger { background-color: #dc2626; color: white; }
         .btn-danger:hover { background-color: #b91c1c; }
 
-        /* Input Styles (if needed, or rely solely on Tailwind classes) */
+        /* Input Styles */
         .input, .input-select {
-             /* Example using Tailwind classes directly if preferred */
-             /* @apply mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm; */
              padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem;
         }
         .input:focus, .input-select:focus {
             border-color: #4f46e5; --tw-ring-color: #4f46e5; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
         }
          .input-select {
-             /* @apply pl-3 pr-10 text-base; */
              padding-left: 0.75rem; padding-right: 2.5rem; font-size: 1rem; line-height: 1.5rem; /* text-base */
             appearance: none;
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -101,17 +97,19 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900"> <div id="loadingOverlay" class="loading-overlay hidden">
+<body class="bg-gray-100 text-gray-900">
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
     </div>
 
-    <nav class="bg-white shadow-sm"> <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <span class="text-xl font-bold text-indigo-600">HR Management System</span>
                 </div>
                 <div class="flex items-center space-x-2">
-                    {/* Buttons use .btn classes defined above */}
                     <button id="uploadAttendanceBtn" class="btn btn-green">Generate Salary Sheet</button>
                     <button id="bulkUploadBtn" class="btn btn-teal">Bulk Upload</button>
                     <button id="exportDataBtn" class="btn btn-secondary">Export Data</button>
@@ -163,7 +161,7 @@
                 <div class="spinner mx-auto"></div>
                 <p class="text-gray-500 mt-2">Loading employee data...</p>
             </div>
-            </main>
+        </main>
     </div>
 
     <div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
@@ -173,15 +171,11 @@
                  <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
              </div>
              <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
-                  {/* Hidden inputs */ }
                   <input type="hidden" id="employeeDocId"><input type="hidden" id="employeeStatus"><input type="hidden" id="employeeSalaryHeld"><input type="hidden" id="separationDateHidden"><input type="hidden" id="remarksHidden"><input type="hidden" id="originalEmployeeIdHidden"><input type="hidden" id="holdTimestampHidden">
-
                   <div class="space-y-6">
-                      {/* Section: Basic Information */}
                       <div>
                           <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Basic Information</h3>
                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                               {/* Use .input / .input-select classes */}
                                <div><label for="employeeId" class="block text-sm font-medium text-gray-700">Employee ID</label><input type="text" id="employeeId" required class="input"></div>
                                <div><label for="name" class="block text-sm font-medium text-gray-700">Employee Name</label><input type="text" id="name" required class="input"></div>
                                <div><label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type</label><select id="employeeType" required class="input-select"><option>Permanent</option><option>Casual</option><option>Contractual</option><option>Temporary</option></select></div>
@@ -191,7 +185,6 @@
                                <div><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" required class="input"></div>
                            </div>
                        </div>
-                       {/* Section: Project Details */}
                        <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Project Details</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -201,7 +194,6 @@
                                 <div><label for="subCenter" class="block text-sm font-medium text-gray-700">Sub Center</label><input type="text" id="subCenter" required class="input"></div>
                            </div>
                        </div>
-                       {/* Section: Personal Details */}
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Personal Details</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -214,7 +206,6 @@
                                 <div class="md:col-span-2"><label for="identification" class="block text-sm font-medium text-gray-700">Identification (NID/Birth Cert.)</label><input type="text" id="identification" required class="input"></div>
                             </div>
                         </div>
-                       {/* Section: Contact & Nominee */}
                         <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Contact & Nominee</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -224,7 +215,6 @@
                                 <div><label for="mobileLimit" class="block text-sm font-medium text-gray-700">Mobile Limit</label><input type="number" id="mobileLimit" class="input"></div>
                             </div>
                         </div>
-                       {/* Section: Salary Details */}
                        <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Salary Details</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -233,7 +223,6 @@
                             </div>
                         </div>
                   </div>
-                  {/* Form Footer */}
                   <div class="mt-8 flex justify-end gap-4 flex-shrink-0 pt-6 border-t">
                       <button type="button" id="cancelEmployeeModal" class="btn btn-secondary">Cancel</button>
                       <button type="submit" class="btn btn-primary">Save Employee</button>
@@ -259,7 +248,6 @@
                     <button type="button" id="downloadTemplateBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Download Template</button>
                     <div class="flex gap-4">
                         <button type="button" id="cancelBulkUploadModal" class="btn btn-secondary">Cancel</button>
-                        {/* Ensure the submit button targets the correct form */}
                         <button type="submit" form="bulkUploadForm" class="btn btn-teal">Upload & Save</button>
                     </div>
                 </div>
@@ -388,7 +376,5 @@
     </div>
 
 
-    <script type="module" src="./js/main.js"></script>
-
-</body>
+    <script type="module" src="js/main.js"></script> </body>
 </html>
