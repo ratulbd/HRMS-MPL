@@ -1,8 +1,6 @@
 // netlify/functions/lib/_helpers.js
 
-const { google } = require('googleapis'); // May not be needed if `sheets` is always passed
-
-// --- Cache (Keep state here if managed by helpers) ---
+// --- Cache ---
 let headerCache = {};
 let headerCacheTimestamp = {};
 const CACHE_DURATION = 60000;
@@ -35,8 +33,12 @@ async function getSheetHeaders(sheets, SPREADSHEET_ID, sheetName) {
     }
 }
 
+// --- Helper: Column Letter ---
+function getColumnLetter(colIndex) { // 0-based index
+     let col = ''; let num = colIndex; do { col = String.fromCharCode(65 + (num % 26)) + col; num = Math.floor(num / 26) - 1; } while (num >= 0); return col;
+}
+
 // --- Helper: Find Row by Employee ID ---
-// Takes a *function* `getSheetHeadersFunc` to avoid circular dependency if called from other helpers
 async function findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, getSheetHeadersFunc, employeeId) {
     const headers = await getSheetHeadersFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
     if (!headers || headers.length === 0) throw new Error(`Headers missing or empty in '${EMPLOYEE_SHEET_NAME}'.`);
@@ -45,7 +47,7 @@ async function findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEAD
     const idColIndex = headers.indexOf(idHeaderNormalized);
     if (idColIndex === -1) throw new Error(`Could not find '${idHeaderNormalized}' column in '${EMPLOYEE_SHEET_NAME}'.`);
 
-    const idColLetter = getColumnLetter(idColIndex); // Uses getColumnLetter from below
+    const idColLetter = getColumnLetter(idColIndex); // Uses getColumnLetter from this file
     console.log(`Employee ID column: ${idColLetter}`);
     try {
         const range = `${EMPLOYEE_SHEET_NAME}!${idColLetter}2:${idColLetter}`;
@@ -64,6 +66,34 @@ async function findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEAD
     }
 }
 
+// --- Helper: Find Row by Username ---
+async function findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username) {
+    console.log(`Searching for username: ${username} in sheet: ${USERS_SHEET_NAME}`);
+    try {
+        const range = `${USERS_SHEET_NAME}!A2:A`; // Assume Username is always Column A, start scan from row 2
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+        const rows = response.data.values || [];
+        console.log(`Found ${rows.length} rows in Username column.`);
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i][0] && String(rows[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+                const rowIndex = i + 2; // 1-based index
+                console.log(`Found username ${username} at row index: ${rowIndex}`);
+                return rowIndex;
+            }
+        }
+        console.log(`Username ${username} not found.`);
+        return -1;
+    } catch (error) {
+        if (error.code === 400 && error.message.includes('Unable to parse range')) {
+             console.warn(`Sheet '${USERS_SHEET_NAME}' might be empty or Username column 'A' not found.`);
+             return -1;
+        }
+        console.error(`Error finding user row for ${username}:`, error);
+        throw error;
+    }
+}
+
+
 // --- Helper: Ensure Sheet Exists and Has Headers ---
 async function ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, expectedHeaders, getSheetHeadersFunc) {
      try {
@@ -77,15 +107,15 @@ async function ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, expected
             console.log(`Created sheet '${sheetName}'. Adding headers.`);
             await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `${sheetName}!A1`, valueInputOption: 'USER_ENTERED', resource: { values: [expectedHeaders] } });
             console.log(`Added headers to ${sheetName}.`);
-            delete headerCache[sheetName]; delete headerCacheTimestamp[sheetName]; // Invalidate cache
+            delete headerCache[sheetName]; delete headerCacheTimestamp[sheetName];
         } else {
              console.log(`Sheet '${sheetName}' already exists.`);
-             const currentHeaders = await getSheetHeadersFunc(sheets, SPREADSHEET_ID, sheetName); // Use passed getter
+             const currentHeaders = await getSheetHeadersFunc(sheets, SPREADSHEET_ID, sheetName);
              if (!currentHeaders || currentHeaders.length === 0) {
                   console.warn(`Sheet '${sheetName}' exists but has no headers. Adding headers.`);
                   await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `${sheetName}!A1`, valueInputOption: 'USER_ENTERED', resource: { values: [expectedHeaders] } });
                   console.log(`Added headers to existing empty sheet ${sheetName}.`);
-                  delete headerCache[sheetName]; delete headerCacheTimestamp[sheetName]; // Invalidate cache
+                  delete headerCache[sheetName]; delete headerCacheTimestamp[sheetName];
              }
         }
     } catch (error) {
@@ -96,9 +126,14 @@ async function ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, expected
 
 // --- Helper: Format Date for Sheet ---
 function formatDateForSheet(date) {
-    // ... (copy function from previous response) ...
-    const options = { /*...*/ }; let formatted = new Intl.DateTimeFormat('en-GB', options).format(date);
+    const options = {
+        timeZone: 'Asia/Dhaka', // Use appropriate timezone
+        day: '2-digit', month: 'short', year: '2-digit',
+        hour: 'numeric', minute: '2-digit', hour12: true
+    };
+    let formatted = new Intl.DateTimeFormat('en-GB', options).format(date);
     formatted = formatted.replace(',', '').replace(' ', '-').replace(' ', '-').toUpperCase().replace('PM', ' PM').replace('AM', ' AM');
+    formatted = formatted.replace('--', '-').replace('-PM', ' PM').replace('-AM', ' AM'); // Cleanup potential double dashes
     return formatted;
 }
 
@@ -108,7 +143,8 @@ async function logEvent(sheets, SPREADSHEET_ID, logSheetName, logHeaders, eventD
     const rowToLog = [timestamp, ...eventDataArray];
     console.log(`Logging event to ${logSheetName}:`, rowToLog);
     try {
-        await ensureSheetFunc(sheets, SPREADSHEET_ID, logSheetName, logHeaders, getSheetHeaders); // Pass ensureSheet, which needs getSheetHeaders
+        // Pass getSheetHeaders directly as the getter function needed by ensureSheetFunc
+        await ensureSheetFunc(sheets, SPREADSHEET_ID, logSheetName, logHeaders, getSheetHeaders);
         await sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: `${logSheetName}!A1`, valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS', resource: { values: [rowToLog] } });
         console.log(`Successfully logged event to ${logSheetName}.`);
     } catch (error) {
@@ -118,6 +154,7 @@ async function logEvent(sheets, SPREADSHEET_ID, logSheetName, logHeaders, eventD
 
 // --- Helper: Get Employee Salary ---
 async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, findEmployeeRowFunc, getSheetHeadersFunc, employeeId) {
+    // Pass getSheetHeadersFunc to findEmployeeRowFunc
     const rowIndex = await findEmployeeRowFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, getSheetHeadersFunc, employeeId);
     if (rowIndex === -1) return null;
 
@@ -130,7 +167,7 @@ async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HE
     const range = `${EMPLOYEE_SHEET_NAME}!${salaryColLetter}${rowIndex}`;
     try {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
-        const salary = response.data.values ? response.data.values[0][0] : null;
+        const salary = response.data.values?.[0]?.[0];
         console.log(`Fetched salary for ${employeeId}: ${salary}`);
         return salary;
     } catch (error) {
@@ -139,64 +176,14 @@ async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HE
     }
 }
 
-// --- Helper: Column Letter ---
-function getColumnLetter(colIndex) {
-    // ... (copy function from previous response) ...
-     let col = ''; let num = colIndex; do { col = String.fromCharCode(65 + (num % 26)) + col; num = Math.floor(num / 26) - 1; } while (num >= 0); return col;
-}
-
-
-// --- Exports ---
+// --- Exports --- Combine all exports into ONE block ---
 module.exports = {
     getSheetHeaders,
     findEmployeeRow,
+    findUserRow, // Export the new user finder
     ensureSheetAndHeaders,
     logEvent,
     getEmployeeSalary,
     getColumnLetter,
     formatDateForSheet
-};
-
-
-// netlify/functions/lib/_helpers.js
-
-// ... (other helper functions) ...
-
-// --- Helper: Find Row by Username ---
-// Finds a user in the Users sheet
-async function findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username) {
-    console.log(`Searching for username: ${username} in sheet: ${USERS_SHEET_NAME}`);
-    try {
-        // Assume Username is always in Column A for simplicity
-        const range = `${USERS_SHEET_NAME}!A2:A`; // Scan only username column
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: range,
-        });
-        const rows = response.data.values || [];
-        console.log(`Found ${rows.length} rows in Username column.`);
-        for (let i = 0; i < rows.length; i++) {
-            if (rows[i][0] && String(rows[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
-                const rowIndex = i + 2; // 1-based index (A2 is row 2)
-                console.log(`Found username ${username} at row index: ${rowIndex}`);
-                return rowIndex;
-            }
-        }
-        console.log(`Username ${username} not found.`);
-        return -1; // Not found
-    } catch (error) {
-        // Handle cases where the sheet might be empty or range is invalid
-        if (error.code === 400 && error.message.includes('Unable to parse range')) {
-             console.warn(`Sheet '${USERS_SHEET_NAME}' might be empty or Username column 'A' not found.`);
-             return -1;
-        }
-        console.error(`Error finding user row for ${username}:`, error);
-        throw error;
-    }
-}
-
-// --- Exports ---
-module.exports = {
-    // ... other exports ...
-    findUserRow // <-- Add this export
 };
