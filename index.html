@@ -683,7 +683,7 @@
                         <div class="text-sm space-y-2">
                            <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                            <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
-                           <p><strong>Salary:</strong> ₹${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
+                           <p><strong>Salary:</strong> ৳${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
                            <p><strong>Joined:</strong> ${formatDateForDisplay(emp.joiningDate)}</p>
                            ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
                         </div>
