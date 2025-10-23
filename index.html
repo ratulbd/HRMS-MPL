@@ -27,9 +27,39 @@
         .status-held { background-color: #ffedd5; color: #9a3412; } /* Orange */
         .status-resigned { background-color: #fef9c3; color: #854d0e; } /* Yellow */
         .status-terminated { background-color: #fee2e2; color: #991b1b; } /* Red */
+
+        /* Basic loading spinner */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 110; /* Higher than modals */
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
+
+    <!-- Loading Overlay -->
+     <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+     </div>
+
 
     <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
@@ -102,6 +132,7 @@
         <main id="employee-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Employee cards will be dynamically inserted here -->
             <div id="loading" class="col-span-full text-center p-8">
+                 <div class="spinner"></div> <!-- Use spinner for initial load -->
                 <p class="text-slate-500">Loading employee data...</p>
             </div>
         </main>
@@ -405,6 +436,10 @@
         let localEmployees = []; // Local cache of employees
         const API_URL = '/api/proxy'; // Use the proxied API endpoint
 
+         // --- Loading Overlay ---
+        const showLoading = () => $('loadingOverlay').classList.remove('hidden');
+        const hideLoading = () => $('loadingOverlay').classList.add('hidden');
+
         // --- Modal Management ---
         const openModal = (modalId) => $(modalId).classList.remove('hidden');
         const closeModal = (modalId) => $(modalId).classList.add('hidden');
@@ -439,6 +474,7 @@
         
         // --- API Fetch Helper ---
         async function apiCall(action, method = 'GET', body = null) {
+            showLoading(); // Show loading indicator on API call start
             try {
                 const options = {
                     method: method,
@@ -448,10 +484,25 @@
                     options.body = JSON.stringify(body);
                 }
                 
-                const response = await window.fetch(`${API_URL}?action=${action}`, options);
+                // Construct URL carefully, especially for GET with params like getSheetData
+                let url = `${API_URL}?action=${action}`;
+                // If the action already contains extra params (like getSheetData&sheetId=...), don't add ?action= again
+                if (action.includes('&')) {
+                     url = `${API_URL}?${action}`;
+                }
+
+
+                const response = await window.fetch(url, options);
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: "Unknown server error" }));
+                    let errorData;
+                    try {
+                         errorData = await response.json();
+                    } catch (e) {
+                         // If response is not JSON (e.g., HTML error page from Netlify)
+                         errorData = { error: `Server returned non-JSON response (Status: ${response.status})`, details: await response.text() };
+                    }
+                    console.error("API Error Response:", errorData);
                     throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
                 
@@ -462,39 +513,55 @@
             } catch (error) {
                 console.error(`API Call Error (${action}):`, error);
                 throw error; // Re-throw to be caught by the caller
+            } finally {
+                 hideLoading(); // Hide loading indicator on API call end/error
             }
         }
 
         // --- Employee Data Handling ---
         async function fetchEmployees() {
+            const loadingIndicator = $('loading');
+             if(loadingIndicator) loadingIndicator.style.display = 'block'; // Ensure loading is visible
+
             try {
                 const employees = await apiCall('getEmployees');
                 localEmployees = employees; // Update local cache
                 populateFilterDropdowns(employees);
-                filterAndRenderEmployees();
+                filterAndRenderEmployees(); // This will remove the loading div if successful
             } catch (error) {
                 console.error("Error fetching employees:", error);
                 customAlert("Error", `Could not fetch employee data: ${error.message}`);
-                const loadingIndicator = $('loading');
                 if(loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500 font-semibold">Could not load data. Please refresh.</p>`;
+            } finally {
+                 // Ensure loading is hidden even if renderEmployeeList doesn't run due to error
+                 if (loadingIndicator && loadingIndicator.parentNode) {
+                     loadingIndicator.remove();
+                 }
             }
         }
         
         function populateFilterDropdowns(employees) {
             const designationFilter = $('filterDesignation');
-            const designations = [...new Set(employees.map(e => e.designation).filter(Boolean))];
-            
-            // Preserve the current value
+            // Create Set from valid designations only
+            const designations = [...new Set(employees.map(e => e.designation).filter(d => d && typeof d === 'string'))];
+
+            // Preserve the current value if possible
             const currentVal = designationFilter.value;
-            designationFilter.innerHTML = '<option value="">All</option>';
+            designationFilter.innerHTML = '<option value="">All</option>'; // Start fresh
             designations.sort().forEach(d => {
                 const option = document.createElement('option');
                 option.value = d;
                 option.textContent = d;
                 designationFilter.appendChild(option);
             });
-            designationFilter.value = currentVal;
+            // Try to restore previous selection
+            if (designations.includes(currentVal)) {
+                designationFilter.value = currentVal;
+            } else {
+                 designationFilter.value = ""; // Default to All if previous value no longer exists
+            }
         }
+
 
         function filterAndRenderEmployees() {
             const nameFilter = $('filterName').value.toLowerCase();
@@ -503,10 +570,13 @@
             const typeFilter = $('filterType').value;
 
             const filtered = localEmployees.filter(emp => {
+                // Ensure emp object and necessary properties exist
+                 if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
+
                 // Determine the effective status for filtering
-                let effectiveStatus = emp.status;
+                let effectiveStatus = emp.status || 'Active'; // Default to Active if status is missing
                 // Treat salaryHeld boolean correctly
-                if (emp.status === 'Active' && emp.salaryHeld === true) {
+                if (effectiveStatus === 'Active' && emp.salaryHeld === true) {
                     effectiveStatus = 'Salary Held';
                 }
 
@@ -525,7 +595,7 @@
             listContainer.innerHTML = ''; // Clear previous list
             
             const loadingIndicator = $('loading');
-            if(loadingIndicator) loadingIndicator.remove();
+            if(loadingIndicator && loadingIndicator.parentNode) loadingIndicator.remove(); // Remove initial loading indicator
 
             if (employees.length === 0) {
                 listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-slate-500">No employees found matching the current filters.</p></div>`;
@@ -534,50 +604,51 @@
 
             employees.forEach(emp => {
                 // Determine status and class
-                let statusText = emp.status;
+                 let statusText = emp.status || 'Active'; // Default if missing
                 let statusClass = '';
                 const isHeld = emp.salaryHeld === true; // Check boolean directly
 
-                if (emp.status === 'Active') {
+                if (statusText === 'Active') {
                     if (isHeld) {
                         statusText = 'Salary Held';
                         statusClass = 'status-held';
                     } else {
-                        statusText = 'Active';
+                        // Status is already 'Active'
                         statusClass = 'status-active';
                     }
-                } else if (emp.status === 'Resigned') {
-                    statusText = 'Resigned';
+                } else if (statusText === 'Resigned') {
                     statusClass = 'status-resigned';
-                } else { // Terminated
-                    statusText = 'Terminated';
+                } else { // Terminated or any other non-Active status
+                    statusText = 'Terminated'; // Standardize if needed
                     statusClass = 'status-terminated';
                 }
 
+
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow-md p-6 flex flex-col';
+                // Use optional chaining and default values for safety
                 card.innerHTML = `
                     <div class="flex-grow">
                         <div class="flex justify-between items-start">
-                             <h3 class="text-xl font-bold text-slate-900">${emp.name}</h3>
+                             <h3 class="text-xl font-bold text-slate-900">${emp.name || 'N/A'}</h3>
                              <span class="status-badge ${statusClass}">${statusText}</span>
                         </div>
-                        <p class="text-slate-500">${emp.designation}</p>
-                        <p class="text-sm text-slate-500 mb-4">ID: ${emp.employeeId}</p>
+                        <p class="text-slate-500">${emp.designation || 'N/A'}</p>
+                        <p class="text-sm text-slate-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
                         
                         <div class="text-sm space-y-2">
                            <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                            <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
-                           <p><strong>Salary:</strong> ₹${Number(emp.salary).toLocaleString('en-IN')}</p>
-                           <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate + 'T00:00:00').toLocaleDateString() : 'N/A'}</p> <!-- Add Timezone info if needed -->
-                           ${emp.status !== 'Active' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate + 'T00:00:00').toLocaleDateString()}</p>` : ''}
+                           <p><strong>Salary:</strong> ₹${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
+                           <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate + 'T00:00:00').toLocaleDateString() : 'N/A'}</p>
+                           ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate + 'T00:00:00').toLocaleDateString()}</p>` : ''}
                         </div>
                         ${emp.remarks ? `<div class="mt-2 text-xs text-slate-600 bg-slate-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     </div>
                     <div class="border-t border-slate-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
                          <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-800" data-id="${emp.id}">View Details</button>
                          <button class="edit-btn text-sm font-medium text-blue-600 hover:text-blue-800" data-id="${emp.id}">Edit</button>
-                        ${emp.status === 'Active' ? `
+                         ${statusText === 'Active' || statusText === 'Salary Held' ? `
                             <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
                             <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button>
                             <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button>
@@ -588,45 +659,70 @@
             });
         }
         
-        // --- Event Listeners for Employee Actions ---
+       // --- Event Listeners for Employee Actions ---
         $('employee-list').addEventListener('click', async (e) => {
             const target = e.target;
-            const docId = target.dataset.id;
+            const docId = target.dataset.id; // This is the local cache ID (row number)
             if (!docId) return;
 
-            // Use == for comparison as id from sheet might be string or number
-            const employee = localEmployees.find(emp => emp.id == docId); 
-            if (!employee) {
+            // Find employee in local cache using the ID (row number)
+            const employeeIndex = localEmployees.findIndex(emp => emp.id == docId); // Use == for comparison
+            if (employeeIndex === -1) {
                 console.error("Employee not found in local cache for ID:", docId);
+                customAlert("Error", "Could not find employee data. Please refresh.");
                 return;
             }
+            const employee = localEmployees[employeeIndex];
+             // Ensure we always use the actual Employee ID for API calls
+             const employeeSheetId = employee.employeeId;
+             if (!employeeSheetId) {
+                  customAlert("Error", "Employee ID is missing. Cannot perform action.");
+                  return;
+             }
             
             if (target.classList.contains('view-details-btn')) {
                 openViewDetailsModal(employee);
             } else if (target.classList.contains('edit-btn')) {
                 openEmployeeModal(employee);
             } else if (target.classList.contains('resign-btn')) {
-                openStatusChangeModal(employee, 'Resigned');
+                openStatusChangeModal(employee, 'Resigned'); // Pass the whole employee object
             } else if (target.classList.contains('terminate-btn')) {
-                openStatusChangeModal(employee, 'Terminated');
+                openStatusChangeModal(employee, 'Terminated'); // Pass the whole employee object
             } else if (target.classList.contains('toggle-hold-btn')) {
                 const isHeld = target.dataset.held === 'true';
                 const newHeldStatus = !isHeld;
                 try {
-                    // Show loading state?
+                    // **Optimistic UI Update**
+                    localEmployees[employeeIndex].salaryHeld = newHeldStatus;
+                     // If unholding, ensure status is Active
+                     if (!newHeldStatus) {
+                         localEmployees[employeeIndex].status = 'Active';
+                     }
+                    filterAndRenderEmployees(); // Re-render immediately
+
+                    // **API Call**
                     await apiCall('updateStatus', 'POST', { 
-                        employeeId: employee.employeeId, 
+                        employeeId: employeeSheetId, // Use actual Employee ID for API
                         salaryHeld: newHeldStatus // Send boolean
                     });
-                    customAlert("Success", `Salary for ${employee.name} has been ${newHeldStatus ? 'Held' : 'Unhold'}.`);
-                    fetchEmployees(); // Re-fetch to update UI
+                    // Success message (optional, UI already updated)
+                    // customAlert("Success", `Salary for ${employee.name} has been ${newHeldStatus ? 'Held' : 'Unhold'}.`);
+                    
+                    // Fetch eventually to reconcile, but don't await (no loading spinner)
+                     fetchEmployees().catch(err => console.error("Re-fetch after hold/unhold failed:", err));
+
                 } catch (error) {
                     customAlert("Error", `Failed to update salary status: ${error.message}`);
-                } finally {
-                    // Hide loading state?
+                    // **Rollback UI Update on Error**
+                     localEmployees[employeeIndex].salaryHeld = isHeld; // Revert change
+                     if (!newHeldStatus) { // If we tried to unhold and failed, revert status if needed
+                          // This part is tricky, maybe just re-fetch is safer on error rollback
+                     }
+                     filterAndRenderEmployees(); // Re-render to show original state
                 }
             }
         });
+
 
         // --- Filter Event Listeners ---
         ['filterName', 'filterStatus', 'filterDesignation', 'filterType'].forEach(id => {
@@ -656,13 +752,24 @@
                     if (key === 'status') {
                         $('employeeStatus').value = employee[key] || 'Active';
                     } else if (key === 'salaryHeld') {
-                        $('employeeSalaryHeld').value = employee[key] || false; // Store boolean
+                        $('employeeSalaryHeld').value = employee[key] === true; // Store boolean
                     } else if (key === 'separationDate') {
                          $('separationDateHidden').value = employee[key] || '';
                     } else if (key === 'remarks') {
                          $('remarksHidden').value = employee[key] || '';
                     } else if (input) { // Populate visible form fields
-                        input.value = employee[key] || '';
+                         // Format date fields for input type="date"
+                         if ((key === 'joiningDate' || key === 'dob') && employee[key]) {
+                             try {
+                                 // Assuming YYYY-MM-DD format from sheet or parseable by Date
+                                 input.value = new Date(employee[key]).toISOString().split('T')[0];
+                             } catch (e) {
+                                 input.value = ''; // Clear if date is invalid
+                                 console.warn(`Invalid date format for ${key}: ${employee[key]}`);
+                             }
+                         } else {
+                            input.value = employee[key] || '';
+                         }
                     }
                 });
                 
@@ -677,7 +784,7 @@
                 
                 // Set defaults for new employee in hidden fields
                 $('employeeStatus').value = 'Active';
-                $('employeeSalaryHeld').value = 'false'; // Store as string initially, will be converted
+                $('employeeSalaryHeld').value = false; // Store boolean
                 $('separationDateHidden').value = '';
                 $('remarksHidden').value = '';
 
@@ -686,6 +793,7 @@
             }
             openModal('employeeModal');
         }
+
 
         $('addEmployeeBtn').addEventListener('click', () => openEmployeeModal());
         $('cancelEmployeeModal').addEventListener('click', () => closeModal('employeeModal'));
@@ -722,14 +830,14 @@
                 bankAccount: $('bankAccount').value || '',
                 // Preserve existing status/held/remarks/separation from hidden fields
                 status: $('employeeStatus').value,
-                salaryHeld: $('employeeSalaryHeld').value === 'true' || $('employeeSalaryHeld').value === true, // Convert to boolean for consistency
+                salaryHeld: $('employeeSalaryHeld').value === 'true' || $('employeeSalaryHeld').value === true, // Convert stored value to boolean
                 separationDate: $('separationDateHidden').value,
                 remarks: $('remarksHidden').value
             };
             
             try {
-                 if (docId) { // If docId exists, it's an update, send the original employeeId
-                     employeeData.originalEmployeeId = employeeData.employeeId; // Send original ID for lookup
+                 if (docId) { // If docId exists, it's an update
+                     // No need to send originalEmployeeId if we always use the (readonly) employeeId field for lookup
                  } else { // New employee, check for duplicates client-side
                      const empExists = localEmployees.some(emp => emp.employeeId === employeeData.employeeId);
                      if (empExists) {
@@ -1023,13 +1131,14 @@
         }
 
         // --- Status Change Modal Logic ---
-        function openStatusChangeModal(employee, newStatus) {
+         function openStatusChangeModal(employee, newStatus) {
             $('statusChangeForm').reset();
-            $('statusChangeEmployeeId').value = employee.employeeId; // Use employeeId
+            $('statusChangeEmployeeId').value = employee.employeeId; // Use actual Employee ID for API call
             $('statusChangeNewStatus').value = newStatus;
-            
+
             // Pre-fill existing data if it exists, default to today if not set
-            $('separationDate').value = employee.separationDate || new Date().toISOString().split('T')[0]; 
+             const today = new Date().toISOString().split('T')[0];
+             $('separationDate').value = employee.separationDate || today;
             $('remarks').value = employee.remarks || '';
 
             const title = `Mark as ${newStatus}`;
@@ -1039,6 +1148,7 @@
 
             openModal('statusChangeModal');
         }
+
         $('cancelStatusChangeModal').addEventListener('click', () => closeModal('statusChangeModal'));
         
         $('closeViewDetailsModal').addEventListener('click', () => closeModal('viewDetailsModal'));
@@ -1071,7 +1181,7 @@
                 "Nominee's Mobile": employee.nomineeMobile,
                 "Official Mobile": employee.officialMobile,
                 "Mobile Limit": employee.mobileLimit,
-                "Gross Salary": `₹${Number(employee.salary).toLocaleString('en-IN')}`,
+                "Gross Salary": `₹${Number(employee.salary || 0).toLocaleString('en-IN')}`,
                 "Bank Account": employee.bankAccount,
                 "Separation Date": employee.separationDate || 'N/A',
                 "Remarks": employee.remarks || 'N/A',
@@ -1083,8 +1193,12 @@
                  let displayValue = value;
                  if ((label === "Joining Date" || label === "Date of Birth" || label === "Separation Date") && value && value !== 'N/A') {
                      try {
-                         displayValue = new Date(value + 'T00:00:00').toLocaleDateString();
-                     } catch (e) { /* Ignore formatting errors, show original value */ }
+                         // Attempt to parse date, assuming YYYY-MM-DD or similar
+                         displayValue = new Date(value + 'T00:00:00Z').toLocaleDateString(); // Use UTC to avoid timezone shifts
+                     } catch (e) {
+                          console.warn(`Could not format date "${value}" for ${label}`);
+                          displayValue = value; // Show original value if formatting fails
+                     }
                  }
 
                 html += `
@@ -1099,33 +1213,61 @@
             openModal('viewDetailsModal');
         }
 
-        $('statusChangeForm').addEventListener('submit', async (e) => {
+
+         $('statusChangeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const employeeId = $('statusChangeEmployeeId').value;
             const newStatus = $('statusChangeNewStatus').value;
             const separationDate = $('separationDate').value;
             const remarks = $('remarks').value;
 
-            if (!employeeId || !newStatus || !separationDate) return;
-            
+            if (!employeeId || !newStatus || !separationDate) {
+                 customAlert("Error", "Missing required information for status update.");
+                 return;
+            }
+
+             // Find the employee in the local cache to update optimistically
+            const employeeIndex = localEmployees.findIndex(emp => emp.employeeId === employeeId);
+             if (employeeIndex === -1) {
+                 customAlert("Error", "Could not find employee locally to update status. Please refresh.");
+                 return;
+             }
+             const originalEmployeeData = { ...localEmployees[employeeIndex] }; // Store original state for potential rollback
+
+
             try {
-                 // Show loading indicator?
+                 // **Optimistic UI Update**
+                 localEmployees[employeeIndex].status = newStatus;
+                 localEmployees[employeeIndex].separationDate = separationDate;
+                 localEmployees[employeeIndex].remarks = remarks || '';
+                 localEmployees[employeeIndex].salaryHeld = false; // Status change always unholds salary
+                 filterAndRenderEmployees(); // Re-render immediately
+                 closeModal('statusChangeModal'); // Close modal optimistically
+
+
+                // **API Call**
                 await apiCall('updateStatus', 'POST', {
                     employeeId: employeeId,
                     status: newStatus,
                     separationDate: separationDate,
                     remarks: remarks || ''
+                    // Backend will handle setting salaryHeld to FALSE implicitly
                 });
-                closeModal('statusChangeModal');
-                customAlert("Success", "Employee status has been updated.");
-                fetchEmployees(); // Re-fetch to update UI
+                // Success message (optional, UI already updated)
+                // customAlert("Success", "Employee status has been updated.");
+                
+                 // Fetch eventually to reconcile, but don't await
+                fetchEmployees().catch(err => console.error("Re-fetch after status change failed:", err));
+
             } catch (error) {
                 console.error("Error updating employee status:", error);
                 customAlert("Error", `Failed to update employee status: ${error.message}`);
-            } finally {
-                 // Hide loading indicator?
+                // **Rollback UI Update on Error**
+                 localEmployees[employeeIndex] = originalEmployeeData; // Restore original data
+                 filterAndRenderEmployees(); // Re-render to show original state
             }
         });
+
 
         // --- Attendance & Salary Sheet Logic ---
         $('uploadAttendanceBtn').addEventListener('click', () => {
@@ -1240,7 +1382,6 @@
             });
             
             try {
-                 // Show loading indicator?
                 await apiCall('saveSheet', 'POST', {
                     sheetId: `${year}-${month}`,
                     sheetData: sheetData
@@ -1252,8 +1393,6 @@
             } catch (error) {
                 console.error("Error saving salary sheet:", error);
                 customAlert("Error", `Could not save the salary sheet: ${error.message}`);
-            } finally {
-                 // Hide loading indicator?
             }
         }
         
@@ -1270,13 +1409,13 @@
                  const paymentStatusClass = row.status === 'Held' ? 'status-badge status-held' : 'text-slate-600';
                  const tr = document.createElement('tr');
                  tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${row.employeeId}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">₹${row.salary.toLocaleString('en-IN')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.daysPresent}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">₹${row.deduction.toLocaleString('en-IN')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700">₹${row.netSalary.toLocaleString('en-IN')}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="${paymentStatusClass}">${row.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${row.employeeId || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.name || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">₹${Number(row.salary || 0).toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.daysPresent || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">₹${Number(row.deduction || 0).toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700">₹${Number(row.netSalary || 0).toLocaleString('en-IN')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="${paymentStatusClass}">${row.status || ''}</span></td>
                  `;
                  tableBody.appendChild(tr);
             });
@@ -1288,7 +1427,6 @@
 
         // --- View Past Sheets Logic ---
         $('viewSheetsBtn').addEventListener('click', async () => {
-             // Show loading indicator?
             try {
                 const sheets = await apiCall('getPastSheets');
                 
@@ -1320,8 +1458,6 @@
             } catch (error) {
                 console.error("Error fetching past sheets:", error);
                 customAlert("Error", `Could not load past salary sheets: ${error.message}`);
-            } finally {
-                 // Hide loading indicator?
             }
         });
 
@@ -1330,9 +1466,9 @@
         $('pastSheetsList').addEventListener('click', async (e) => {
              if (e.target.classList.contains('view-past-sheet-btn')) {
                  const sheetId = e.target.dataset.sheetid;
-                 // Show loading indicator?
                  try {
-                     const sheet = await apiCall(`getSheetData&sheetId=${sheetId}`);
+                     // Pass sheetId as part of the action string for GET request
+                     const sheet = await apiCall(`getSheetData&sheetId=${sheetId}`); 
                      if (sheet && sheet.sheetData) {
                          closeModal('viewSheetsModal');
                          displaySalarySheet(sheet.sheetData, sheet.sheetId);
@@ -1341,8 +1477,6 @@
                      }
                  } catch (error) {
                      customAlert("Error", `Could not load sheet: ${error.message}`);
-                 } finally {
-                      // Hide loading indicator?
                  }
              }
         });
