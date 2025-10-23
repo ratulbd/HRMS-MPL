@@ -353,7 +353,9 @@ async function getEmployees() {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
+    // *** THIS IS THE CORRECTED LINE ***
     const headerRow = headers;
+    
     const employees = dataRows.map((row, index) => {
       const emp = { id: index + 2 };
       headerRow.forEach((header, i) => {
@@ -713,4 +715,3 @@ async function getSheetData(sheetId) {
      console.log(`Processed ${sheetData.length} rows from sheet ${sheetName}`);
     return { statusCode: 200, body: JSON.stringify({ sheetId, sheetData }) };
 }
-
