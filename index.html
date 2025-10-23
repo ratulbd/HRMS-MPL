@@ -140,7 +140,8 @@
                 <input type="hidden" id="employeeSalaryHeld">
                  <input type="hidden" id="separationDateHidden">
                  <input type="hidden" id="remarksHidden">
-                 <input type="hidden" id="originalEmployeeIdHidden"> <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                 <input type="hidden" id="originalEmployeeIdHidden">
+                 <input type="hidden" id="holdTimestampHidden"> <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 
                     <div class="md:col-span-2 font-semibold text-slate-600 pb-1 border-b">Basic Information</div>
                     <div>
@@ -510,6 +511,42 @@
                  hideLoading(); // Hide loading indicator on API call end/error
             }
         }
+        
+        //
+        // --- NEW HELPER FUNCTION (for Date Formatting) ---
+        //
+        // --- Helper: Format Date for Display ---
+        // Parses M/D/YYYY or YYYY-MM-DD and formats as DD-MMM-YY
+        function formatDateForDisplay(dateString) {
+            if (!dateString || typeof dateString !== 'string') return 'Invalid Date';
+            try {
+                let dateObj;
+                if (dateString.includes('/')) {
+                    const parts = dateString.split('/');
+                    if (parts.length !== 3) return 'Invalid Date';
+                    // Assume M/D/YYYY from sheet
+                    // new Date(Date.UTC(year, monthIndex, day))
+                    dateObj = new Date(Date.UTC(parts[2], parts[0] - 1, parts[1]));
+                } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                     // Handle YYYY-MM-DD (e.g., from separationDate)
+                     dateObj = new Date(dateString + 'T00:00:00Z');
+                } else {
+                     // Try parsing directly (fallback)
+                     dateObj = new Date(dateString);
+                }
+
+                if (isNaN(dateObj.getTime())) return 'Invalid Date';
+
+                const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                const month = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dateObj.getUTCMonth()];
+                const year = String(dateObj.getUTCFullYear()).slice(-2);
+                return `${day}-${month}-${year}`;
+            } catch (e) {
+                console.warn("Date parse error:", e);
+                return 'Invalid Date';
+            }
+        }
+
 
         // --- Employee Data Handling ---
         async function fetchEmployees() {
@@ -636,7 +673,10 @@
                     <div class="flex-grow">
                         <div class="flex justify-between items-start">
                              <h3 class="text-xl font-bold text-slate-900">${emp.name || 'N/A'}</h3>
-                             <span class="status-badge ${statusClass}">${statusText}</span>
+                             <div class="text-right">
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                                ${isHeld && emp.holdTimestamp ? `<p class="text-xs font-medium text-orange-600 pt-1">${emp.holdTimestamp}</p>` : ''}
+                             </div>
                         </div>
                         <p class="text-slate-500">${emp.designation || 'N/A'}</p>
                         <p class="text-sm text-slate-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
@@ -644,8 +684,8 @@
                            <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                            <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
                            <p><strong>Salary:</strong> ₹${Number(emp.salary || 0).toLocaleString('en-IN')}</p>
-                           <p><strong>Joined:</strong> ${emp.joiningDate ? new Date(emp.joiningDate + 'T00:00:00Z').toLocaleDateString() : 'N/A'}</p>
-                           ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${new Date(emp.separationDate + 'T00:00:00Z').toLocaleDateString()}</p>` : ''}
+                           <p><strong>Joined:</strong> ${formatDateForDisplay(emp.joiningDate)}</p>
+                           ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
                         </div>
                         ${emp.remarks ? `<div class="mt-2 text-xs text-slate-600 bg-slate-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     </div>
@@ -698,12 +738,18 @@
                 const newHeldStatus = !isCurrentlyHeld;
                  const originalStatus = employee.status; // Store original status for potential rollback
                  const originalHeld = employee.salaryHeld; // Store original held state
+                 const originalTimestamp = employee.holdTimestamp; // Store original timestamp
 
                 try {
                     // **Optimistic UI Update**
                     console.log(`Optimistically setting hold status to ${newHeldStatus} for ${employeeSheetId}`);
                     localEmployees[employeeIndex].salaryHeld = newHeldStatus;
                     localEmployees[employeeIndex].status = 'Active'; // Hold/Unhold always implies Active status
+                    // Note: We can't optimistically set the timestamp, as it's generated server-side.
+                    // We'll clear it if unholding.
+                    if (!newHeldStatus) {
+                        localEmployees[employeeIndex].holdTimestamp = '';
+                    }
                     filterAndRenderEmployees(); // Re-render immediately
 
                     // **API Call**
@@ -714,8 +760,9 @@
                         // Backend implicitly sets status to 'Active' if only salaryHeld is sent
                     });
                     console.log(`API call successful for hold status update.`);
-                    // Optional: Fetch to reconcile silently
-                     // fetchEmployees().catch(err => console.error("Re-fetch after hold/unhold failed:", err));
+                    
+                    // Re-fetch to get the new timestamp from the server
+                    fetchEmployees().catch(err => console.error("Re-fetch after hold/unhold failed:", err));
 
                 } catch (error) {
                      console.error(`Error updating hold status for ${employeeSheetId}:`, error);
@@ -724,6 +771,7 @@
                      console.log(`Rolling back UI changes for ${employeeSheetId}.`);
                      localEmployees[employeeIndex].salaryHeld = originalHeld; // Revert hold status
                      localEmployees[employeeIndex].status = originalStatus; // Revert status
+                     localEmployees[employeeIndex].holdTimestamp = originalTimestamp; // Revert timestamp
                      filterAndRenderEmployees(); // Re-render to show original state
                 }
             }
@@ -761,37 +809,52 @@
                     else if (key === 'salaryHeld') $('employeeSalaryHeld').value = String(employee[key] === true || String(employee[key]).toUpperCase() === 'TRUE');
                     else if (key === 'separationDate') $('separationDateHidden').value = employee[key] || '';
                     else if (key === 'remarks') $('remarksHidden').value = employee[key] || '';
+                    else if (key === 'holdTimestamp') $('holdTimestampHidden').value = employee[key] || ''; // <-- ADDED
                     // Populate visible form fields
                     else if (input) {
-                         // Format date fields correctly
+                         //
+                         // --- DATE FORMATTING FIX ---
+                         //
                          if ((key === 'joiningDate' || key === 'dob') && employee[key]) {
-                             try {
-                                 let dateValue = employee[key];
-                                 let dateObj = null;
-                                if (!isNaN(dateValue) && dateValue > 10000 && dateValue < 60000) { // Likely Excel serial number
-                                     const excelEpoch = new Date(1899, 11, 30);
-                                     dateObj = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
-                                } else if (typeof dateValue === 'string') { // Try parsing as YYYY-MM-DD
-                                     // Add time to force UTC parsing if no time is present
-                                     if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                          dateValue += 'T00:00:00Z';
-                                     }
-                                     dateObj = new Date(dateValue);
+                            try {
+                                let dateObj = null;
+                                let dateValue = employee[key];
+                                
+                                if (typeof dateValue === 'string' && dateValue.includes('/')) {
+                                    const parts = dateValue.split('/');
+                                    if (parts.length === 3) {
+                                        // Assume M/D/YYYY from sheet
+                                        // new Date(Date.UTC(year, monthIndex, day))
+                                        dateObj = new Date(Date.UTC(parts[2], parts[0] - 1, parts[1]));
+                                    }
+                                } else if (!isNaN(dateValue) && dateValue > 10000 && dateValue < 60000) { 
+                                    // Handle Excel Serial Date
+                                    const excelEpoch = new Date(1899, 11, 30);
+                                    dateObj = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+                                } else if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                    // Handle YYYY-MM-DD
+                                    dateObj = new Date(dateValue + 'T00:00:00Z');
+                                } else if (dateValue) {
+                                     dateObj = new Date(dateValue); // Fallback
                                 }
-                                 // Check if dateObj is valid before formatting
-                                 if (dateObj && !isNaN(dateObj)) {
-                                     input.value = dateObj.toISOString().split('T')[0];
-                                 } else {
-                                     input.value = ''; // Clear if invalid
-                                     console.warn(`Invalid date format or value for ${key}: ${employee[key]}`);
-                                 }
-                             } catch (e) {
-                                 input.value = ''; // Clear on error
-                                 console.warn(`Error converting date for ${key}: ${employee[key]}`, e);
-                             }
-                         } else {
-                             input.value = employee[key] ?? ''; // Use nullish coalescing
-                         }
+                
+                                if (dateObj && !isNaN(dateObj.getTime())) {
+                                    // Format to YYYY-MM-DD for the input[type=date]
+                                    const year = dateObj.getUTCFullYear();
+                                    const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                                    const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                                    input.value = `${year}-${month}-${day}`;
+                                } else {
+                                    input.value = ''; 
+                                    console.warn(`Invalid date format for ${key}: ${employee[key]}`);
+                                }
+                            } catch (e) {
+                                input.value = ''; 
+                                console.warn(`Error converting date for ${key}: ${employee[key]}`, e);
+                            }
+                        } else {
+                            input.value = employee[key] ?? ''; 
+                        }
                     }
                 });
 
@@ -810,6 +873,7 @@
                 $('employeeSalaryHeld').value = 'false'; // Store boolean string 'false'
                 $('separationDateHidden').value = '';
                 $('remarksHidden').value = '';
+                $('holdTimestampHidden').value = ''; // <-- ADDED
 
                 $('employeeId').removeAttribute('readonly');
                 $('employeeId').classList.remove('bg-slate-100');
@@ -860,7 +924,8 @@
                  // Convert stored string 'true'/'false' back to boolean for API
                 salaryHeld: $('employeeSalaryHeld').value === 'true',
                 separationDate: $('separationDateHidden').value,
-                remarks: $('remarksHidden').value
+                remarks: $('remarksHidden').value,
+                holdTimestamp: $('holdTimestampHidden').value // <-- ADDED
             };
 
             // Basic Client-side Validation
@@ -886,6 +951,7 @@
                      employeeData.salaryHeld = false;
                      employeeData.separationDate = '';
                      employeeData.remarks = '';
+                     employeeData.holdTimestamp = '';
                  }
 
                 // Call the unified saveEmployee endpoint
@@ -922,21 +988,21 @@
         });
 
         function exportEmployeesToCSV() {
-            const headers = [ /* ... headers from previous response ... */
+            const headers = [
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date",
                 "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)",
                 "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth",
                 "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number",
                 "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number",
-                "Status", "Salary Held", "Separation Date", "Remarks"
+                "Status", "Salary Held", "Separation Date", "Remarks", "Hold Timestamp" // <-- ADDED
             ];
-            const headerKeys = [ /* ... keys from previous response ... */
+            const headerKeys = [
                 "employeeId", "name", "employeeType", "designation", "joiningDate",
                 "project", "projectOffice", "reportProject", "subCenter", "workExperience",
                 "education", "fatherName", "motherName", "personalMobile", "dob",
                 "bloodGroup", "address", "identification", "nomineeName", "nomineeMobile",
                 "salary", "officialMobile", "mobileLimit", "bankAccount",
-                "status", "salaryHeld", "separationDate", "remarks"
+                "status", "salaryHeld", "separationDate", "remarks", "holdTimestamp" // <-- ADDED
              ];
 
             let csvContent = headers.join(',') + '\n';
@@ -954,7 +1020,7 @@
         }
 
         $('downloadTemplateBtn').addEventListener('click', () => {
-            const headers = [ /* ... template headers from previous response ... */
+            const headers = [
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date",
                 "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)",
                 "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth",
@@ -1003,10 +1069,9 @@
             reader.readAsText(file);
         });
 
-        // Use refined parseEmployeeCSV from previous response...
         function parseEmployeeCSV(data) {
              try {
-                const parseCsvLine = (line) => { /* ... parser from previous response ... */
+                const parseCsvLine = (line) => {
                     const values = []; let currentVal = ''; let inQuotes = false;
                     for (let i = 0; i < line.length; i++) { const char = line[i];
                         if (char === '"') { if (inQuotes && line[i+1] === '"') { currentVal += '"'; i++; } else { inQuotes = !inQuotes; }}
@@ -1018,7 +1083,7 @@
                 if (lines.length < 1) throw new Error("CSV empty");
                 const rawHeader = parseCsvLine(lines.shift());
                 const header = rawHeader.map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
-                const fieldMapping = { /* ... Mapping ... */
+                const fieldMapping = {
                     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
                     designation: 'designation', joiningDate: 'joiningdate', project: 'project',
                     projectOffice: 'projectoffice', reportProject: 'reportproject', subCenter: 'subcenter',
@@ -1028,7 +1093,7 @@
                     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
                     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber'
                  };
-                 const requiredNormalizedFields = [ /* ... Required ... */
+                 const requiredNormalizedFields = [
                      'employeeid', 'employeename', 'employeetype', 'designation', 'joiningdate', 'project',
                      'projectoffice', 'reportproject', 'subcenter', 'workexperience', 'education', 'fathersname',
                      'mothersname', 'personalmobilenumber', 'dob', 'bloodgroup', 'address', 'identification',
@@ -1049,6 +1114,7 @@
                     // Conversions & Defaults
                     empData.workExperience = parseFloat(empData.workExperience) || 0; empData.salary = parseFloat(empData.salary) || 0; empData.mobileLimit = parseFloat(empData.mobileLimit) || 0;
                     empData.status = 'Active'; empData.salaryHeld = false; empData.separationDate = ''; empData.remarks = '';
+                    empData.holdTimestamp = ''; // <-- ADDED
                      if (!empData.employeeId || !empData.name || !empData.joiningDate) { console.warn(`Skipping line ${lineIndex + 2}: Missing essential data.`); return null; }
                     return empData;
                 }).filter(emp => emp !== null);
@@ -1098,12 +1164,12 @@
 
         $('closeViewDetailsModal').addEventListener('click', () => closeModal('viewDetailsModal'));
 
-        // Use refined openViewDetailsModal from previous response...
         function openViewDetailsModal(employee) {
             const content = $('viewDetailsContent');
              const isHeld = (employee.salaryHeld === true || String(employee.salaryHeld).toUpperCase() === 'TRUE');
-            const detailsMap = { /* ... Mapping from previous response ... */
+            const detailsMap = {
                 "Employee ID": employee.employeeId, "Employee Name": employee.name, "Status": employee.status, "Salary Held": isHeld ? 'Yes' : 'No',
+                "Held Since": isHeld ? (employee.holdTimestamp || 'N/A') : 'N/A', // <-- ADDED
                 "Employee Type": employee.employeeType, "Designation": employee.designation, "Joining Date": employee.joiningDate, "Work Experience (Years)": employee.workExperience,
                 "Education": employee.education, "Project": employee.project, "Project Office": employee.projectOffice, "Report Project": employee.reportProject,
                 "Sub Center": employee.subCenter, "Father's Name": employee.fatherName, "Mother's Name": employee.motherName, "Personal Mobile": employee.personalMobile,
@@ -1116,13 +1182,11 @@
             let html = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">';
             for (const [label, value] of Object.entries(detailsMap)) {
                  let displayValue = value;
+                 //
+                 // --- DATE FORMATTING FIX ---
+                 //
                  if ((label === "Joining Date" || label === "Date of Birth" || label === "Separation Date") && value && value !== 'N/A') {
-                     try { /* ... Date formatting ... */
-                         let dateObj;
-                         if (!isNaN(value) && value > 10000 && value < 60000) { const excelEpoch = new Date(1899, 11, 30); dateObj = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000); }
-                         else { if (String(value).match(/^\d{4}-\d{2}-\d{2}$/)) { value += 'T00:00:00Z'; } dateObj = new Date(String(value)); }
-                         if (dateObj && !isNaN(dateObj)) displayValue = dateObj.toLocaleDateString(); else displayValue = value;
-                     } catch (e) { displayValue = value; }
+                     displayValue = formatDateForDisplay(value);
                  }
                 html += `<div class="border-b pb-2"><dt class="text-sm font-medium text-slate-500">${label}</dt><dd class="mt-1 text-sm text-slate-900">${displayValue ?? 'N/A'}</dd></div>`;
             }
@@ -1150,6 +1214,7 @@
                  localEmployees[employeeIndex].separationDate = separationDate;
                  localEmployees[employeeIndex].remarks = remarks || '';
                  localEmployees[employeeIndex].salaryHeld = false; // Status change always unholds
+                 localEmployees[employeeIndex].holdTimestamp = ''; // Status change clears timestamp
                  filterAndRenderEmployees(); // Re-render immediately
                  closeModal('statusChangeModal'); // Close modal optimistically
 
@@ -1175,8 +1240,8 @@
         });
 
 
-        // --- Attendance & Salary Sheet Logic (remains largely the same) ---
-        $('uploadAttendanceBtn').addEventListener('click', () => { /* ... Open modal ... */
+        // --- Attendance & Salary Sheet Logic ---
+        $('uploadAttendanceBtn').addEventListener('click', () => {
              $('attendanceForm').reset();
             const today = new Date(); today.setMonth(today.getMonth() - 1);
             const year = today.getFullYear(); const month = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -1185,7 +1250,7 @@
          });
         $('cancelAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
 
-        $('attendanceForm').addEventListener('submit', async (e) => { /* ... Handle submit ... */
+        $('attendanceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const file = $('attendanceFile').files[0]; const monthYear = $('salaryMonth').value;
             if (!file || !monthYear) { customAlert("Warning", "Select month and file."); return; }
@@ -1196,9 +1261,8 @@
             }; reader.readAsText(file);
          });
 
-        // Use refined parseAttendanceCSV from previous response...
         function parseAttendanceCSV(data) {
-            try { /* ... parser from previous response ... */
+            try {
                 const lines = data.split(/[\r\n]+/).filter(line => line.trim() !== '');
                  if (lines.length < 1) throw new Error("CSV empty");
                 const header = lines.shift().toLowerCase().split(',').map(h => h.trim());
@@ -1216,12 +1280,12 @@
         }
 
 
-        async function generateAndSaveSalarySheet(attendance, monthYear) { /* ... Logic from previous response ... */
+        async function generateAndSaveSalarySheet(attendance, monthYear) {
              const [year, month] = monthYear.split('-');
              const daysInMonth = new Date(year, month, 0).getDate();
              if (daysInMonth <= 0) { customAlert("Error", "Invalid month."); return; }
              const sheetData = [];
-             const relevantEmployees = localEmployees.filter(e => e.status === 'Active'); // Only active employees get paid normally
+             const relevantEmployees = localEmployees.filter(e => e.status === 'Active' || e.status === 'Salary Held'); // Pay active or held employees
 
              relevantEmployees.forEach(emp => {
                  const daysPresent = attendance.get(emp.employeeId) || 0;
@@ -1244,7 +1308,7 @@
              } catch (error) { console.error("Save sheet error:", error); customAlert("Error", `Save failed: ${error.message}`); }
          }
 
-        function displaySalarySheet(sheetData, monthYear) { /* ... Display logic from previous response ... */
+        function displaySalarySheet(sheetData, monthYear) {
              const date = new Date(`${monthYear}-01T12:00:00Z`); const monthName = date.toLocaleString('default', { month: 'long', timeZone: 'UTC' }); const year = date.getUTCFullYear();
              $('sheetMonthYear').textContent = `For ${monthName}, ${year}`; const tableBody = $('salarySheetBody'); tableBody.innerHTML = '';
              sheetData.forEach(row => {
@@ -1261,15 +1325,15 @@
         $('closeSheetModal').addEventListener('click', () => closeModal('salarySheetModal'));
 
         // --- View Past Sheets Logic ---
-        $('viewSheetsBtn').addEventListener('click', async () => { /* ... Logic from previous response ... */
+        $('viewSheetsBtn').addEventListener('click', async () => {
              try {
                  const sheets = await apiCall('getPastSheets'); sheets.sort((a, b) => b.sheetId.localeCompare(a.sheetId));
                  const listEl = $('pastSheetsList'); listEl.innerHTML = '';
                  if (sheets.length === 0) listEl.innerHTML = '<p class="text-slate-500 text-center">No past sheets found.</p>';
-                 else { sheets.forEach(sheet => { /* ... create list item ... */
+                 else { sheets.forEach(sheet => {
                          const date = new Date(`${sheet.sheetId}-01T12:00:00Z`); const monthName = date.toLocaleString('default', { month: 'long', timeZone: 'UTC' }); const year = date.getUTCFullYear();
-                         const item = document.createElement('div'); item.className = "p-4 border ...";
-                         item.innerHTML = `<div><p>${monthName}, ${year}</p><p>ID: ${sheet.sheetId}</p></div><button data-sheetid="${sheet.sheetId}" class="view-past-sheet-btn ...">View</button>`;
+                         const item = document.createElement('div'); item.className = "p-4 border rounded-lg flex justify-between items-center";
+                         item.innerHTML = `<div><p class="font-semibold">${monthName}, ${year}</p><p class="text-sm text-slate-500">ID: ${sheet.sheetId}</p></div><button data-sheetid="${sheet.sheetId}" class="view-past-sheet-btn bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium hover:bg-blue-200">View</button>`;
                          listEl.appendChild(item);
                      }); } openModal('viewSheetsModal');
              } catch (error) { console.error("Fetch past sheets error:", error); customAlert("Error", `Load failed: ${error.message}`); }
@@ -1277,7 +1341,7 @@
 
         $('closePastSheetsModal').addEventListener('click', () => closeModal('viewSheetsModal'));
 
-        $('pastSheetsList').addEventListener('click', async (e) => { /* ... Logic from previous response ... */
+        $('pastSheetsList').addEventListener('click', async (e) => {
              if (e.target.classList.contains('view-past-sheet-btn')) {
                  const sheetId = e.target.dataset.sheetid;
                  try {

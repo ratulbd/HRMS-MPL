@@ -23,7 +23,8 @@ const HEADER_MAPPING = {
     bloodGroup: 'bloodgroup', address: 'address', identification: 'identification',
     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber',
-    status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate'
+    status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate',
+    holdTimestamp: 'holdtimestamp' // <-- ADDED THIS LINE
 };
 
 // Standard headers for the new log sheets
@@ -92,10 +93,7 @@ async function findEmployeeRow(employeeId) {
         throw new Error(`Could not find the '${idHeaderNormalized}' column header in the '${EMPLOYEE_SHEET_NAME}' sheet.`);
     }
     
-    // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
     const idColLetter = getColumnLetter(idColIndex);
-    // --- END FIX ---
-    
     console.log(`Employee ID column identified as: ${idColLetter}`);
 
     try {
@@ -181,10 +179,49 @@ async function ensureSheetAndHeaders(sheetName, expectedHeaders) {
     }
 }
 
+//
+// --- NEW HELPER FUNCTION (for Date Formatting) ---
+//
+// --- Helper: Format Date for Sheet ---
+// Formats a date object into 'DD-MMM-YY h:mm A' (e.g., '23-OCT-25 2:52 PM')
+// Uses Dhaka timezone.
+function formatDateForSheet(date) {
+    const options = {
+        timeZone: 'Asia/Dhaka',
+        day: '2-digit',
+        month: 'short',
+        year: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    };
+    
+    // Use en-GB to get DD/MM/YY format, then adjust
+    let formatted = new Intl.DateTimeFormat('en-GB', options).format(date);
+    // Intl gives "23 Oct 25, 14:52" or "23 Oct 25, 2:52 pm"
+    // We need to make it "23-OCT-25 2:52 PM"
+    formatted = formatted.replace(',', '')
+                         .replace(/ /g, '-') // Replace all spaces with dashes
+                         .toUpperCase()
+                         .replace('PM', ' PM') // Ensure space
+                         .replace('AM', ' AM'); // Ensure space
+    
+    // Fix for potential double dash if locale adds space (e.g., "23-OCT-25--2:52-PM")
+    formatted = formatted.replace('--', '-') 
+                         .replace('-PM', ' PM')
+                         .replace('-AM', ' AM');
+                         
+    return formatted;
+}
+
 
 // --- Helper: Log Event to a Sheet ---
-async function logEvent(sheetName, eventDataArray) {
-    const timestamp = new Date().toISOString();
+async function logEvent(sheetName, eventDataArray, preformattedTimestamp = null) {
+    // --- FIX ---
+    // Use the preformatted timestamp if provided, otherwise create one
+    const timestamp = preformattedTimestamp || formatDateForSheet(new Date());
+    // --- END FIX ---
+    
     const rowToLog = [timestamp, ...eventDataArray];
     console.log(`Logging event to ${sheetName}:`, rowToLog);
 
@@ -232,10 +269,7 @@ async function getEmployeeSalary(employeeId) {
         return null; // Salary column not found
     }
 
-    // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
     const salaryColLetter = getColumnLetter(salaryColIndex);
-    // --- END FIX ---
-    
     const range = `${EMPLOYEE_SHEET_NAME}!${salaryColLetter}${rowIndex}`;
 
     try {
@@ -252,8 +286,8 @@ async function getEmployeeSalary(employeeId) {
     }
 }
 
-//
-// --- NEW HELPER FUNCTION ---
+
+// --- HELPER FUNCTION (for Column Letters > Z) ---
 // Converts a 0-based column index into a Sheets column letter (e.g., 0 -> A, 27 -> AB)
 //
 function getColumnLetter(colIndex) { // 0-based index
@@ -357,14 +391,7 @@ async function getEmployees() {
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    //
-    // --- THIS IS THE FIXED LINE ---
-    //
     const lastColumnLetter = getColumnLetter(headers.length - 1);
-    //
-    // --- END FIX ---
-    //
-
     const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`;
     console.log(`Fetching employee data from range: ${range}`);
 
@@ -426,6 +453,7 @@ async function saveEmployee(employeeData) {
     dataToSave.status = dataToSave.status || 'Active';
     dataToSave.separationDate = dataToSave.separationDate || '';
     dataToSave.remarks = dataToSave.remarks || '';
+    dataToSave.holdTimestamp = dataToSave.holdTimestamp || ''; // Ensure it exists
 
     const newRow = headerRow.map(header => {
         const key = Object.keys(HEADER_MAPPING).find(k => HEADER_MAPPING[k] === header);
@@ -450,10 +478,7 @@ async function saveEmployee(employeeData) {
         }
         console.log(`Updating employee at row ${rowIndex} with ID: ${lookupId}`);
         
-        // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
         const lastColumnLetter = getColumnLetter(headerRow.length - 1);
-        // --- END FIX ---
-        
         const range = `${EMPLOYEE_SHEET_NAME}!A${rowIndex}:${lastColumnLetter}${rowIndex}`;
         console.log(`Update range: ${range}`);
         try {
@@ -518,23 +543,49 @@ async function updateStatus(statusData) {
     // --- Log Events First ---
     // Fetch salary for logging purposes
     currentSalary = await getEmployeeSalary(employeeId);
+    
+    // --- FIX: Create formatted timestamp for all status updates ---
+    const formattedTimestamp = formatDateForSheet(new Date());
 
     // Log Hold/Unhold event
     if (updates.hasOwnProperty('salaryHeld')) {
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
-        await logEvent(HOLD_LOG_SHEET_NAME, [employeeId, currentSalary || 'N/A', actionText]);
+        
+        // Pass the pre-formatted timestamp to the logEvent function
+        await logEvent(HOLD_LOG_SHEET_NAME, [employeeId, currentSalary || 'N/A', actionText], formattedTimestamp);
+    
+        // Prepare to update the 'Hold Timestamp' column in the Employees sheet
+        const tsHeaderName = HEADER_MAPPING.holdTimestamp;
+        const tsColIndex = headerRow.indexOf(tsHeaderName);
+        if (tsColIndex !== -1) {
+            const tsColLetter = getColumnLetter(tsColIndex);
+            dataToUpdate.push({
+                range: `${EMPLOYEE_SHEET_NAME}!${tsColLetter}${rowIndex}`,
+                // Only set timestamp if holding, clear it if unholding
+                values: [[isHolding ? formattedTimestamp : '']], 
+            });
+            console.log(`Added update for holdTimestamp: Range=${tsColLetter}${rowIndex}, Value=${isHolding ? formattedTimestamp : "''"}`);
+            
+            // Also add holdTimestamp to the main 'updates' object
+            // so it gets added to dataToUpdate array below (this is a bit redundant but ensures it's in the batch)
+            // Correction: No, the push above is sufficient.
+            
+        } else {
+            console.warn(`Column 'holdtimestamp' not found in Employees sheet. Skipping timestamp update on card.`);
+        }
     }
 
     // Log Resign/Terminate event
     if (updates.hasOwnProperty('status') && (updates.status === 'Resigned' || updates.status === 'Terminated')) {
+        // Pass the pre-formatted timestamp to the logEvent function
         await logEvent(SEPARATION_LOG_SHEET_NAME, [
             employeeId,
             currentSalary || 'N/A',
             updates.separationDate || '', // Use separationDate from updates if present
             updates.status,
             updates.remarks || '' // Use remarks from updates if present
-        ]);
+        ], formattedTimestamp);
     }
 
     // --- Prepare Updates for Employee Sheet ---
@@ -553,9 +604,7 @@ async function updateStatus(statusData) {
             continue;
         }
         
-        // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
         const colLetter = getColumnLetter(colIndex);
-        // --- END FIX ---
 
         let valueToSave = updates[key];
         if (key === 'salaryHeld') {
@@ -577,9 +626,7 @@ async function updateStatus(statusData) {
         const heldColIndex = headerRow.indexOf(heldHeader);
         if (heldColIndex !== -1) {
 
-            // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
             const heldColLetter = getColumnLetter(heldColIndex);
-            // --- END FIX ---
 
             // Check if salaryHeld update already exists and overwrite if needed
             let existingUpdateIndex = dataToUpdate.findIndex(d => d.range.startsWith(`${EMPLOYEE_SHEET_NAME}!${heldColLetter}${rowIndex}`));
@@ -589,6 +636,20 @@ async function updateStatus(statusData) {
             } else {
                 dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${heldColLetter}${rowIndex}`, values: [['FALSE']] });
                 console.log("Added implicit update: salaryHeld = FALSE.");
+            }
+            
+            // Also clear holdTimestamp when status changes
+            const tsHeaderName = HEADER_MAPPING.holdTimestamp;
+            const tsColIndex = headerRow.indexOf(tsHeaderName);
+            if (tsColIndex !== -1) {
+                const tsColLetter = getColumnLetter(tsColIndex);
+                let tsUpdateIndex = dataToUpdate.findIndex(d => d.range.startsWith(`${EMPLOYEE_SHEET_NAME}!${tsColLetter}${rowIndex}`));
+                if (tsUpdateIndex !== -1) {
+                    dataToUpdate[tsUpdateIndex].values = [['']]; // Overwrite
+                } else {
+                    dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${tsColLetter}${rowIndex}`, values: [['']] }); // Add
+                }
+                console.log("Added implicit update: holdTimestamp = ''");
             }
         } else {
             console.warn("Could not find 'salaryHeld' column for implicit update.");
@@ -601,9 +662,7 @@ async function updateStatus(statusData) {
         const statusColIndex = headerRow.indexOf(statusHeader);
         if (statusColIndex !== -1) {
 
-            // --- FIX --- (Use getColumnLetter instead of String.fromCharCode)
             const statusColLetter = getColumnLetter(statusColIndex);
-            // --- END FIX ---
 
              // Check if status update already exists and overwrite if needed
              let existingUpdateIndex = dataToUpdate.findIndex(d => d.range.startsWith(`${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`));
@@ -625,9 +684,7 @@ async function updateStatus(statusData) {
         try {
             const batchUpdateResult = await sheets.spreadsheets.values.batchUpdate({
                 spreadsheetId: SPREADSHEET_ID,
-                // --- FIX (Typo) ---
                 resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate },
-                // --- END FIX ---
             });
             console.log("Google Sheets API batchUpdate result:", batchUpdateResult.data);
             // Invalidate header cache after successful update, as structure *might* change (unlikely here)
