@@ -38,7 +38,7 @@ export function openViewDetailsModal(employee) {
         "Nominee's Mobile": employee.nomineeMobile,
         "Official Mobile": employee.officialMobile || 'N/A', // Show N/A if empty
         "Mobile Limit": employee.mobileLimit != null ? employee.mobileLimit : 'N/A', // Show N/A if empty/0
-        "Gross Salary": `₹${Number(employee.salary || 0).toLocaleString('en-IN')}`, // Format currency
+        "Gross Salary": `৳${Number(employee.salary || 0).toLocaleString('en-IN')}`, // Format currency
         "Bank Account": employee.bankAccount || 'N/A', // Show N/A if empty
         "Separation Date": employee.separationDate || 'N/A', // Will be formatted below if exists
         "Remarks": employee.remarks || 'N/A', // Show N/A if empty
