@@ -156,3 +156,47 @@ module.exports = {
     getColumnLetter,
     formatDateForSheet
 };
+
+
+// netlify/functions/lib/_helpers.js
+
+// ... (other helper functions) ...
+
+// --- Helper: Find Row by Username ---
+// Finds a user in the Users sheet
+async function findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username) {
+    console.log(`Searching for username: ${username} in sheet: ${USERS_SHEET_NAME}`);
+    try {
+        // Assume Username is always in Column A for simplicity
+        const range = `${USERS_SHEET_NAME}!A2:A`; // Scan only username column
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: range,
+        });
+        const rows = response.data.values || [];
+        console.log(`Found ${rows.length} rows in Username column.`);
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i][0] && String(rows[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+                const rowIndex = i + 2; // 1-based index (A2 is row 2)
+                console.log(`Found username ${username} at row index: ${rowIndex}`);
+                return rowIndex;
+            }
+        }
+        console.log(`Username ${username} not found.`);
+        return -1; // Not found
+    } catch (error) {
+        // Handle cases where the sheet might be empty or range is invalid
+        if (error.code === 400 && error.message.includes('Unable to parse range')) {
+             console.warn(`Sheet '${USERS_SHEET_NAME}' might be empty or Username column 'A' not found.`);
+             return -1;
+        }
+        console.error(`Error finding user row for ${username}:`, error);
+        throw error;
+    }
+}
+
+// --- Exports ---
+module.exports = {
+    // ... other exports ...
+    findUserRow // <-- Add this export
+};

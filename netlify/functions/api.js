@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const helpers = require('./lib/_helpers');
 const employeeActions = require('./lib/_employeeActions');
 const sheetActions = require('./lib/_sheetActions');
+const authActions = require('./lib/_authActions'); // <-- Import auth actions
 
 // --- Authorization (Keep this here) ---
 const auth = new google.auth.GoogleAuth({
@@ -16,7 +17,10 @@ const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
 const SALARY_SHEET_PREFIX = 'Salary_';
-const HEADER_MAPPING = { /* ... your full mapping ... */
+const USERS_SHEET_NAME = 'Users'; // <-- Add Users sheet constant
+// DEFAULT_PASSWORD is used within _authActions.js
+
+const HEADER_MAPPING = {
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
     designation: 'designation', joiningDate: 'joiningdate', project: 'project',
     projectOffice: 'projectoffice', reportProject: 'reportproject', subCenter: 'subcenter',
@@ -28,10 +32,9 @@ const HEADER_MAPPING = { /* ... your full mapping ... */
     status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate',
     holdTimestamp: 'holdtimestamp'
 };
-// Log sheet constants might be needed if updateStatus doesn't import them
+// Log sheet constants (Can be removed if not directly used here, but keep if needed for reference)
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
-// Log header constants might be needed if updateStatus doesn't import them
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
 
@@ -57,16 +60,17 @@ exports.handler = async (event) => {
     }
 
     console.log(`Handler: ${action}, Method: ${event.httpMethod}`);
-    if (event.httpMethod === 'POST') console.log("Body:", requestBody);
+    if (event.httpMethod === 'POST') console.log("Body:", JSON.stringify(requestBody).substring(0, 200) + '...'); // Log truncated body for sensitive data
 
     try {
         let result;
-        // Check method first for non-GET/POST actions if needed
+        // Check method first
         if (!['GET', 'POST'].includes(event.httpMethod)) {
              result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
         } else {
             // Action routing
             switch (action) {
+                // --- Employee Actions ---
                 case 'getEmployees':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers);
@@ -77,9 +81,10 @@ exports.handler = async (event) => {
                     break;
                 case 'updateStatus':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                    // updateStatus needs access to all helpers
                     else result = await employeeActions.updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, requestBody);
                     break;
+
+                // --- Sheet Actions ---
                 case 'saveSheet':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.saveSalarySheet(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, helpers, requestBody);
@@ -90,21 +95,45 @@ exports.handler = async (event) => {
                     break;
                 case 'getSheetData':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                    else if (!sheetId) throw new Error("sheetId parameter required"); // Or return 400
-                    else result = await sheetActions.getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId);
+                    else if (!sheetId) { // Return 400 for missing param
+                         console.error("getSheetData called without sheetId.");
+                         result = { statusCode: 400, body: JSON.stringify({ error: 'sheetId parameter is required' }) };
+                    } else {
+                         result = await sheetActions.getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId);
+                    }
                     break;
+
+                // --- Auth Actions ---
+                case 'loginUser': // <-- ADDED
+                    if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    // Pass findUserRow specifically or ensure it's part of the helpers object passed
+                    else result = await authActions.loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, requestBody);
+                    break;
+                case 'changePassword': // <-- ADDED
+                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     else result = await authActions.changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, requestBody);
+                     break;
+
+                // --- Default ---
                 default:
-                    console.warn(`Invalid action: ${action}`);
-                    result = { statusCode: 400, body: JSON.stringify({ error: 'Invalid action' }) };
+                    console.warn(`Invalid action received: ${action}`);
+                    result = { statusCode: 400, body: JSON.stringify({ error: 'Invalid action parameter' }) };
             }
         }
         // Combine result headers with CORS headers
+        // Ensure result is an object before assigning headers
+        if (typeof result !== 'object' || result === null) {
+             console.error(`Action '${action}' returned non-object result:`, result);
+             // Provide a default error structure
+             result = { statusCode: 500, body: JSON.stringify({ error: 'Internal Server Error: Invalid action result.' }) };
+        }
         result.headers = { ...corsHeaders, ...result.headers };
         console.log(`Action '${action}' completed with status: ${result.statusCode}`);
         return result;
 
     } catch (error) {
-        console.error(`API Error during action '${action}':`, error);
+        console.error(`API Error during action '${action}':`, error.stack || error.message); // Log stack trace
+        // Ensure error response also gets CORS headers
         return {
             statusCode: 500,
             headers: corsHeaders,
