@@ -52,7 +52,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                      displayDate = formatDateForDisplay(emp.lastTransferDate);
                 }
-                // Use slightly different styling for last transfer
                 lastTransferHTML = `
                 <div class="mt-2 text-xs text-purple-700 bg-purple-50 p-2 rounded-md">
                     <strong>Last Transfer:</strong> ${displayDate}
@@ -61,7 +60,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>`;
             }
 
-            // --- Reverted to previous HTML structure ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
@@ -74,8 +72,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     <p class="text-gray-600">${emp.designation || 'N/A'}</p>
                     <p class="text-sm text-gray-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
 
-                    {/* Use simple <p> tags with <strong> like original */}
-                    <div class="text-sm space-y-1"> {/* Reduced vertical space slightly */}
+                    <div class="text-sm space-y-1">
                        <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                        <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
                        <p><strong>Sub Center:</strong> ${emp.subCenter || 'N/A'}</p>
@@ -85,11 +82,10 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     </div>
 
                     ${emp.remarks ? `<div class="mt-3 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
-                    ${lastTransferHTML} {/* Display Last Transfer Info */}
+                    ${lastTransferHTML}
                 </div>
 
                 <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
-                     {/* Buttons remain the same */}
                      <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button>
                      <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button>
                      ${statusText === 'Active' || statusText === 'Salary Held' ? `
@@ -100,7 +96,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     ` : ''}
                 </div>
             `;
-            // --- End Reverted Structure ---
             listContainer.appendChild(card);
         });
     } catch (error) {
@@ -110,84 +105,117 @@ function renderEmployeeList(listContainer, employeesToRender) {
     }
 }
 
-// Function to filter and render
 export function filterAndRenderEmployees(filters, employees) {
     const listContainer = $('employee-list');
     const initialLoadingIndicator = $('initialLoading');
+
     if (initialLoadingIndicator && initialLoadingIndicator.parentNode === listContainer) {
         listContainer.removeChild(initialLoadingIndicator);
     }
+
     if (!Array.isArray(employees)) {
         console.error("filterAndRenderEmployees received non-array:", employees);
         renderEmployeeList(listContainer, []); return;
     }
-    const safeFilters = { name: filters?.name || '', status: filters?.status || '', designation: filters?.designation || '', type: filters?.type || '' };
-    const nameFilterLower = safeFilters.name.toLowerCase();
+
+     const safeFilters = {
+         name: filters?.name || '', status: filters?.status || '',
+         designation: filters?.designation || '', type: filters?.type || '',
+     };
+     const nameFilterLower = safeFilters.name.toLowerCase();
+
     const filtered = employees.filter(emp => {
         if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
         let effectiveStatus = emp.status || 'Active';
-        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) { effectiveStatus = 'Salary Held'; }
+        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) {
+            effectiveStatus = 'Salary Held';
+        }
         const nameMatch = nameFilterLower === '' || emp.name.toLowerCase().includes(nameFilterLower) || emp.employeeId.toLowerCase().includes(nameFilterLower);
         const statusMatch = safeFilters.status === '' || effectiveStatus === safeFilters.status;
         const designationMatch = safeFilters.designation === '' || emp.designation === safeFilters.designation;
         const typeMatch = safeFilters.type === '' || emp.employeeType === safeFilters.type;
         return nameMatch && statusMatch && designationMatch && typeMatch;
     });
+
     renderEmployeeList(listContainer, filtered);
 }
 
-// Function to populate filter dropdowns
 export function populateFilterDropdowns(employees) {
     const designationFilter = $('filterDesignation');
     if (!designationFilter) return;
     if (!Array.isArray(employees)) employees = [];
+
     const designations = [...new Set(employees.map(e => e?.designation).filter(d => d && typeof d === 'string'))].sort();
     const currentVal = designationFilter.value;
-    designationFilter.innerHTML = '<option value="">All</option>'; // Reset
+
+    designationFilter.innerHTML = '<option value="">All</option>';
     designations.forEach(d => {
-        const option = document.createElement('option'); option.value = d; option.textContent = d; designationFilter.appendChild(option);
+        const option = document.createElement('option');
+        option.value = d;
+        option.textContent = d;
+        designationFilter.appendChild(option);
     });
-    if (designations.includes(currentVal)) { designationFilter.value = currentVal; }
-    else { designationFilter.value = ""; } // Reset if previous value invalid
+
+    if (designations.includes(currentVal)) {
+        designationFilter.value = currentVal;
+    } else {
+         designationFilter.value = "";
+    }
 }
 
-// Function to set up the main event listener for the list
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
     const listContainer = $('employee-list');
-    if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
+    if (!listContainer) {
+         console.error("Employee list container #employee-list not found for attaching listeners.");
+         return;
+    }
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target;
         const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn');
         const cardElement = target.closest('.employee-card');
+
         if (!cardElement || !actionButton) return;
 
         const localId = cardElement.dataset.employeeRowId;
-        if (!localId) { console.error("data-employee-row-id missing."); return; }
+        if (!localId) { console.error("Could not find data-employee-row-id on the card."); return; }
 
         const currentEmployees = getEmployeesFunc();
         const employee = currentEmployees.find(emp => String(emp.id) === String(localId));
-        if (!employee) { customAlert("Error", "Could not find employee data. Please refresh."); return; }
+
+        if (!employee) {
+            customAlert("Error", "Could not find employee data. Please refresh.");
+            console.warn(`Employee object not found for row ID: ${localId}`); return;
+        }
         const employeeSheetId = employee.employeeId;
-        if (!employeeSheetId) { customAlert("Error", "Employee ID missing."); return; }
+        if (!employeeSheetId) { customAlert("Error", "Employee ID missing. Cannot perform action."); return; }
 
         // --- Handle Button Clicks ---
         if (actionButton.classList.contains('view-details-btn')) {
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
+            else console.error('openViewDetailsModal function not imported or defined');
         } else if (actionButton.classList.contains('edit-btn')) {
             if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, currentEmployees);
+             else console.error('openEmployeeModal function not imported or defined');
         } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
+             else console.error('openStatusChangeModal function not imported or defined');
         } else if (actionButton.classList.contains('terminate-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
+             else console.error('openStatusChangeModal function not imported or defined');
         } else if (actionButton.classList.contains('toggle-hold-btn')) {
             const isCurrentlyHeld = actionButton.dataset.held === 'true';
             try {
                 await apiCall('updateStatus', 'POST', { employeeId: employeeSheetId, salaryHeld: !isCurrentlyHeld });
                 if (typeof fetchEmployeesFunc === 'function') fetchEmployeesFunc();
-            } catch (error) { customAlert("Error", `Failed to update salary status: ${error.message}`); }
+                 else console.error('fetchEmployeesFunc function not available');
+            } catch (error) {
+                 console.error('Error during toggle hold API call:', error);
+                customAlert("Error", `Failed to update salary status: ${error.message}`);
+            }
         } else if (actionButton.classList.contains('transfer-btn')) {
             if (typeof openTransferModal === 'function') openTransferModal(employee);
+             else console.error('openTransferModal function not imported or defined');
         }
     });
 }
