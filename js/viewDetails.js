@@ -40,7 +40,7 @@ export function openViewDetailsModal(employee) {
         "Gross Salary": `৳${Number(employee.salary || 0).toLocaleString('en-IN')}`,
         "Bank Account": employee.bankAccount || 'N/A',
         "Last Transfer Date": employee.lastTransferDate || 'N/A',
-        "Last Subcenter": employee.lastSubcenter || 'N/A',
+        "Transferred From (Last)": employee.lastSubcenter || 'N/A',
         "Last Transfer Reason": employee.lastTransferReason || 'N/A',
         "Separation Date": employee.separationDate || 'N/A',
         "Remarks": employee.remarks || 'N/A',

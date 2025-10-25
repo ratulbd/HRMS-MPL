@@ -55,7 +55,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 lastTransferHTML = `
                 <div class="mt-2 text-xs text-purple-700 bg-purple-50 p-2 rounded-md">
                     <strong>Last Transfer:</strong> ${displayDate}
-                    to ${emp.lastSubcenter}
+                    from ${emp.lastSubcenter}
                     ${emp.lastTransferReason ? `(${emp.lastTransferReason.substring(0, 30)}${emp.lastTransferReason.length > 30 ? '...' : ''})` : ''}
                 </div>`;
             }
