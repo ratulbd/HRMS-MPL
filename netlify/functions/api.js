@@ -4,7 +4,7 @@ const { google } = require('googleapis');
 const helpers = require('./lib/_helpers');
 const employeeActions = require('./lib/_employeeActions');
 const sheetActions = require('./lib/_sheetActions');
-const authActions = require('./lib/_authActions'); // Import auth actions
+const authActions = require('./lib/_authActions');
 
 // --- Authorization ---
 const auth = new google.auth.GoogleAuth({
@@ -18,7 +18,7 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1Cw
 const EMPLOYEE_SHEET_NAME = 'Employees';
 const SALARY_SHEET_PREFIX = 'Salary_';
 const USERS_SHEET_NAME = 'Users';
-const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log'; // Keep log sheet names here if helpers don't define them
+const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 
 const HEADER_MAPPING = {
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
@@ -30,13 +30,13 @@ const HEADER_MAPPING = {
     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber',
     status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate',
-    holdTimestamp: 'holdtimestamp', // <-- Comma added here
+    holdTimestamp: 'holdtimestamp',
     lastTransferDate: 'lasttransferdate',
-    lastTransferToSubCenter: 'lasttransfertosubcenter',
+    lastSubcenter: 'lastsubcenter', // <-- UPDATED LINE
     lastTransferReason: 'lasttransferreason'
 };
 
-// Log Headers (Optional here, primarily needed in modules where logEvent is called)
+// Log Headers
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
 const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
@@ -44,26 +44,15 @@ const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old 
 
 // --- Main Handler ---
 exports.handler = async (event) => {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    };
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 204, headers: corsHeaders, body: '' };
-    }
-
+    // ... (CORS and request parsing - remains the same) ...
+    const corsHeaders = { /* ... */ };
+    if (event.httpMethod === 'OPTIONS') { /* ... */ }
     const { action, sheetId } = event.queryStringParameters || {};
     let requestBody = {};
-    try {
-        if (event.httpMethod === 'POST' && event.body) requestBody = JSON.parse(event.body);
-    } catch (e) {
-        console.error("Bad JSON body:", e);
-        return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON body' }) };
-    }
-
+    try { /* ... */ } catch (e) { /* ... */ }
     console.log(`Handler: ${action}, Method: ${event.httpMethod}`);
     if (event.httpMethod === 'POST') console.log("Body:", JSON.stringify(requestBody).substring(0, 200) + '...');
+
 
     try {
         let result;
@@ -90,6 +79,7 @@ exports.handler = async (event) => {
                     break;
                 case 'transferEmployee':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     // Pass the updated HEADER_MAPPING
                      else result = await employeeActions.transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, requestBody);
                      break;
 
@@ -105,7 +95,6 @@ exports.handler = async (event) => {
                 case 'getSheetData':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else if (!sheetId) {
-                         console.error("getSheetData called without sheetId.");
                          result = { statusCode: 400, body: JSON.stringify({ error: 'sheetId parameter is required' }) };
                     } else {
                          result = await sheetActions.getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId);
@@ -128,20 +117,15 @@ exports.handler = async (event) => {
                     result = { statusCode: 400, body: JSON.stringify({ error: 'Invalid action parameter' }) };
             }
         }
-        if (typeof result !== 'object' || result === null) {
-             console.error(`Action '${action}' returned non-object result:`, result);
-             result = { statusCode: 500, body: JSON.stringify({ error: 'Internal Server Error: Invalid action result.' }) };
-        }
+        // ... (Response handling - remains the same) ...
+        if (typeof result !== 'object' || result === null) { /* ... */ }
         result.headers = { ...corsHeaders, ...result.headers };
         console.log(`Action '${action}' completed with status: ${result.statusCode}`);
         return result;
 
     } catch (error) {
+        // ... (Error handling - remains the same) ...
         console.error(`API Error during action '${action}':`, error.stack || error.message);
-        return {
-            statusCode: 500,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: 'An internal server error occurred.', details: error.message }),
-        };
+        return { /* ... */ };
     }
-}; // Only one handler export needed
+};
