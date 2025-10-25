@@ -60,7 +60,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>`;
             }
 
-            // --- Invalid comment REMOVED from button section below ---
+            // --- Invalid comment completely REMOVED ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
@@ -87,7 +87,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>
 
                 <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
-                     {/* The invalid comment was here */}
+                     {/* Comment removed from here */}
                      <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button>
                      <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button>
                      ${statusText === 'Active' || statusText === 'Salary Held' ? `
@@ -172,10 +172,20 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
          return;
     }
 
+    // Use a single listener to handle all clicks within the list
     listContainer.addEventListener('click', async (e) => {
-        const target = e.target;
+        const target = e.target; // The actual element clicked
+
+        // Find the closest button with an action class OR the card element
+        const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn');
         const cardElement = target.closest('.employee-card');
+
+        // If the click wasn't inside a card, ignore it
         if (!cardElement) return;
+
+        // If the click wasn't on an action button, ignore it
+        if (!actionButton) return;
+
         const localId = cardElement.dataset.employeeRowId;
         if (!localId) { console.error("Could not find data-employee-row-id on the card."); return; }
 
@@ -189,21 +199,21 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const employeeSheetId = employee.employeeId;
         if (!employeeSheetId) { customAlert("Error", "Employee ID missing. Cannot perform action."); return; }
 
-        // --- Handle Button Clicks ---
-        if (target.classList.contains('view-details-btn')) {
+        // --- Handle Button Clicks based on the button's class ---
+        if (actionButton.classList.contains('view-details-btn')) {
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
             else console.error('openViewDetailsModal function not imported or defined');
-        } else if (target.classList.contains('edit-btn')) {
+        } else if (actionButton.classList.contains('edit-btn')) {
             if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, currentEmployees);
              else console.error('openEmployeeModal function not imported or defined');
-        } else if (target.classList.contains('resign-btn')) {
+        } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
              else console.error('openStatusChangeModal function not imported or defined');
-        } else if (target.classList.contains('terminate-btn')) {
+        } else if (actionButton.classList.contains('terminate-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
              else console.error('openStatusChangeModal function not imported or defined');
-        } else if (target.classList.contains('toggle-hold-btn')) {
-            const isCurrentlyHeld = target.dataset.held === 'true';
+        } else if (actionButton.classList.contains('toggle-hold-btn')) {
+            const isCurrentlyHeld = actionButton.dataset.held === 'true';
             const newHeldStatus = !isCurrentlyHeld;
             try {
                 await apiCall('updateStatus', 'POST', { employeeId: employeeSheetId, salaryHeld: newHeldStatus });
@@ -213,7 +223,7 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
                  console.error('Error during toggle hold API call:', error);
                 customAlert("Error", `Failed to update salary status: ${error.message}`);
             }
-        } else if (target.classList.contains('transfer-btn')) {
+        } else if (actionButton.classList.contains('transfer-btn')) {
             if (typeof openTransferModal === 'function') openTransferModal(employee);
              else console.error('openTransferModal function not imported or defined');
         }
