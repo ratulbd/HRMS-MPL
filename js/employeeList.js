@@ -60,7 +60,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>`;
             }
 
-            // --- Invalid comment completely REMOVED ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
@@ -87,7 +86,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>
 
                 <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
-                     {/* Comment removed from here */}
+                     {/* The invalid comment that was previously here has been removed */}
                      <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button>
                      <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button>
                      ${statusText === 'Active' || statusText === 'Salary Held' ? `
@@ -172,19 +171,12 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
          return;
     }
 
-    // Use a single listener to handle all clicks within the list
     listContainer.addEventListener('click', async (e) => {
-        const target = e.target; // The actual element clicked
-
-        // Find the closest button with an action class OR the card element
+        const target = e.target;
         const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn');
         const cardElement = target.closest('.employee-card');
 
-        // If the click wasn't inside a card, ignore it
-        if (!cardElement) return;
-
-        // If the click wasn't on an action button, ignore it
-        if (!actionButton) return;
+        if (!cardElement || !actionButton) return; // Ignore clicks not on action buttons within cards
 
         const localId = cardElement.dataset.employeeRowId;
         if (!localId) { console.error("Could not find data-employee-row-id on the card."); return; }
@@ -199,7 +191,7 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const employeeSheetId = employee.employeeId;
         if (!employeeSheetId) { customAlert("Error", "Employee ID missing. Cannot perform action."); return; }
 
-        // --- Handle Button Clicks based on the button's class ---
+        // --- Handle Button Clicks ---
         if (actionButton.classList.contains('view-details-btn')) {
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
             else console.error('openViewDetailsModal function not imported or defined');
