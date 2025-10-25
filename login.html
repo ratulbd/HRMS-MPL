@@ -107,7 +107,7 @@
     </script>
 
     <script type="module">
-        // Login/Change Password Script (Keep this modular logic here)
+        // Login/Change Password Script
         async function apiCallLogin(action, body) {
             const loginBtn = $('loginSubmitBtn');
             const changeBtn = $('changeSubmitBtn');
@@ -165,8 +165,15 @@
             const username = $('username').value;
             const password = $('password').value;
 
+            // --- ADDED LOGGING LINE ---
+            console.log('Frontend: Attempting login with:', { username, password });
+            // --- END LOGGING ---
+
             try {
-                const result = await apiCallLogin('loginUser', { username, password });
+                // Pass the data as an object
+                const loginData = { username, password };
+                const result = await apiCallLogin('loginUser', loginData);
+
                 if (result.success) {
                     if (result.changePasswordRequired) {
                         $('changeUsername').value = username;
@@ -175,7 +182,7 @@
                     } else {
                         sessionStorage.setItem('isLoggedIn', 'true');
                         sessionStorage.setItem('loggedInUser', username);
-                        window.location.href = '/index.html'; // Redirect to main app (use absolute path)
+                        window.location.href = '/index.html'; // Redirect to main app
                     }
                 }
             } catch (error) {
@@ -208,12 +215,18 @@
                  return;
             }
 
+            // --- ADD LOGGING LINE ---
+            console.log('Frontend: Attempting password change for:', username);
+            // --- END LOGGING ---
+
+
             try {
-                const result = await apiCallLogin('changePassword', { username, oldPassword, newPassword });
+                 const changeData = { username, oldPassword, newPassword };
+                const result = await apiCallLogin('changePassword', changeData);
                 if (result.success) {
                     sessionStorage.setItem('isLoggedIn', 'true');
                     sessionStorage.setItem('loggedInUser', username);
-                    window.location.href = '/index.html'; // Redirect to main app (use absolute path)
+                    window.location.href = '/index.html'; // Redirect to main app
                 }
             } catch (error) {
                  console.error('Password change failed:', error);
