@@ -1,13 +1,20 @@
 // netlify/functions/lib/_authActions.js
-const DEFAULT_PASSWORD = 'Metal@#357'; // Declare only ONCE at the top
+const DEFAULT_PASSWORD = 'Metal@#357';
 
-async function loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, { username, password }) {
+async function loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, requestBody) { // Changed last arg name
+    // --- Add Logging ---
+    console.log("Received raw login request body:", JSON.stringify(requestBody)); // Log raw body
+    const { username, password } = requestBody || {}; // Destructure safely from the passed body
+    console.log(`Extracted username: "${username}", password exists: ${password ? 'Yes' : 'No'}`); // Log extracted values
+    // --- End Logging ---
+
+    // Check extracted values
     if (!username || !password) {
+        console.log("Validation failed inside loginUser: Username or password missing after destructuring."); // Add specific log
         return { statusCode: 400, body: JSON.stringify({ error: 'Username and password are required.' }) };
     }
 
     try {
-        // Ensure findUserRow is available in helpers
         if (typeof helpers.findUserRow !== 'function') {
              console.error("findUserRow helper is missing!");
              throw new Error("Internal configuration error.");
@@ -15,6 +22,7 @@ async function loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, { us
         const rowIndex = await helpers.findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username);
 
         if (rowIndex === -1) {
+            console.log(`User "${username}" not found in sheet.`);
             return { statusCode: 404, body: JSON.stringify({ error: 'User not found.' }) };
         }
 
@@ -23,7 +31,6 @@ async function loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, { us
             spreadsheetId: SPREADSHEET_ID,
             range: range,
         });
-
         const storedPassword = response.data.values?.[0]?.[0];
 
         if (!storedPassword) {
@@ -51,12 +58,19 @@ async function loginUser(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, { us
 }
 
 
-async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, { username, oldPassword, newPassword }) {
+async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers, requestBody) { // Changed last arg name
+    // --- Add Logging ---
+    console.log("Received raw changePassword request body:", JSON.stringify(requestBody));
+    const { username, oldPassword, newPassword } = requestBody || {}; // Destructure safely
+    console.log(`Extracted for changePassword - username: "${username}", oldPassword exists: ${oldPassword ? 'Yes' : 'No'}, newPassword exists: ${newPassword ? 'Yes' : 'No'}`);
+    // --- End Logging ---
+
+    // Check extracted values
     if (!username || !oldPassword || !newPassword) {
+        console.log("Validation failed inside changePassword: Missing fields.");
         return { statusCode: 400, body: JSON.stringify({ error: 'Username, old password, and new password are required.' }) };
     }
 
-    // Security check: Only allow changing FROM the default password via this specific action
     if (oldPassword !== DEFAULT_PASSWORD) {
         console.warn(`Attempt to change password for ${username} without using the default password as 'oldPassword'.`);
         return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request for password change.' }) };
@@ -69,7 +83,6 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
      }
 
     try {
-         // Ensure findUserRow is available in helpers
         if (typeof helpers.findUserRow !== 'function') {
              console.error("findUserRow helper is missing!");
              throw new Error("Internal configuration error.");
@@ -77,10 +90,10 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
         const rowIndex = await helpers.findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username);
 
         if (rowIndex === -1) {
+             console.log(`User "${username}" not found for password change.`);
             return { statusCode: 404, body: JSON.stringify({ error: 'User not found.' }) };
         }
 
-        // Verify the current password IS the default password before updating
         const rangeGet = `${USERS_SHEET_NAME}!B${rowIndex}`;
         const responseGet = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: rangeGet });
         const storedPassword = responseGet.data.values?.[0]?.[0];
@@ -90,12 +103,11 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
             return { statusCode: 403, body: JSON.stringify({ error: 'Password has already been changed from the default.' }) };
         }
 
-        // Update the password in column B
         const rangeUpdate = `${USERS_SHEET_NAME}!B${rowIndex}`;
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range: rangeUpdate,
-            valueInputOption: 'USER_ENTERED', // Or 'RAW'
+            valueInputOption: 'USER_ENTERED',
             resource: { values: [[newPassword]] }
         });
 
@@ -108,7 +120,6 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
     }
 }
 
-// Export BOTH functions in ONE module.exports block at the END
 module.exports = {
     loginUser,
     changePassword
