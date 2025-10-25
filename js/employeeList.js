@@ -1,35 +1,26 @@
 // js/employeeList.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
-// Import functions to open modals from other modules
 import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
 
-let localEmployees = []; // Module-level state for the employee list
+let localEmployees = [];
 
-// Function to update the internal state
 export function setLocalEmployees(employees) {
     localEmployees = employees || [];
 }
 
-// Function to render the list
 function renderEmployeeList(listContainer, employeesToRender) {
-    // console.log("Starting renderEmployeeList..."); // Optional: Keep for debugging if needed
-    if (!listContainer) {
-        console.error("renderEmployeeList: listContainer element not found.");
-        return;
-    }
-    listContainer.innerHTML = ''; // Clear previous content
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
 
     if (!employeesToRender || employeesToRender.length === 0) {
-        // console.log("renderEmployeeList: No employees to render.");
         listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
         return;
     }
 
-    // console.log(`renderEmployeeList: Rendering ${employeesToRender.length} employee cards.`);
     try {
         employeesToRender.forEach((emp, index) => {
              if (!emp || typeof emp.id === 'undefined') {
@@ -50,7 +41,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
 
             const card = document.createElement('div');
             card.className = 'employee-card bg-white rounded-lg shadow-md p-6 flex flex-col transition hover:shadow-lg';
-            // IMPORTANT: Use emp.id (row number from backend) for reliable identification
             card.setAttribute('data-employee-row-id', emp.id);
 
             let lastTransferHTML = '';
@@ -67,6 +57,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>`;
             }
 
+            // --- Removed invalid comment from the button section below ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
@@ -106,7 +97,6 @@ function renderEmployeeList(listContainer, employeesToRender) {
             `;
             listContainer.appendChild(card);
         });
-        // console.log("renderEmployeeList: Finished rendering cards.");
     } catch (error) {
          console.error("Error during renderEmployeeList loop:", error);
          listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Error rendering employee list: ${error.message}</p></div>`;
@@ -114,9 +104,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
     }
 }
 
-// Function to filter and render
 export function filterAndRenderEmployees(filters, employees) {
-    // console.log("Starting filterAndRenderEmployees...");
     const listContainer = $('employee-list');
     const initialLoadingIndicator = $('initialLoading');
 
@@ -125,9 +113,8 @@ export function filterAndRenderEmployees(filters, employees) {
     }
 
     if (!Array.isArray(employees)) {
-        console.error("filterAndRenderEmployees received non-array for employees:", employees);
-        renderEmployeeList(listContainer, []);
-        return;
+        console.error("filterAndRenderEmployees received non-array:", employees);
+        renderEmployeeList(listContainer, []); return;
     }
 
      const safeFilters = {
@@ -135,13 +122,9 @@ export function filterAndRenderEmployees(filters, employees) {
          designation: filters?.designation || '', type: filters?.type || '',
      };
      const nameFilterLower = safeFilters.name.toLowerCase();
-     // console.log("Applying filters:", safeFilters);
 
     const filtered = employees.filter(emp => {
-        if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') {
-             console.warn("Skipping invalid employee during filter:", emp);
-             return false;
-        }
+        if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
         let effectiveStatus = emp.status || 'Active';
         if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) {
             effectiveStatus = 'Salary Held';
@@ -153,12 +136,9 @@ export function filterAndRenderEmployees(filters, employees) {
         return nameMatch && statusMatch && designationMatch && typeMatch;
     });
 
-    // console.log(`Filtering complete. ${filtered.length} employees match.`);
     renderEmployeeList(listContainer, filtered);
-    // console.log("Finished filterAndRenderEmployees.");
 }
 
-// Function to populate filter dropdowns
 export function populateFilterDropdowns(employees) {
     const designationFilter = $('filterDesignation');
     if (!designationFilter) return;
@@ -182,8 +162,6 @@ export function populateFilterDropdowns(employees) {
     }
 }
 
-
-// Function to set up the main event listener for the list
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
     const listContainer = $('employee-list');
     if (!listContainer) {
@@ -192,85 +170,63 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
     }
 
     listContainer.addEventListener('click', async (e) => {
-        const target = e.target; // The specific element clicked (e.g., the button)
-         console.log('List item clicked:', target); // Log the clicked element
+        const target = e.target;
+        // console.log('List item clicked:', target);
 
-        // Find the closest ancestor which is an employee card
         const cardElement = target.closest('.employee-card');
-        if (!cardElement) {
-             console.log('Click was not inside an employee card.');
-             return; // Exit if the click wasn't on a button within a card
-        }
+        if (!cardElement) return;
 
-        // Get the employee's unique row ID stored on the card
         const localId = cardElement.dataset.employeeRowId;
-        if (!localId) {
-             console.error("Could not find data-employee-row-id on the card.");
-             return;
-        }
-        console.log(`Card row ID found: ${localId}`);
+        if (!localId) { console.error("Could not find data-employee-row-id on the card."); return; }
+        // console.log(`Card row ID found: ${localId}`);
 
-        const currentEmployees = getEmployeesFunc(); // Get the current full list from main.js
-        // Find the employee object using the row ID (emp.id)
+        const currentEmployees = getEmployeesFunc();
         const employee = currentEmployees.find(emp => String(emp.id) === String(localId));
 
         if (!employee) {
-            customAlert("Error", "Could not find employee data associated with this card. The list might be refreshing. Please try again.");
-            console.warn(`Employee object not found in local cache for row ID: ${localId}`);
-            return;
+            customAlert("Error", "Could not find employee data. Please refresh.");
+            console.warn(`Employee object not found for row ID: ${localId}`); return;
         }
-        // Get the actual Employee ID (e.g., CL-6216) needed for API calls
         const employeeSheetId = employee.employeeId;
-        if (!employeeSheetId) {
-             customAlert("Error", "Employee ID (e.g., CL-XXXX) is missing for this record. Cannot perform action.");
-             return;
-        }
-        console.log(`Found employee: ${employee.name} (ID: ${employeeSheetId})`);
-
+        if (!employeeSheetId) { customAlert("Error", "Employee ID missing. Cannot perform action."); return; }
+        // console.log(`Found employee: ${employee.name} (ID: ${employeeSheetId})`);
 
         // --- Handle Button Clicks ---
-        // Check if the clicked element *is* one of the buttons
         if (target.classList.contains('view-details-btn')) {
-             console.log('View Details button clicked');
+            // console.log('View Details button clicked');
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
-            else console.error('openViewDetailsModal function not found');
+            else console.error('openViewDetailsModal function not imported or defined');
         } else if (target.classList.contains('edit-btn')) {
-             console.log('Edit button clicked');
+            // console.log('Edit button clicked');
             if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, currentEmployees);
-             else console.error('openEmployeeModal function not found');
+             else console.error('openEmployeeModal function not imported or defined');
         } else if (target.classList.contains('resign-btn')) {
-             console.log('Resign button clicked');
+            // console.log('Resign button clicked');
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
-             else console.error('openStatusChangeModal function not found');
+             else console.error('openStatusChangeModal function not imported or defined');
         } else if (target.classList.contains('terminate-btn')) {
-             console.log('Terminate button clicked');
+            // console.log('Terminate button clicked');
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
-             else console.error('openStatusChangeModal function not found');
+             else console.error('openStatusChangeModal function not imported or defined');
         } else if (target.classList.contains('toggle-hold-btn')) {
-             console.log('Toggle Hold button clicked');
+            // console.log('Toggle Hold button clicked');
             const isCurrentlyHeld = target.dataset.held === 'true';
             const newHeldStatus = !isCurrentlyHeld;
-            console.log(`Attempting to set hold status to: ${newHeldStatus}`);
+            // console.log(`Attempting to set hold status to: ${newHeldStatus}`);
             try {
-                await apiCall('updateStatus', 'POST', {
-                    employeeId: employeeSheetId,
-                    salaryHeld: newHeldStatus
-                });
-                console.log(`API call successful for hold status update.`);
-                // Call fetch function passed from main.js
+                await apiCall('updateStatus', 'POST', { employeeId: employeeSheetId, salaryHeld: newHeldStatus });
+                // console.log(`API call successful for hold status update.`);
                 if (typeof fetchEmployeesFunc === 'function') fetchEmployeesFunc();
-                 else console.error('fetchEmployeesFunc function not found');
+                 else console.error('fetchEmployeesFunc function not available');
             } catch (error) {
                  console.error('Error during toggle hold API call:', error);
                 customAlert("Error", `Failed to update salary status: ${error.message}`);
             }
         } else if (target.classList.contains('transfer-btn')) {
-             console.log('Transfer button clicked');
+            // console.log('Transfer button clicked');
             if (typeof openTransferModal === 'function') openTransferModal(employee);
-             else console.error('openTransferModal function not found');
-        } else {
-             console.log('Click detected inside card, but not on a recognized action button.');
+             else console.error('openTransferModal function not imported or defined');
         }
     });
-    console.log("Employee list event listener attached."); // Confirm attachment
+    // console.log("Employee list event listener attached.");
 }
