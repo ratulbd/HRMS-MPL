@@ -32,7 +32,7 @@ const HEADER_MAPPING = {
     status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate',
     holdTimestamp: 'holdtimestamp',
     lastTransferDate: 'lasttransferdate',
-    lastSubcenter: 'lastsubcenter', // <-- UPDATED LINE
+    lastSubcenter: 'lastsubcenter', // Corrected key
     lastTransferReason: 'lasttransferreason'
 };
 
@@ -44,15 +44,60 @@ const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old 
 
 // --- Main Handler ---
 exports.handler = async (event) => {
-    // ... (CORS and request parsing - remains the same) ...
-    const corsHeaders = { /* ... */ };
-    if (event.httpMethod === 'OPTIONS') { /* ... */ }
-    const { action, sheetId } = event.queryStringParameters || {};
-    let requestBody = {};
-    try { /* ... */ } catch (e) { /* ... */ }
-    console.log(`Handler: ${action}, Method: ${event.httpMethod}`);
-    if (event.httpMethod === 'POST') console.log("Body:", JSON.stringify(requestBody).substring(0, 200) + '...');
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    };
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 204, headers: corsHeaders, body: '' };
+    }
 
+    const { action, sheetId } = event.queryStringParameters || {};
+    let requestBody = {}; // Initialize as empty object
+
+    // --- ENHANCED LOGGING for Body Parsing ---
+    console.log(`Handler received event for action: ${action}, method: ${event.httpMethod}`);
+    console.log(`Raw event.body type: ${typeof event.body}`); // Log type
+    console.log("Raw event.body content:", event.body ? event.body.substring(0, 500) + (event.body.length > 500 ? '...' : '') : '<empty>'); // Log truncated raw body string
+    console.log("event.isBase64Encoded:", event.isBase64Encoded); // Log encoding status
+    // --- END LOGGING ---
+
+    try {
+        if (event.httpMethod === 'POST' && event.body) {
+             let bodyString = event.body;
+             // Check if base64 encoded
+             if (event.isBase64Encoded) {
+                  console.log("Body is Base64 encoded, attempting to decode...");
+                  try {
+                       bodyString = Buffer.from(bodyString, 'base64').toString('utf-8');
+                       console.log("Decoded body string:", bodyString ? bodyString.substring(0, 500) + (bodyString.length > 500 ? '...' : '') : '<empty after decode>');
+                  } catch (decodeError) {
+                       console.error("Error decoding Base64 body:", decodeError);
+                       throw new Error("Failed to decode request body."); // Throw specific error
+                  }
+             }
+             // Attempt to parse the string (decoded or original)
+             try {
+                  requestBody = JSON.parse(bodyString);
+                  console.log("Successfully parsed JSON body.");
+             } catch (parseError) {
+                  console.error("Error parsing JSON body:", parseError);
+                  console.error("Original body string that failed parsing:", bodyString ? bodyString.substring(0, 500) + (bodyString.length > 500 ? '...' : '') : '<empty>');
+                  throw new Error("Invalid JSON body format received."); // Throw specific error
+             }
+        } else if (event.httpMethod === 'POST') {
+             console.warn("POST request received but event.body is empty or missing.");
+             // Keep requestBody as {}
+        }
+    } catch (e) {
+        // Catch errors specifically from body parsing/decoding
+        console.error("Critical error during body processing:", e);
+        return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: e.message || 'Failed to process request body.' }) };
+    }
+
+    // Log the parsed body before the switch statement
+    console.log("Using requestBody for action:", JSON.stringify(requestBody).substring(0, 200) + '...');
 
     try {
         let result;
@@ -79,7 +124,6 @@ exports.handler = async (event) => {
                     break;
                 case 'transferEmployee':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                     // Pass the updated HEADER_MAPPING
                      else result = await employeeActions.transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, requestBody);
                      break;
 
@@ -117,15 +161,22 @@ exports.handler = async (event) => {
                     result = { statusCode: 400, body: JSON.stringify({ error: 'Invalid action parameter' }) };
             }
         }
-        // ... (Response handling - remains the same) ...
-        if (typeof result !== 'object' || result === null) { /* ... */ }
-        result.headers = { ...corsHeaders, ...result.headers };
+        // --- Response Handling ---
+        if (typeof result !== 'object' || result === null) {
+             console.error(`Action '${action}' returned non-object result:`, result);
+             result = { statusCode: 500, body: JSON.stringify({ error: 'Internal Server Error: Invalid action result.' }) };
+        }
+        result.headers = { ...corsHeaders, ...result.headers }; // Add CORS headers
         console.log(`Action '${action}' completed with status: ${result.statusCode}`);
-        return result;
+        return result; // Return the final result object
 
     } catch (error) {
-        // ... (Error handling - remains the same) ...
+        // Catch errors from the switch statement actions or helpers
         console.error(`API Error during action '${action}':`, error.stack || error.message);
-        return { /* ... */ };
+        return {
+            statusCode: 500,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'An internal server error occurred.', details: error.message }),
+        };
     }
 };
