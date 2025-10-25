@@ -58,9 +58,7 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
 
     // Security check: Only allow changing FROM the default password via this specific action
     if (oldPassword !== DEFAULT_PASSWORD) {
-        // Log this attempt, maybe?
         console.warn(`Attempt to change password for ${username} without using the default password as 'oldPassword'.`);
-        // Return a generic error to avoid revealing if the user exists but has a different password
         return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request for password change.' }) };
     }
     if (newPassword === DEFAULT_PASSWORD) {
@@ -87,10 +85,8 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
         const responseGet = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: rangeGet });
         const storedPassword = responseGet.data.values?.[0]?.[0];
 
-        // Strict check against the default password
         if (storedPassword !== DEFAULT_PASSWORD) {
             console.warn(`Attempt to change password for ${username} but stored password is not the default.`);
-            // Inform user it's already changed, maybe they forgot?
             return { statusCode: 403, body: JSON.stringify({ error: 'Password has already been changed from the default.' }) };
         }
 
@@ -112,7 +108,7 @@ async function changePassword(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, helpers,
     }
 }
 
-// Export BOTH functions in ONE module.exports block
+// Export BOTH functions in ONE module.exports block at the END
 module.exports = {
     loginUser,
     changePassword

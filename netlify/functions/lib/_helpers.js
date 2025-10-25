@@ -176,7 +176,7 @@ async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HE
     }
 }
 
-// --- Exports --- Combine all exports into ONE block ---
+// --- Exports --- Combine all exports into ONE block at the END ---
 module.exports = {
     getSheetHeaders,
     findEmployeeRow,

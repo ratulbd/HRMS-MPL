@@ -31,6 +31,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         const { setupSalarySheetModal } = await import('./salarySheet.js');
         const { setupPastSheetsModal } = await import('./pastSheets.js');
         const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
+        import { setupTransferModal, openTransferModal } from './transferModal.js'; // <-- Import transfer functions
 
         // --- Global State (Scoped to logged-in state) ---
         let mainLocalEmployees = [];
@@ -196,6 +197,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
             if (typeof setupPastSheetsModal === 'function') setupPastSheetsModal();
             if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
+setupTransferModal(fetchAndRenderEmployees); // <-- Setup Transfer Modal
 
             // Initial data load
             fetchAndRenderEmployees();

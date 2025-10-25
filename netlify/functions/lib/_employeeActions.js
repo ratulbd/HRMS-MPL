@@ -5,6 +5,8 @@ const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
+const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
+const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
 async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
     console.log("Executing getEmployees");
@@ -179,9 +181,128 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     return { statusCode: 200, body: JSON.stringify({ message: 'Status updated successfully.' }) };
 }
 
+async function getSubCenters(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
+    console.log("Executing getSubCenters");
+    try {
+        // Find the subcenter column index
+        const headers = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
+        const subCenterHeader = HEADER_MAPPING.subCenter; // 'subcenter'
+        const subCenterColIndex = headers.indexOf(subCenterHeader);
+
+        if (subCenterColIndex === -1) {
+            console.warn(`Could not find '${subCenterHeader}' column header.`);
+            return { statusCode: 200, body: JSON.stringify([]) }; // Return empty if header not found
+        }
+
+        const subCenterColLetter = helpers.getColumnLetter(subCenterColIndex);
+        const range = `${EMPLOYEE_SHEET_NAME}!${subCenterColLetter}2:${subCenterColLetter}`; // Scan only the Sub Center column from row 2
+
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+        const rows = response.data.values || [];
+
+        // Get unique, non-empty values
+        const uniqueSubCenters = [...new Set(rows.map(row => row[0]).filter(sc => sc && String(sc).trim() !== ''))];
+        uniqueSubCenters.sort(); // Sort alphabetically
+
+        console.log(`Found ${uniqueSubCenters.length} unique Sub Centers.`);
+        return { statusCode: 200, body: JSON.stringify(uniqueSubCenters) };
+
+    } catch (error) {
+        console.error("Error in getSubCenters:", error.stack || error.message);
+        // Handle specific range error if sheet is empty
+        if (error.code === 400 && error.message.includes('Unable to parse range')) {
+             console.warn(`Sheet '${EMPLOYEE_SHEET_NAME}' might be empty or Sub Center column not found.`);
+             return { statusCode: 200, body: JSON.stringify([]) }; // Return empty array
+        }
+        return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error fetching sub centers.', details: error.message }) };
+    }
+}
+
+async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, { employeeId, newSubCenter, reason, transferDate }) {
+    console.log(`Executing transferEmployee for ${employeeId} to ${newSubCenter}`);
+    if (!employeeId || !newSubCenter || !reason || !transferDate) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: employeeId, newSubCenter, reason, transferDate.' }) };
+    }
+
+    try {
+        const rowIndex = await helpers.findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers.getSheetHeaders, employeeId);
+        if (rowIndex === -1) return { statusCode: 404, body: JSON.stringify({ error: `Employee ${employeeId} not found` }) };
+
+        const headerRow = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
+        if (headerRow.length === 0) throw new Error("Cannot transfer: Employee sheet headers not found.");
+
+        // Find column indices
+        const subCenterColIndex = headerRow.indexOf(HEADER_MAPPING.subCenter);
+        const nameColIndex = headerRow.indexOf(HEADER_MAPPING.name); // Needed for log
+        const lastDateColIndex = headerRow.indexOf(HEADER_MAPPING.lastTransferDate);
+        const lastSubCenterColIndex = headerRow.indexOf(HEADER_MAPPING.lastTransferToSubCenter);
+        const lastReasonColIndex = headerRow.indexOf(HEADER_MAPPING.lastTransferReason);
+
+        if (subCenterColIndex === -1 || lastDateColIndex === -1 || lastSubCenterColIndex === -1 || lastReasonColIndex === -1) {
+            console.error("Missing one or more required columns in Employees sheet for transfer:", {subCenterColIndex, lastDateColIndex, lastSubCenterColIndex, lastReasonColIndex});
+            throw new Error("Required columns ('Sub Center', 'Last Transfer Date', 'Last Transfer To Sub Center', 'Last Transfer Reason') not found in Employee sheet.");
+        }
+
+        // Get current Sub Center and Name for logging
+        const readRange = `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(Math.min(subCenterColIndex, nameColIndex))}${rowIndex}:${helpers.getColumnLetter(Math.max(subCenterColIndex, nameColIndex))}${rowIndex}`;
+        const readResponse = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: readRange });
+        const currentData = readResponse.data.values?.[0] || [];
+        const oldSubCenter = (subCenterColIndex < nameColIndex ? currentData[0] : currentData[1]) || 'N/A';
+        const employeeName = (nameColIndex < subCenterColIndex ? currentData[0] : currentData[1]) || 'N/A';
+
+
+        // Prepare batch update data for Employees sheet
+        const dataToUpdate = [
+            { // Update Sub Center
+                range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(subCenterColIndex)}${rowIndex}`,
+                values: [[newSubCenter]]
+            },
+            { // Update Last Transfer Date
+                range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(lastDateColIndex)}${rowIndex}`,
+                values: [[transferDate]] // Assuming transferDate is YYYY-MM-DD
+            },
+            { // Update Last Transfer To Sub Center
+                range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(lastSubCenterColIndex)}${rowIndex}`,
+                values: [[newSubCenter]]
+            },
+            { // Update Last Transfer Reason
+                range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(lastReasonColIndex)}${rowIndex}`,
+                values: [[reason]]
+            }
+        ];
+
+        // Execute batch update
+        console.log(`Attempting batch update for transfer (row ${rowIndex})`);
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate }
+        });
+        console.log("Batch update successful for transfer.");
+
+        // Log the transfer event
+        const formattedTimestamp = helpers.formatDateForSheet(new Date()); // Use helper for consistency
+        await helpers.logEvent(
+            sheets, SPREADSHEET_ID,
+            TRANSFER_LOG_SHEET_NAME, TRANSFER_LOG_HEADERS,
+            [employeeId, employeeName, oldSubCenter, newSubCenter, reason, transferDate],
+            formattedTimestamp, // Pass pre-formatted timestamp
+            helpers.ensureSheetAndHeaders
+        );
+
+        // Invalidate header cache potentially? Unlikely needed here.
+
+        return { statusCode: 200, body: JSON.stringify({ message: 'Employee transferred successfully.' }) };
+
+    } catch (error) {
+        console.error(`Error transferring employee ${employeeId}:`, error.stack || error.message);
+        return { statusCode: 500, body: JSON.stringify({ error: 'An internal server error occurred during transfer.', details: error.message }) };
+    }
+}
 
 module.exports = {
     getEmployees,
     saveEmployee,
-    updateStatus
+    updateStatus,
+    getSubCenters,
+    transferEmployee
 };

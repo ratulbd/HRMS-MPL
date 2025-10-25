@@ -6,20 +6,19 @@ const employeeActions = require('./lib/_employeeActions');
 const sheetActions = require('./lib/_sheetActions');
 const authActions = require('./lib/_authActions'); // Import auth actions
 
-// --- Authorization (Keep this here) ---
+// --- Authorization ---
 const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth });
 
-// --- Constants (Keep these here) ---
+// --- Constants ---
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
 const SALARY_SHEET_PREFIX = 'Salary_';
-const USERS_SHEET_NAME = 'Users'; // Keep Users sheet constant
-
-// REMOVED const DEFAULT_PASSWORD = 'Metal@#357'; (It's defined in _authActions.js)
+const USERS_SHEET_NAME = 'Users';
+const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log'; // Keep log sheet names here if helpers don't define them
 
 const HEADER_MAPPING = {
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
@@ -31,13 +30,16 @@ const HEADER_MAPPING = {
     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber',
     status: 'status', salaryHeld: 'salaryheld', remarks: 'remarks', separationDate: 'separationdate',
-    holdTimestamp: 'holdtimestamp'
+    holdTimestamp: 'holdtimestamp', // <-- Comma added here
+    lastTransferDate: 'lasttransferdate',
+    lastTransferToSubCenter: 'lasttransfertosubcenter',
+    lastTransferReason: 'lasttransferreason'
 };
-// Log sheet constants (Can be removed if not directly used here)
-const HOLD_LOG_SHEET_NAME = 'Hold_Log';
-const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
+
+// Log Headers (Optional here, primarily needed in modules where logEvent is called)
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
+const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
 
 // --- Main Handler ---
@@ -82,6 +84,14 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, requestBody);
                     break;
+                case 'getSubCenters':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await employeeActions.getSubCenters(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers);
+                    break;
+                case 'transferEmployee':
+                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     else result = await employeeActions.transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, requestBody);
+                     break;
 
                 // --- Sheet Actions ---
                 case 'saveSheet':
@@ -134,4 +144,4 @@ exports.handler = async (event) => {
             body: JSON.stringify({ error: 'An internal server error occurred.', details: error.message }),
         };
     }
-};
+}; // Only one handler export needed
