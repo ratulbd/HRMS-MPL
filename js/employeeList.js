@@ -13,7 +13,10 @@ export function setLocalEmployees(employees) {
 }
 
 function renderEmployeeList(listContainer, employeesToRender) {
-    if (!listContainer) return;
+    if (!listContainer) {
+        console.error("renderEmployeeList: listContainer element not found.");
+        return;
+    }
     listContainer.innerHTML = '';
 
     if (!employeesToRender || employeesToRender.length === 0) {
@@ -57,7 +60,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>`;
             }
 
-            // --- Removed invalid comment from the button section below ---
+            // --- Invalid comment REMOVED from button section below ---
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
@@ -84,7 +87,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 </div>
 
                 <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end">
-                     {/* Ensure data-id attribute uses emp.id */}
+                     {/* The invalid comment was here */}
                      <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button>
                      <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button>
                      ${statusText === 'Active' || statusText === 'Salary Held' ? `
@@ -171,14 +174,10 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target;
-        // console.log('List item clicked:', target);
-
         const cardElement = target.closest('.employee-card');
         if (!cardElement) return;
-
         const localId = cardElement.dataset.employeeRowId;
         if (!localId) { console.error("Could not find data-employee-row-id on the card."); return; }
-        // console.log(`Card row ID found: ${localId}`);
 
         const currentEmployees = getEmployeesFunc();
         const employee = currentEmployees.find(emp => String(emp.id) === String(localId));
@@ -189,33 +188,25 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         }
         const employeeSheetId = employee.employeeId;
         if (!employeeSheetId) { customAlert("Error", "Employee ID missing. Cannot perform action."); return; }
-        // console.log(`Found employee: ${employee.name} (ID: ${employeeSheetId})`);
 
         // --- Handle Button Clicks ---
         if (target.classList.contains('view-details-btn')) {
-            // console.log('View Details button clicked');
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
             else console.error('openViewDetailsModal function not imported or defined');
         } else if (target.classList.contains('edit-btn')) {
-            // console.log('Edit button clicked');
             if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, currentEmployees);
              else console.error('openEmployeeModal function not imported or defined');
         } else if (target.classList.contains('resign-btn')) {
-            // console.log('Resign button clicked');
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
              else console.error('openStatusChangeModal function not imported or defined');
         } else if (target.classList.contains('terminate-btn')) {
-            // console.log('Terminate button clicked');
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
              else console.error('openStatusChangeModal function not imported or defined');
         } else if (target.classList.contains('toggle-hold-btn')) {
-            // console.log('Toggle Hold button clicked');
             const isCurrentlyHeld = target.dataset.held === 'true';
             const newHeldStatus = !isCurrentlyHeld;
-            // console.log(`Attempting to set hold status to: ${newHeldStatus}`);
             try {
                 await apiCall('updateStatus', 'POST', { employeeId: employeeSheetId, salaryHeld: newHeldStatus });
-                // console.log(`API call successful for hold status update.`);
                 if (typeof fetchEmployeesFunc === 'function') fetchEmployeesFunc();
                  else console.error('fetchEmployeesFunc function not available');
             } catch (error) {
@@ -223,10 +214,8 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
                 customAlert("Error", `Failed to update salary status: ${error.message}`);
             }
         } else if (target.classList.contains('transfer-btn')) {
-            // console.log('Transfer button clicked');
             if (typeof openTransferModal === 'function') openTransferModal(employee);
              else console.error('openTransferModal function not imported or defined');
         }
     });
-    // console.log("Employee list event listener attached.");
 }
