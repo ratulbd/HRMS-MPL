@@ -238,28 +238,40 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
         const lastSubCenterColIndex = headerRow.indexOf(HEADER_MAPPING.lastTransferToSubCenter);
         const lastReasonColIndex = headerRow.indexOf(HEADER_MAPPING.lastTransferReason);
 
-        if (subCenterColIndex === -1 || lastDateColIndex === -1 || lastSubCenterColIndex === -1 || lastReasonColIndex === -1) {
-            console.error("Missing one or more required columns in Employees sheet for transfer:", {subCenterColIndex, lastDateColIndex, lastSubCenterColIndex, lastReasonColIndex});
-            throw new Error("Required columns ('Sub Center', 'Last Transfer Date', 'Last Transfer To Sub Center', 'Last Transfer Reason') not found in Employee sheet.");
+        if (subCenterColIndex === -1 || nameColIndex === -1 || lastDateColIndex === -1 || lastSubCenterColIndex === -1 || lastReasonColIndex === -1) {
+            console.error("Missing one or more required columns in Employees sheet for transfer/logging:", { subCenterColIndex, nameColIndex, lastDateColIndex, lastSubCenterColIndex, lastReasonColIndex });
+            throw new Error("Required columns ('Sub Center', 'Employee Name', 'Last Transfer Date', 'Last Transfer To Sub Center', 'Last Transfer Reason') not found in Employee sheet.");
         }
 
-        // Get current Sub Center and Name for logging
-        const readRange = `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(Math.min(subCenterColIndex, nameColIndex))}${rowIndex}:${helpers.getColumnLetter(Math.max(subCenterColIndex, nameColIndex))}${rowIndex}`;
-        const readResponse = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: readRange });
-        const currentData = readResponse.data.values?.[0] || [];
-        const oldSubCenter = (subCenterColIndex < nameColIndex ? currentData[0] : currentData[1]) || 'N/A';
-        const employeeName = (nameColIndex < subCenterColIndex ? currentData[0] : currentData[1]) || 'N/A';
+        // --- FIX: Fetch specific cells instead of a range ---
+        const nameColLetter = helpers.getColumnLetter(nameColIndex);
+        const subCenterColLetter = helpers.getColumnLetter(subCenterColIndex);
+        const rangesToRead = [
+            `${EMPLOYEE_SHEET_NAME}!${nameColLetter}${rowIndex}`,
+            `${EMPLOYEE_SHEET_NAME}!${subCenterColLetter}${rowIndex}`
+        ];
+
+        console.log("Fetching current name and subcenter from ranges:", rangesToRead);
+        const readResponse = await sheets.spreadsheets.values.batchGet({
+             spreadsheetId: SPREADSHEET_ID,
+             ranges: rangesToRead
+         });
+
+        const employeeName = readResponse.data.valueRanges?.[0]?.values?.[0]?.[0] || 'N/A';
+        const oldSubCenter = readResponse.data.valueRanges?.[1]?.values?.[0]?.[0] || 'N/A';
+        console.log(`Fetched current values - Name: ${employeeName}, Old Sub Center: ${oldSubCenter}`);
+        // --- END FIX ---
 
 
         // Prepare batch update data for Employees sheet
         const dataToUpdate = [
             { // Update Sub Center
-                range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(subCenterColIndex)}${rowIndex}`,
+                range: `${EMPLOYEE_SHEET_NAME}!${subCenterColLetter}${rowIndex}`, // Use letter derived above
                 values: [[newSubCenter]]
             },
             { // Update Last Transfer Date
                 range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(lastDateColIndex)}${rowIndex}`,
-                values: [[transferDate]] // Assuming transferDate is YYYY-MM-DD
+                values: [[transferDate]]
             },
             { // Update Last Transfer To Sub Center
                 range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(lastSubCenterColIndex)}${rowIndex}`,
@@ -280,16 +292,14 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
         console.log("Batch update successful for transfer.");
 
         // Log the transfer event
-        const formattedTimestamp = helpers.formatDateForSheet(new Date()); // Use helper for consistency
+        const formattedTimestamp = helpers.formatDateForSheet(new Date());
         await helpers.logEvent(
             sheets, SPREADSHEET_ID,
             TRANSFER_LOG_SHEET_NAME, TRANSFER_LOG_HEADERS,
             [employeeId, employeeName, oldSubCenter, newSubCenter, reason, transferDate],
-            formattedTimestamp, // Pass pre-formatted timestamp
+            formattedTimestamp,
             helpers.ensureSheetAndHeaders
         );
-
-        // Invalidate header cache potentially? Unlikely needed here.
 
         return { statusCode: 200, body: JSON.stringify({ message: 'Employee transferred successfully.' }) };
 
@@ -298,7 +308,6 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
         return { statusCode: 500, body: JSON.stringify({ error: 'An internal server error occurred during transfer.', details: error.message }) };
     }
 }
-
 module.exports = {
     getEmployees,
     saveEmployee,
