@@ -239,24 +239,39 @@
          <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-sm modal text-center"><h3 id="confirmTitle" class="text-xl font-bold mb-4">Confirmation</h3><p id="confirmMessage" class="text-gray-600 mb-6"></p><div class="flex justify-center gap-4"><button id="confirmCancelBtn" class="btn btn-secondary w-1/2">Cancel</button><button id="confirmOkBtn" class="btn btn-danger w-1/2">Confirm</button></div></div>
     </div>
 
-    <div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
-         <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
-             <h2 class="text-2xl font-bold mb-6">Transfer Employee</h2>
-             <form id="transferForm">
-                 <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName">
-                 <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p>
-                 <div class="space-y-4">
-                     <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div>
-                     <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project</label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
-                     <div><label for="transferProjectOffice" class="block text-sm font-medium text-gray-700">New Project Office</label><select id="transferProjectOffice" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
-                     <div><label for="newSubCenter" class="block text-sm font-medium text-gray-700">New Sub Center</label><select id="newSubCenter" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
-                     <div><label for="transferReportProject" class="block text-sm font-medium text-gray-700">New Report Project</label><select id="transferReportProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
-                     <div><label for="transferDate" class="block text-sm font-medium text-gray-700">Transfer Date</label><input type="date" id="transferDate" required class="input"></div>
-                     <div><label for="transferReason" class="block text-sm font-medium text-gray-700">Reason for Transfer</label><textarea id="transferReason" rows="3" required class="input"></textarea></div>
-                 </div>
-                 <div id="transferError" class="text-red-600 text-sm mt-4 hidden"></div>
-                 <div class="mt-8 flex justify-end gap-4"><button type="button" id="cancelTransferModal" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Confirm Transfer</button></div>
-             </form>
+<div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
+         {/* --- Outer container for vertical centering --- */}
+         <div class="bg-white rounded-lg shadow-2xl w-full max-w-md modal flex flex-col max-h-[90vh]"> {/* Added flex, flex-col, max-h */}
+             {/* --- Modal Header (Not scrollable) --- */}
+             <div class="p-6 border-b flex-shrink-0">
+                 <h2 class="text-2xl font-bold text-gray-900">Transfer Employee</h2>
+             </div>
+
+             {/* --- Scrollable Form Area --- */}
+             <div class="p-6 flex-grow overflow-y-auto"> {/* Added flex-grow, overflow-y-auto */}
+                 <form id="transferForm">
+                     <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName">
+                     <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p>
+                     <div class="space-y-4">
+                         <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div>
+                         <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project</label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
+                         <div><label for="transferProjectOffice" class="block text-sm font-medium text-gray-700">New Project Office</label><select id="transferProjectOffice" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
+                         <div><label for="newSubCenter" class="block text-sm font-medium text-gray-700">New Sub Center</label><select id="newSubCenter" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
+                         <div><label for="transferReportProject" class="block text-sm font-medium text-gray-700">New Report Project</label><select id="transferReportProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
+                         <div><label for="transferDate" class="block text-sm font-medium text-gray-700">Transfer Date</label><input type="date" id="transferDate" required class="input"></div>
+                         <div><label for="transferReason" class="block text-sm font-medium text-gray-700">Reason for Transfer</label><textarea id="transferReason" rows="3" required class="input"></textarea></div>
+                     </div>
+                     <div id="transferError" class="text-red-600 text-sm mt-4 hidden"></div>
+                     {/* Moved buttons outside the scrollable div */}
+                 </form>
+             </div>
+
+             {/* --- Modal Footer (Not scrollable) --- */}
+             <div class="p-6 border-t flex justify-end gap-4 flex-shrink-0">
+                 <button type="button" id="cancelTransferModal" class="btn btn-secondary">Cancel</button>
+                 {/* Target the form with the 'form' attribute */}
+                 <button type="submit" form="transferForm" class="btn btn-primary">Confirm Transfer</button>
+             </div>
          </div>
     </div>
     <script type="module" src="js/main.js"></script>
