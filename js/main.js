@@ -1,15 +1,28 @@
 // js/main.js
 
 // --- Authentication Check ---
+// Redirect to login if not logged in
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
-    // ... (redirection logic remains the same) ...
+    // Check if we are already on login.html to prevent redirect loop
+    // Adjust the path check if login.html is not in the root
+    if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
+        console.log("User not logged in. Redirecting to login page.");
+        window.location.href = '/login.html'; // Use absolute path from root
+    } else if (window.location.pathname.endsWith('/')) {
+         // If at the root path, redirect to login
+         console.log("User not logged in at root. Redirecting to login page.");
+         window.location.href = '/login.html';
+    }
+    // If already on login.html, do nothing and let the login page script run.
+
 } else {
-    // --- App Initialization ---
+    // --- Only run app initialization if logged in ---
     console.log("User is logged in. Initializing app...");
 
+    // Dynamically import modules *after* checking login status
     async function initializeAppModules() {
-        // --- Dynamic Imports ---
-        const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, chartColors, getChartColorPalette } = await import('./utils.js'); // Import chart utils
+        // --- Standard Imports ---
+        const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV } = await import('./utils.js');
         const { apiCall } = await import('./apiClient.js');
         const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
         const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
@@ -18,137 +31,44 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         const { setupSalarySheetModal } = await import('./salarySheet.js');
         const { setupPastSheetsModal } = await import('./pastSheets.js');
         const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
+        // --- Corrected Transfer Modal Import ---
         const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
-
-        // --- Global State ---
+        // --- Global State (Scoped to logged-in state) ---
         let mainLocalEmployees = [];
-        let currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' }; // Include projectOffice
-        let activeChartInstance = null;
-        let separatedChartInstance = null;
-        let heldChartInstance = null;
-
+        let currentFilters = { name: '', status: '', designation: '', type: '' };
 
         // --- State Accessor ---
         const getMainLocalEmployees = () => mainLocalEmployees;
 
-        // --- Chart Data Processing ---
-        function aggregateEmployeesByOffice(employees, targetStatus) {
-             const counts = {};
-             if (!Array.isArray(employees)) return { labels: [], data: [] };
-
-             employees.forEach(emp => {
-                 const office = emp.projectOffice || 'Unknown';
-                 let matches = false;
-                 let effectiveStatus = emp.status || 'Active';
-                 const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
-                 if (effectiveStatus === 'Active' && isHeld) { effectiveStatus = 'Salary Held'; }
-
-                 if (targetStatus === 'Active' && effectiveStatus === 'Active') matches = true;
-                 else if (targetStatus === 'Separated' && (effectiveStatus === 'Resigned' || effectiveStatus === 'Terminated')) matches = true;
-                 else if (targetStatus === 'Salary Held' && effectiveStatus === 'Salary Held') matches = true;
-
-                 if (matches) counts[office] = (counts[office] || 0) + 1;
-             });
-
-             const labels = Object.keys(counts).sort();
-             const data = labels.map(label => counts[label]);
-             return { labels, data };
-        }
-
-         // --- Chart Creation/Update ---
-         function createOrUpdateChart(chartInstance, canvasId, data, label, statusFilterOnClick) {
-             const ctx = $(canvasId)?.getContext('2d');
-             if (!ctx) { console.error(`Canvas element #${canvasId} not found.`); return null; }
-
-             const chartData = {
-                 labels: data.labels,
-                 datasets: [{
-                     label: label, data: data.data,
-                     backgroundColor: getChartColorPalette(data.labels.length),
-                     borderColor: getChartColorPalette(data.labels.length).map(color => color.replace(')', ', 0.8)')),
-                     borderWidth: 1
-                 }]
-             };
-
-             if (chartInstance) {
-                  chartInstance.data = chartData;
-                  chartInstance.options.onClick = createChartClickHandler(data, canvasId, statusFilterOnClick); // Re-assign onClick with current data closure
-                  chartInstance.update();
-                  return chartInstance;
-             } else {
-                  return new Chart(ctx, {
-                      type: 'bar', data: chartData,
-                      options: {
-                          responsive: true, maintainAspectRatio: false,
-                          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-                          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y}` } } },
-                          onClick: createChartClickHandler(data, canvasId, statusFilterOnClick) // Use closure for click handler
-                      }
-                  });
-             }
-         }
-
-         // --- Closure Function for Chart Click Handler ---
-         function createChartClickHandler(chartDataRef, chartId, statusFilterValue) {
-              // This function returns the actual event handler
-              return (event, elements) => {
-                  if (elements.length > 0) {
-                      const elementIndex = elements[0].index;
-                      // Use the chartDataRef captured in the closure
-                      const clickedLabel = chartDataRef.labels[elementIndex];
-                      console.log(`Chart ${chartId} clicked. Label: ${clickedLabel}, Status Filter: ${statusFilterValue}`);
-
-                      // Update filters state
-                      currentFilters = {
-                           name: '', // Reset other filters on chart click
-                           status: statusFilterValue, // Set status based on chart
-                           designation: '',
-                           type: '',
-                           projectOffice: clickedLabel === 'Unknown' ? '' : clickedLabel // Set project office
-                      };
-
-                      // Update UI filter elements (optional)
-                      $('filterName').value = '';
-                      $('filterStatus').value = statusFilterValue;
-                      $('filterDesignation').value = '';
-                      $('filterType').value = '';
-                      $('filterAppliedInfo').textContent = `Showing: ${statusFilterValue || 'Separated'} in ${clickedLabel}`; // Display feedback
-                      $('filterCardTitle').textContent = `Filtered Employee List`;
-
-                      // Re-filter and render the employee list
-                      filterAndRenderEmployees(currentFilters, mainLocalEmployees);
-                  }
-              };
-         }
-
-
         // --- Main Fetch Function ---
         async function fetchAndRenderEmployees() {
             try {
-                const employees = await apiCall('getEmployees');
+                const employees = await apiCall('getEmployees'); // apiCall handles loading internally
                 mainLocalEmployees = employees || [];
-                setLocalEmployees(mainLocalEmployees);
-                populateFilterDropdowns(mainLocalEmployees);
-
-                const activeData = aggregateEmployeesByOffice(mainLocalEmployees, 'Active');
-                const separatedData = aggregateEmployeesByOffice(mainLocalEmployees, 'Separated');
-                const heldData = aggregateEmployeesByOffice(mainLocalEmployees, 'Salary Held');
-
-                activeChartInstance = createOrUpdateChart(activeChartInstance, 'activeChart', activeData, '# Active', 'Active');
-                // For separated chart, clicking shows both Resigned/Terminated initially
-                separatedChartInstance = createOrUpdateChart(separatedChartInstance, 'separatedChart', separatedData, '# Resigned/Terminated', ''); // Empty status filter initially
-                heldChartInstance = createOrUpdateChart(heldChartInstance, 'heldChart', heldData, '# Salary Held', 'Salary Held');
-
-                // Render based on filters (might be set by chart click before full load)
-                filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                if (typeof setLocalEmployees === 'function') {
+                    setLocalEmployees(mainLocalEmployees);
+                }
+                 if (typeof populateFilterDropdowns === 'function') {
+                     populateFilterDropdowns(mainLocalEmployees);
+                 }
+                 if (typeof filterAndRenderEmployees === 'function') {
+                     filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                 }
 
                 const initialLoading = $('#initialLoading');
                 if(initialLoading) initialLoading.remove();
 
             } catch (error) {
-                 customAlert("Error", `Failed to load employee data: ${error.message}`);
-                 $('#employee-list').innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+                 if (typeof customAlert === 'function') {
+                    customAlert("Error", `Failed to load employee data: ${error.message}`);
+                 } else {
+                     alert(`Failed to load employee data: ${error.message}`); // Fallback
+                 }
+                 const employeeListElement = $('#employee-list');
+                 if(employeeListElement) {
+                     employeeListElement.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+                 }
                   const initialLoading = $('#initialLoading');
                   if(initialLoading) initialLoading.remove();
             }
@@ -161,14 +81,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                  if(element) {
                      element.addEventListener('input', (e) => {
                           const filterKey = id.replace('filter','').toLowerCase();
-                          // Reset projectOffice filter if manual filters are changed
-                          currentFilters = {
-                               ...currentFilters,
-                               projectOffice: '', // Clear project office from chart click
-                               [filterKey]: e.target.value
-                          };
-                           $('filterAppliedInfo').textContent = ''; // Clear chart filter info
-                           $('filterCardTitle').textContent = `Filters`; // Reset title
+                          currentFilters[filterKey] = e.target.value;
                           if (typeof filterAndRenderEmployees === 'function') {
                              filterAndRenderEmployees(currentFilters, mainLocalEmployees);
                           }
@@ -178,13 +91,11 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
               const resetBtn = $('#resetFiltersBtn');
               if(resetBtn) {
                   resetBtn.addEventListener('click', () => {
-                       currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' }; // Reset all
-                       $('filterName').value = '';
-                       $('filterStatus').value = '';
-                       $('filterDesignation').value = '';
-                       $('filterType').value = '';
-                        $('filterAppliedInfo').textContent = ''; // Clear chart filter info
-                        $('filterCardTitle').textContent = `Filters`; // Reset title
+                       currentFilters = { name: '', status: '', designation: '', type: '' };
+                       const nameInput = $('filterName'); if(nameInput) nameInput.value = '';
+                       const statusSelect = $('filterStatus'); if(statusSelect) statusSelect.value = '';
+                       const desSelect = $('filterDesignation'); if(desSelect) desSelect.value = '';
+                       const typeSelect = $('filterType'); if(typeSelect) typeSelect.value = '';
                         if (typeof filterAndRenderEmployees === 'function') {
                             filterAndRenderEmployees(currentFilters, mainLocalEmployees);
                         }
@@ -193,18 +104,56 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         }
 
         // --- Export Data ---
-        function handleExportData() { /* ... (remains the same) ... */ }
+        function handleExportData() {
+             if (mainLocalEmployees.length === 0) {
+                 if (typeof customAlert === 'function') customAlert("No Data", "There are no employees to export.");
+                 else alert("There are no employees to export.");
+                return;
+            }
+             const headers = [ /* ... headers ... */ ];
+             const headerKeys = [ /* ... headerKeys ... */ ];
+             // ... (rest of CSV generation logic) ...
+             if (typeof downloadCSV === 'function') {
+                downloadCSV(csvContent, "employee_data_export.csv");
+            }
+        }
 
          // --- Setup Global Listeners ---
-         function setupGlobalListeners() { /* ... (remains the same) ... */ }
+         function setupGlobalListeners() {
+             const exportBtn = $('exportDataBtn');
+             if (exportBtn && typeof handleExportData === 'function') {
+                 exportBtn.addEventListener('click', handleExportData);
+             }
+             const alertOk = $('alertOkBtn');
+             if (alertOk && typeof closeModal === 'function') {
+                 alertOk.addEventListener('click', () => closeModal('alertModal'));
+             }
+             const confirmCancel = $('confirmCancelBtn');
+             if (confirmCancel && typeof handleConfirmCancel === 'function') {
+                 confirmCancel.addEventListener('click', handleConfirmCancel);
+             }
+             const confirmOk = $('confirmOkBtn');
+             if (confirmOk && typeof handleConfirmAction === 'function') {
+                 confirmOk.addEventListener('click', handleConfirmAction);
+             }
+             const logoutBtn = $('logoutBtn');
+             if (logoutBtn) {
+                 logoutBtn.addEventListener('click', () => {
+                     sessionStorage.removeItem('isLoggedIn');
+                     sessionStorage.removeItem('loggedInUser');
+                     window.location.href = '/login.html';
+                 });
+             } else {
+                  console.warn("Logout button (#logoutBtn) not found in HTML.");
+             }
+         }
 
         // --- Initialize Application ---
         function initializeApp() {
-            console.log("Initializing HRMS Dashboard...");
+            console.log("Initializing HRMS App (Modular & Authenticated)...");
             setupFilterListeners();
             setupGlobalListeners();
 
-            // Setup module-specific listeners
             if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
             if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
             if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
@@ -212,14 +161,11 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
             if (typeof setupPastSheetsModal === 'function') setupPastSheetsModal();
             if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
+            // Call setupTransferModal (it's now imported correctly)
             if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
 
-            // Initial data load (triggers chart rendering)
+            // Initial data load
             fetchAndRenderEmployees();
-
-             // Show the prompt to click a chart initially
-             const selectChartPrompt = $('selectChartPrompt');
-             if (selectChartPrompt) selectChartPrompt.classList.remove('hidden');
         }
 
         // --- Run ---
@@ -230,6 +176,10 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         }
     } // End async function initializeAppModules
 
-    initializeAppModules().catch(err => { /* ... error handling ... */ });
+    // Call the async function to load modules and initialize
+    initializeAppModules().catch(err => {
+        console.error("Failed to initialize app modules:", err);
+         document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error loading application components. Please try refreshing.</div>';
+    });
 
 } // End of the main 'else' block for authenticated users
