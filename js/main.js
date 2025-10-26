@@ -3,13 +3,18 @@
 // --- Authentication Check ---
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
     if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
-        window.location.href = '/login.html';
+        console.log("User not logged in. Redirecting to login page.");
+        window.location.href = '/login.html'; // Use absolute path from root
     } else if (window.location.pathname.endsWith('/')) {
+         console.log("User not logged in at root. Redirecting to login page.");
          window.location.href = '/login.html';
     }
 } else {
     // --- App Initialization ---
+    console.log("User is logged in. Initializing app...");
+
     async function initializeAppModules() {
+        // --- Dynamic Imports ---
         const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV } = await import('./utils.js');
         const { apiCall } = await import('./apiClient.js');
         const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
@@ -23,7 +28,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
         // --- Global State ---
         let mainLocalEmployees = [];
-        // Add projectOffice to filters state
         let currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' };
 
         // --- State Accessor ---
@@ -36,9 +40,9 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                  if (countDisplay) countDisplay.textContent = 'Loading employees...';
                 const employees = await apiCall('getEmployees');
                 mainLocalEmployees = employees || [];
-                setLocalEmployees(mainLocalEmployees); // Pass to list module
-                populateFilterDropdowns(mainLocalEmployees); // Populate ALL dropdowns
-                filterAndRenderEmployees(currentFilters, mainLocalEmployees); // Initial render with count
+                setLocalEmployees(mainLocalEmployees);
+                populateFilterDropdowns(mainLocalEmployees);
+                filterAndRenderEmployees(currentFilters, mainLocalEmployees);
 
                 const initialLoading = $('#initialLoading');
                 if(initialLoading) initialLoading.remove();
@@ -47,7 +51,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                  customAlert("Error", `Failed to load employee data: ${error.message}`);
                  if(countDisplay) countDisplay.textContent = 'Error loading data.';
                  const employeeListElement = $('#employee-list');
-                 if(employeeListElement) employeeListElement.innerHTML = `<div class="col-span-full ..."><p class="text-red-500 ...">Could not load employee data.</p></div>`;
+                 if(employeeListElement) employeeListElement.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
                   const initialLoading = $('#initialLoading');
                   if(initialLoading) initialLoading.remove();
             }
@@ -55,45 +59,72 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
         // --- Setup Filter Listeners ---
         function setupFilterListeners() {
-             // Add filterProjectOffice to the list
              ['filterName', 'filterStatus', 'filterDesignation', 'filterType', 'filterProjectOffice'].forEach(id => {
                  const element = $(id);
                  if(element) {
                      element.addEventListener('input', (e) => {
-                          // Derive key from ID
-                          const filterKey = id.replace('filter','').charAt(0).toLowerCase() + id.slice(7);
-                          currentFilters[filterKey] = e.target.value;
-                          if (typeof filterAndRenderEmployees === 'function') {
-                             filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                          const filterKeyMap = { // Map IDs to state keys
+                               filterName: 'name',
+                               filterStatus: 'status',
+                               filterDesignation: 'designation',
+                               filterType: 'type',
+                               filterProjectOffice: 'projectOffice'
+                          };
+                          const filterKey = filterKeyMap[id];
+                          if (filterKey) { // Check if key exists
+                               currentFilters[filterKey] = e.target.value;
+                               if (typeof filterAndRenderEmployees === 'function') {
+                                  filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                               }
+                          } else {
+                               console.warn(`No filter key mapping found for ID: ${id}`);
                           }
                      });
+                 } else {
+                      console.warn(`Filter element with ID '${id}' not found.`);
                  }
              });
-              const resetBtn = $('#resetFiltersBtn');
+
+              const resetBtn = $('resetFiltersBtn');
               if(resetBtn) {
                   resetBtn.addEventListener('click', () => {
-                       // Reset projectOffice filter
+                       // Reset the state object
                        currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' };
-                       $('filterName').value = '';
-                       $('filterStatus').value = '';
-                       $('filterDesignation').value = '';
-                       $('filterType').value = '';
-                       $('filterProjectOffice').value = ''; // Clear the new dropdown
 
+                       // --- FIX: Reset the values of the HTML elements ---
+                       const nameInput = $('filterName'); if(nameInput) nameInput.value = '';
+                       const statusSelect = $('filterStatus'); if(statusSelect) statusSelect.value = '';
+                       const desSelect = $('filterDesignation'); if(desSelect) desSelect.value = '';
+                       const typeSelect = $('filterType'); if(typeSelect) typeSelect.value = '';
+                       const officeSelect = $('filterProjectOffice'); if(officeSelect) officeSelect.value = '';
+                       // --- END FIX ---
+
+                        // Re-filter and render with empty filters
                         if (typeof filterAndRenderEmployees === 'function') {
                             filterAndRenderEmployees(currentFilters, mainLocalEmployees);
                         }
                   });
+              } else {
+                   console.warn("Reset Filters button (#resetFiltersBtn) not found.");
               }
         }
 
         // --- Export Data ---
         function handleExportData() {
              if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
-             const headers = [ "Employee ID", "Employee Name", /* ... ALL HEADERS ... */ "Last Transfer Reason"];
-             const headerKeys = [ "employeeId", "name", /* ... ALL KEYS ... */ "lastTransferReason"];
+             const headers = [ "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth", "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number", "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number", "Status", "Salary Held", "Separation Date", "Remarks", "Hold Timestamp", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason"];
+             const headerKeys = [ "employeeId", "name", "employeeType", "designation", "joiningDate", "project", "projectOffice", "reportProject", "subCenter", "workExperience", "education", "fatherName", "motherName", "personalMobile", "dob", "bloodGroup", "address", "identification", "nomineeName", "nomineeMobile", "salary", "officialMobile", "mobileLimit", "bankAccount", "status", "salaryHeld", "separationDate", "remarks", "holdTimestamp", "lastTransferDate", "lastSubcenter", "lastTransferReason"];
              let csvContent = headers.join(',') + '\n';
-             mainLocalEmployees.forEach(emp => { /* ... generate row ... */ });
+             mainLocalEmployees.forEach(emp => {
+                const row = headerKeys.map(key => {
+                     let value = emp[key] ?? '';
+                     if (key === 'salaryHeld') value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+                     value = String(value).replace(/"/g, '""');
+                    if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
+                    return value;
+                });
+                csvContent += row.join(',') + '\n';
+             });
              if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
         }
 
@@ -111,6 +142,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
         // --- Initialize Application ---
         function initializeApp() {
+            console.log("Initializing HRMS App (Modular & Authenticated)...");
             setupFilterListeners();
             setupGlobalListeners();
             // Setup module-specific listeners
@@ -130,5 +162,5 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initializeApp); }
         else { initializeApp(); }
     }
-    initializeAppModules().catch(err => { console.error("Failed to init app modules:", err); /* Show error */ });
-} // End auth check else block
+    initializeAppModules().catch(err => { console.error("Failed to init app modules:", err); document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error loading application components. Please try refreshing.</div>'; });
+}
