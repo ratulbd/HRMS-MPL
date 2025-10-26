@@ -1,6 +1,17 @@
 // js/viewDetails.js
 import { $, openModal, closeModal, formatDateForDisplay } from './utils.js';
 
+// Helper to convert camelCase/snake_case keys to Title Case Labels
+function keyToLabel(key) {
+    if (!key) return '';
+    // Replace underscores with spaces, handle camelCase by inserting space before uppercase letters
+    let label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
+    // Uppercase first letter of each word
+    label = label.replace(/\b\w/g, char => char.toUpperCase());
+    return label.trim();
+}
+
+
 export function openViewDetailsModal(employee) {
     const contentEl = $('viewDetailsContent');
     const modal = $('viewDetailsModal');
@@ -9,53 +20,49 @@ export function openViewDetailsModal(employee) {
         return;
     }
 
-    const isHeld = (employee.salaryHeld === true || String(employee.salaryHeld).toUpperCase() === 'TRUE');
-
-    const detailsMap = {
-        "Employee ID": employee.employeeId,
-        "Employee Name": employee.name,
-        "Status": employee.status || 'Active',
-        "Salary Held": isHeld ? 'Yes' : 'No',
-        "Held Since": isHeld ? (employee.holdTimestamp || 'N/A') : 'N/A',
-        "Employee Type": employee.employeeType,
-        "Designation": employee.designation,
-        "Joining Date": employee.joiningDate,
-        "Work Experience (Years)": employee.workExperience,
-        "Education": employee.education,
-        "Project": employee.project,
-        "Project Office": employee.projectOffice,
-        "Report Project": employee.reportProject,
-        "Sub Center": employee.subCenter,
-        "Father's Name": employee.fatherName,
-        "Mother's Name": employee.motherName,
-        "Personal Mobile": employee.personalMobile,
-        "Date of Birth": employee.dob,
-        "Blood Group": employee.bloodGroup,
-        "Address": employee.address,
-        "Identification (NID/etc.)": employee.identification,
-        "Nominee's Name": employee.nomineeName,
-        "Nominee's Mobile": employee.nomineeMobile,
-        "Official Mobile": employee.officialMobile || 'N/A',
-        "Mobile Limit": employee.mobileLimit != null ? employee.mobileLimit : 'N/A',
-        "Gross Salary": `৳${Number(employee.salary || 0).toLocaleString('en-IN')}`,
-        "Bank Account": employee.bankAccount || 'N/A',
-        "Last Transfer Date": employee.lastTransferDate || 'N/A',
-        "Transferred From (Last)": employee.lastSubcenter || 'N/A',
-        "Last Transfer Reason": employee.lastTransferReason || 'N/A',
-        "Separation Date": employee.separationDate || 'N/A',
-        "Remarks": employee.remarks || 'N/A',
-    };
+    // List of keys to EXCLUDE from dynamic display
+    const excludedKeys = [
+        'id', // Internal row ID
+        'originalEmployeeId', // Internal edit logic key
+        // Explicitly excluded fields as requested
+        'status', 'salaryHeld', 'holdTimestamp', 'separationDate',
+        'remarks', 'lastTransferDate', 'lastSubcenter', 'lastTransferReason'
+    ];
 
     let html = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">';
-    for (const [label, value] of Object.entries(detailsMap)) {
-         let displayValue = value;
 
-         if ((label === "Joining Date" || label === "Date of Birth" || label === "Separation Date" || label === "Last Transfer Date") && value && value !== 'N/A') {
+    // Dynamically iterate through employee object properties
+    for (const key in employee) {
+        // Skip excluded keys
+        if (excludedKeys.includes(key)) {
+            continue;
+        }
+
+        // Skip properties that might come from the object prototype
+        if (!employee.hasOwnProperty(key)) {
+            continue;
+        }
+
+        const label = keyToLabel(key); // Generate label from key
+        let value = employee[key];
+        let displayValue = value;
+
+        // Apply Specific Formatting for KNOWN keys
+        if ((key === "joiningDate" || key === "dob") && value) {
+             // Check if it needs formatting or might already be formatted
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
-                  displayValue = formatDateForDisplay(value);
+                 displayValue = formatDateForDisplay(value);
+             } else {
+                 displayValue = value; // Assume already formatted correctly
              }
-         }
-         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
+        }
+        else if (key === "salary" && (value || value === 0)) {
+            displayValue = `৳${Number(value).toLocaleString('en-IN')}`;
+        }
+        // Add more specific formatting rules here if needed for other known keys
+
+        // Ensure N/A for empty/null/undefined values AFTER potential formatting
+        displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
 
         html += `
             <div class="border-b border-gray-200 pb-2">
@@ -68,16 +75,21 @@ export function openViewDetailsModal(employee) {
     openModal('viewDetailsModal');
 }
 
+// Function to handle closing the modal
+function handleCloseViewDetails() {
+    closeModal('viewDetailsModal');
+}
+
 // Sets up the close button listener
 export function setupViewDetailsModal() {
     const closeBtn = $('closeViewDetailsModal');
     if (closeBtn) {
-        // Ensure only one listener is attached if setup is called multiple times
-        // A simple way is to remove before adding, though ideally setup runs once.
-        closeBtn.removeEventListener('click', () => closeModal('viewDetailsModal')); // Remove previous if any
-        closeBtn.addEventListener('click', () => closeModal('viewDetailsModal')); // Add the listener
-        console.log("View Details modal close listener attached."); // Add log to confirm
+        // Ensure only one listener
+        const listener = handleCloseViewDetails;
+        closeBtn.removeEventListener('click', listener);
+        closeBtn.addEventListener('click', listener);
+        console.log("View Details modal close listener attached.");
     } else {
-        console.error("Close button #closeViewDetailsModal not found.");
+        console.error("Close button #closeViewDetailsModal not found during setup.");
     }
 }

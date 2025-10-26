@@ -1,195 +1,194 @@
 // js/employeeForm.js
-import { $, openModal, closeModal, customAlert, formatDateForInput } from './utils.js'; // Ensure it's listed here
+import { $, openModal, closeModal, customAlert, formatDateForInput } from './utils.js';
 import { apiCall } from './apiClient.js';
-// We don't import fetchEmployees directly, it will be passed into setupEmployeeForm
 
-/**
- * Opens and populates the employee modal for adding or editing.
- * @param {object | null} employee - The employee object to edit, or null to add.
- * @param {Array} localEmployees - The current list of employees (used for duplicate check).
- */
+// Module-level variable to store the full data of the employee being edited
+let currentlyEditingEmployeeFullData = null;
+
 export function openEmployeeModal(employee = null, localEmployees = []) {
     const form = $('employeeForm');
-    if (!form) {
-        console.error("Employee form element not found!");
-        return;
-    }
-    form.reset(); // Clear previous entries
+    if (!form) { console.error("Employee form element not found!"); return; }
+    form.reset();
 
     const isEditing = Boolean(employee);
     $('modalTitle').textContent = isEditing ? 'Edit Employee' : 'Add New Employee';
-    $('employeeDocId').value = employee?.id || ''; // Stores the row ID if editing
-    $('originalEmployeeIdHidden').value = employee?.employeeId || ''; // Stores original ID for backend lookup if editing
 
-    // --- Populate hidden fields ---
-    // These hold state that isn't directly edited in the main form view but needs to be preserved/sent
-    $('employeeStatus').value = employee?.status || 'Active'; // Default to Active
-    // Ensure boolean string 'true'/'false'
-    $('employeeSalaryHeld').value = String(employee?.salaryHeld === true || String(employee?.salaryHeld).toUpperCase() === 'TRUE');
-    $('separationDateHidden').value = employee?.separationDate || '';
-    $('remarksHidden').value = employee?.remarks || '';
-    $('holdTimestampHidden').value = employee?.holdTimestamp || '';
-
-    // --- Populate visible form fields ---
     if (isEditing && employee) {
-        // Loop through keys of a typical employee object to populate form
-        Object.keys(employee).forEach(key => {
-            const input = $(key); // Get input element by ID (assuming IDs match keys)
-            // Skip hidden fields handled above
-            if (input && !['status', 'salaryHeld', 'separationDate', 'remarks', 'holdTimestamp', 'id', 'originalEmployeeId'].includes(key)) {
-                if (key === 'joiningDate' || key === 'dob') {
-                    // Format dates specifically for <input type="date"> (YYYY-MM-DD)
-                    input.value = formatDateForInput(employee[key]);
-                } else {
-                    // For other fields, set the value directly (use empty string if null/undefined)
-                    input.value = employee[key] ?? '';
-                }
-            }
-        });
-        // Make Employee ID readonly when editing
+        // Store Full Data
+        currentlyEditingEmployeeFullData = { ...employee }; // Store a copy
+        console.log("Storing full data for edit:", currentlyEditingEmployeeFullData);
+
+        $('employeeDocId').value = employee.id || '';
+        $('originalEmployeeIdHidden').value = employee.employeeId || '';
+
+        // Populate ONLY KNOWN form fields that exist in the HTML form
+        // Use ?? '' for default empty string
+        $('employeeId').value = employee.employeeId ?? '';
+        $('name').value = employee.name ?? '';
+        $('employeeType').value = employee.employeeType ?? 'Permanent';
+        $('designation').value = employee.designation ?? '';
+        $('joiningDate').value = formatDateForInput(employee.joiningDate); // Format date for input
+        $('workExperience').value = employee.workExperience ?? '';
+        $('education').value = employee.education ?? '';
+        $('project').value = employee.project ?? '';
+        $('projectOffice').value = employee.projectOffice ?? '';
+        $('reportProject').value = employee.reportProject ?? '';
+        $('subCenter').value = employee.subCenter ?? '';
+        $('fatherName').value = employee.fatherName ?? '';
+        $('motherName').value = employee.motherName ?? '';
+        $('personalMobile').value = employee.personalMobile ?? '';
+        $('dob').value = formatDateForInput(employee.dob); // Format date for input
+        $('bloodGroup').value = employee.bloodGroup ?? '';
+        $('address').value = employee.address ?? '';
+        $('identification').value = employee.identification ?? '';
+        $('nomineeName').value = employee.nomineeName ?? '';
+        $('nomineeMobile').value = employee.nomineeMobile ?? '';
+        $('officialMobile').value = employee.officialMobile ?? '';
+        $('mobileLimit').value = employee.mobileLimit ?? '';
+        $('salary').value = employee.salary ?? '';
+        $('bankAccount').value = employee.bankAccount ?? '';
+
+        // Populate hidden fields (these might be needed by backend logic)
+        $('employeeStatus').value = employee.status || 'Active';
+        $('employeeSalaryHeld').value = String(employee.salaryHeld === true || String(employee.salaryHeld).toUpperCase() === 'TRUE');
+        $('separationDateHidden').value = employee.separationDate || '';
+        $('remarksHidden').value = employee.remarks || '';
+        $('holdTimestampHidden').value = employee.holdTimestamp || '';
+
+        // Make ID readonly
         const empIdInput = $('employeeId');
         if (empIdInput) {
              empIdInput.setAttribute('readonly', true);
              empIdInput.classList.add('bg-gray-100', 'cursor-not-allowed');
         }
     } else {
-        // Add mode: Ensure Employee ID is editable
+        // Add Mode: Clear stored data and set defaults
+        currentlyEditingEmployeeFullData = null;
+        $('employeeDocId').value = '';
+        $('originalEmployeeIdHidden').value = '';
+        $('employeeStatus').value = 'Active';
+        $('employeeSalaryHeld').value = 'false';
+        $('separationDateHidden').value = '';
+        $('remarksHidden').value = '';
+        $('holdTimestampHidden').value = '';
         const empIdInput = $('employeeId');
         if (empIdInput) {
             empIdInput.removeAttribute('readonly');
             empIdInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
         }
-        // Set default Employee Type if needed
-        $('employeeType').value = 'Permanent';
+        $('employeeType').value = 'Permanent'; // Set default select
     }
-
-    openModal('employeeModal'); // Show the modal
+    openModal('employeeModal');
 }
 
-/**
- * Attaches event listeners for the employee form (submit, add button, cancel buttons).
- * @param {Function} getEmployeesFunc - Function to get the current list of employees.
- * @param {Function} fetchEmployeesFunc - Function to trigger fetching/refreshing the employee list.
- */
 export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
     const form = $('employeeForm');
-    const addBtn = $('addEmployeeBtn'); // Button in the main nav/header
-    const cancelBtn = $('cancelEmployeeModal'); // Button at the bottom of the modal
-    const cancelBtnTop = $('cancelEmployeeModal_top'); // 'x' button at the top of the modal
+    const addBtn = $('addEmployeeBtn');
+    const cancelBtn = $('cancelEmployeeModal');
+    const cancelBtnTop = $('cancelEmployeeModal_top');
 
-    // --- Attach Listeners ---
-    if (addBtn) {
-        addBtn.addEventListener('click', () => {
-             // Pass the current employee list for duplicate check when opening in add mode
-             openEmployeeModal(null, getEmployeesFunc());
-        });
-    }
-
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => closeModal('employeeModal'));
-    }
-
-    if (cancelBtnTop) {
-        cancelBtnTop.addEventListener('click', () => closeModal('employeeModal'));
-    }
+    if (addBtn) addBtn.addEventListener('click', () => openEmployeeModal(null, getEmployeesFunc()));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; }); // Clear stored data on cancel
+    if (cancelBtnTop) cancelBtnTop.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; }); // Clear stored data on cancel
 
     if (form) {
         form.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent default browser form submission
-
+            e.preventDefault();
             const isEditing = Boolean($('originalEmployeeIdHidden').value);
-            const originalEmployeeId = $('originalEmployeeIdHidden').value || undefined; // Use undefined if empty
 
-            // --- Gather Data from Form ---
-            // Create data object directly from form elements
-            const employeeData = {
-                // Core Info
+            // Gather data ONLY from known form fields
+            const formData = {
                 employeeId: $('employeeId').value.trim(),
                 name: $('name').value.trim(),
                 employeeType: $('employeeType').value,
                 designation: $('designation').value.trim(),
-                joiningDate: $('joiningDate').value, // YYYY-MM-DD format from input
+                joiningDate: $('joiningDate').value,
                 workExperience: parseFloat($('workExperience').value) || 0,
                 education: $('education').value.trim(),
-                // Project Info
                 project: $('project').value.trim(),
                 projectOffice: $('projectOffice').value.trim(),
                 reportProject: $('reportProject').value.trim(),
                 subCenter: $('subCenter').value.trim(),
-                // Personal Info
                 fatherName: $('fatherName').value.trim(),
                 motherName: $('motherName').value.trim(),
                 personalMobile: $('personalMobile').value.trim(),
-                dob: $('dob').value, // YYYY-MM-DD format from input
+                dob: $('dob').value,
                 bloodGroup: $('bloodGroup').value.trim(),
                 address: $('address').value.trim(),
                 identification: $('identification').value.trim(),
-                // Contact & Nominee
                 nomineeName: $('nomineeName').value.trim(),
                 nomineeMobile: $('nomineeMobile').value.trim(),
-                officialMobile: $('officialMobile').value.trim() || '', // Optional
-                mobileLimit: parseFloat($('mobileLimit').value) || 0, // Optional
-                // Salary Info
+                officialMobile: $('officialMobile').value.trim() || '',
+                mobileLimit: parseFloat($('mobileLimit').value) || 0,
                 salary: parseFloat($('salary').value) || 0,
-                bankAccount: $('bankAccount').value.trim() || '', // Optional
-                // Hidden State (preserved during edit)
+                bankAccount: $('bankAccount').value.trim() || '',
+                // Include hidden fields that might be relevant for backend
                 status: $('employeeStatus').value,
-                salaryHeld: $('employeeSalaryHeld').value === 'true', // Convert string back to boolean
+                salaryHeld: $('employeeSalaryHeld').value === 'true',
                 separationDate: $('separationDateHidden').value,
                 remarks: $('remarksHidden').value,
-                holdTimestamp: $('holdTimestampHidden').value,
+                holdTimestamp: $('holdTimestampHidden').value
             };
 
-            // Add originalEmployeeId only if it exists (i.e., we are editing)
-            if (originalEmployeeId) {
-                employeeData.originalEmployeeId = originalEmployeeId;
+            // Basic Validation
+            if (!formData.employeeId || !formData.name || !formData.joiningDate) {
+                 customAlert("Validation Error", "ID, Name, Joining Date required."); return;
             }
-
-            // --- Basic Client-Side Validation ---
-            if (!employeeData.employeeId || !employeeData.name || !employeeData.joiningDate) {
-                 customAlert("Validation Error", "Employee ID, Name, and Joining Date are required.");
-                 return; // Stop submission
+            if (isNaN(formData.salary) || formData.salary < 0) {
+                 customAlert("Validation Error", "Gross Salary must be a valid non-negative number."); return;
             }
-            if (isNaN(employeeData.salary) || employeeData.salary < 0) {
-                 customAlert("Validation Error", "Gross Salary must be a valid non-negative number.");
-                 return; // Stop submission
-            }
-             if (employeeData.workExperience < 0) {
-                  customAlert("Validation Error", "Work Experience cannot be negative.");
-                  return;
+             if (formData.workExperience < 0) {
+                  customAlert("Validation Error", "Work Experience cannot be negative."); return;
              }
-             // Add more specific validations as needed (e.g., phone number format)
 
+            let dataToSend = {};
 
-            // --- Client-side Duplicate Check (for NEW employees only) ---
-            if (!isEditing) {
-                const currentEmployees = getEmployeesFunc(); // Get current list
-                const empExists = currentEmployees.some(emp => emp.employeeId === employeeData.employeeId);
-                if (empExists) {
-                    customAlert("Error", `An employee with ID "${employeeData.employeeId}" already exists.`);
-                    return; // Stop submission
+            if (isEditing) {
+                if (!currentlyEditingEmployeeFullData) {
+                    customAlert("Error", "Original employee data not found. Cannot save edit.");
+                    return;
                 }
-                // Ensure correct defaults for a *new* employee being sent to API
-                employeeData.status = 'Active';
-                employeeData.salaryHeld = false;
-                employeeData.separationDate = '';
-                employeeData.remarks = '';
-                employeeData.holdTimestamp = '';
+                // Merge known form field changes onto the full original data
+                dataToSend = {
+                    ...currentlyEditingEmployeeFullData, // Start with original (includes extra fields)
+                    ...formData, // Overwrite with values from the form
+                    originalEmployeeId: $('originalEmployeeIdHidden').value // Ensure original ID is included
+                };
+                 console.log("Merged data for edit:", dataToSend);
+            } else {
+                // Add Mode: Client-side duplicate check
+                const currentEmployees = getEmployeesFunc();
+                const empExists = currentEmployees.some(emp => emp.employeeId === formData.employeeId);
+                if (empExists) { customAlert("Error", `Employee ID "${formData.employeeId}" already exists.`); return; }
+
+                // Send only form data + defaults for new employee
+                dataToSend = {
+                     ...formData,
+                     status: 'Active',
+                     salaryHeld: false,
+                     separationDate: '',
+                     remarks: '',
+                     holdTimestamp: '',
+                     // Explicitly set transfer fields to empty for new employees
+                     lastTransferDate: '',
+                     lastSubcenter: '',
+                     lastTransferReason: ''
+                 };
+                 console.log("Data for add:", dataToSend);
             }
 
-            // --- API Call ---
+            // API Call
             try {
-                // Call the unified 'saveEmployee' endpoint
-                await apiCall('saveEmployee', 'POST', employeeData);
-
-                customAlert("Success", isEditing ? "Employee details updated successfully." : "New employee added successfully.");
-                closeModal('employeeModal'); // Close modal on success
-                fetchEmployeesFunc(); // Refresh the employee list
+                await apiCall('saveEmployee', 'POST', dataToSend);
+                customAlert("Success", isEditing ? "Employee updated." : "Employee added.");
+                closeModal('employeeModal');
+                fetchEmployeesFunc(); // Refresh list
 
             } catch (error) {
                 console.error("Error saving employee:", error);
-                // Display specific backend errors if available, otherwise generic message
-                customAlert("Error", `Failed to save employee data: ${error.message}`);
+                customAlert("Error", `Save failed: ${error.message}`);
+            } finally {
+                 currentlyEditingEmployeeFullData = null; // Clear stored data after attempt
             }
         });
     }
