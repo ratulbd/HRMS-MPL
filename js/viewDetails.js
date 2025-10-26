@@ -25,7 +25,7 @@ export function openViewDetailsModal(employee) {
         "Project": employee.project,
         "Project Office": employee.projectOffice,
         "Report Project": employee.reportProject,
-        "Sub Center": employee.subCenter,
+        "Sub Center": employee.subCenter, // Current Sub Center
         "Father's Name": employee.fatherName,
         "Mother's Name": employee.motherName,
         "Personal Mobile": employee.personalMobile,
@@ -40,7 +40,7 @@ export function openViewDetailsModal(employee) {
         "Gross Salary": `৳${Number(employee.salary || 0).toLocaleString('en-IN')}`,
         "Bank Account": employee.bankAccount || 'N/A',
         "Last Transfer Date": employee.lastTransferDate || 'N/A',
-        "Transferred From (Last)": employee.lastSubcenter || 'N/A',
+        "Transferred From (Last)": employee.lastSubcenter || 'N/A', // Corrected Label
         "Last Transfer Reason": employee.lastTransferReason || 'N/A',
         "Separation Date": employee.separationDate || 'N/A',
         "Remarks": employee.remarks || 'N/A',
@@ -50,11 +50,14 @@ export function openViewDetailsModal(employee) {
     for (const [label, value] of Object.entries(detailsMap)) {
          let displayValue = value;
 
+         // Format Dates (including Last Transfer Date)
          if ((label === "Joining Date" || label === "Date of Birth" || label === "Separation Date" || label === "Last Transfer Date") && value && value !== 'N/A') {
+             // Check if it's already in DD-MMM-YY format (from holdTimestamp perhaps)
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                   displayValue = formatDateForDisplay(value);
              }
          }
+         // Ensure N/A for genuinely empty/null values after potential formatting
          displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
 
         html += `
@@ -64,20 +67,25 @@ export function openViewDetailsModal(employee) {
             </div>`;
     }
     html += '</dl>';
-    contentEl.innerHTML = html;
-    openModal('viewDetailsModal');
+    contentEl.innerHTML = html; // Set the generated HTML
+    openModal('viewDetailsModal'); // Show the modal
 }
 
-// Sets up the close button listener
+// Function to handle closing the modal
+function handleCloseViewDetails() {
+    closeModal('viewDetailsModal');
+}
+
+// Sets up the close button listener for the View Details modal
 export function setupViewDetailsModal() {
     const closeBtn = $('closeViewDetailsModal');
     if (closeBtn) {
-        // Ensure only one listener is attached if setup is called multiple times
-        // A simple way is to remove before adding, though ideally setup runs once.
-        closeBtn.removeEventListener('click', () => closeModal('viewDetailsModal')); // Remove previous if any
-        closeBtn.addEventListener('click', () => closeModal('viewDetailsModal')); // Add the listener
+        // Remove listener first to prevent duplicates if setup is called again
+        closeBtn.removeEventListener('click', handleCloseViewDetails);
+        // Add the listener
+        closeBtn.addEventListener('click', handleCloseViewDetails);
         console.log("View Details modal close listener attached."); // Add log to confirm
     } else {
-        console.error("Close button #closeViewDetailsModal not found.");
+        console.error("Close button #closeViewDetailsModal not found during setup.");
     }
 }
