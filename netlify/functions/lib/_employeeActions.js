@@ -6,14 +6,33 @@ const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
-const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date']; // Log remains the same for simplicity
+const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
+
+// --- Helper to create JS-friendly keys from headers ---
+function headerToKey(header) {
+    if (!header) return '';
+    return header.trim().toLowerCase()
+        .replace(/\(.*\)/g, '') // Remove content in parentheses
+        .replace(/[^a-z0-9_]+/g, '_') // Replace non-alphanumeric/underscore with underscore
+        .replace(/_+/g, '_') // Replace multiple underscores with one
+        .replace(/^_+|_+$/g, ''); // Trim leading/trailing underscores
+}
+
+// Reverse mapping for saving (Normalized Header -> JS Key)
+function createReverseHeaderMapping(mapping) {
+    const reverseMap = {};
+    for (const key in mapping) {
+        reverseMap[mapping[key]] = key;
+    }
+    return reverseMap;
+}
 
 // --- Helper to get unique values for a specific field ---
 async function getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, fieldKey) {
     console.log(`Executing getUniqueFieldValues for: ${fieldKey}`);
     try {
         const headers = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
-        const headerName = HEADER_MAPPING[fieldKey]; // e.g., 'project', 'projectoffice'
+        const headerName = HEADER_MAPPING[fieldKey];
 
         if (!headerName) {
             console.error(`Header mapping not found for field key: ${fieldKey}`);
@@ -23,16 +42,19 @@ async function getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME,
         const colIndex = headers.indexOf(headerName);
         if (colIndex === -1) {
             console.warn(`Could not find '${headerName}' column header in ${EMPLOYEE_SHEET_NAME}.`);
-            return { statusCode: 200, body: JSON.stringify([]) }; // Return empty if header not found
+            return { statusCode: 200, body: JSON.stringify([]) };
         }
 
         const colLetter = helpers.getColumnLetter(colIndex);
-        const range = `${EMPLOYEE_SHEET_NAME}!${colLetter}2:${colLetter}`; // Scan only the specific column from row 2
+        const range = `${EMPLOYEE_SHEET_NAME}!${colLetter}2:${colLetter}`;
 
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const rows = response.data.values || [];
 
-        const uniqueValues = [...new Set(rows.map(row => row[0]).filter(val => val && String(val).trim() !== ''))];
+        const uniqueValues = [...new Set(rows.map(row => row[0])
+                                          .filter(val => val && String(val).trim() !== '')
+                                          .map(val => String(val).trim())
+                                     )];
         uniqueValues.sort();
 
         console.log(`Unique values found and sorted for ${fieldKey}:`, JSON.stringify(uniqueValues));
@@ -58,13 +80,13 @@ async function getProjectOffices(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HE
 async function getReportProjects(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
     return getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, 'reportProject');
 }
-// --- End new unique value actions ---
-
+async function getSubCenters(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
+    return getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, 'subCenter');
+}
 
 async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
     console.log("Executing getEmployees");
     try {
-        // Fetch Actual Headers
         const headerResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${EMPLOYEE_SHEET_NAME}!1:1`,
@@ -74,13 +96,11 @@ async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
              console.warn(`No headers found in ${EMPLOYEE_SHEET_NAME}. Returning empty list.`);
              return { statusCode: 200, body: JSON.stringify([]) };
         }
-        // Normalize headers for internal use and create keys
         const normalizedHeaders = actualHeaders.map(h => (h || '').trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
-        const reverseMapping = createReverseHeaderMapping(HEADER_MAPPING); // For mapping known headers back to JS keys
+        const reverseMapping = createReverseHeaderMapping(HEADER_MAPPING);
 
-        // Fetch Data for all columns
         const lastColumnLetter = helpers.getColumnLetter(actualHeaders.length - 1);
-        const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`; // Read all columns based on header count
+        const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`;
         console.log(`Fetching employee data from range: ${range}`);
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const dataRows = response.data.values;
@@ -93,37 +113,27 @@ async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
 
         const employees = dataRows.map((row, index) => {
             const emp = { id: index + 2 }; // Row number as ID
-
             actualHeaders.forEach((header, i) => {
                 const normalizedHeader = normalizedHeaders[i];
-                // Use the key from HEADER_MAPPING if available, otherwise generate one
-                const key = reverseMapping[normalizedHeader] || headerToKey(header); // Use JS key if known, else generated key
-
-                if (key) { // Only add if a key could be determined
+                const key = reverseMapping[normalizedHeader] || headerToKey(header);
+                if (key) {
                     const value = row[i] ?? '';
-                    // Handle specific type conversions for known keys
                     if (key === 'salaryHeld') {
                         emp[key] = (String(value).toUpperCase() === 'TRUE');
                     } else if (key === 'salary' || key === 'mobileLimit' || key === 'workExperience') {
-                        // Attempt number conversion, default to 0 if invalid/empty
                         const numValue = parseFloat(value);
                         emp[key] = isNaN(numValue) ? 0 : numValue;
                     }
-                    else {
-                        emp[key] = value; // Store others as string
-                    }
+                    else { emp[key] = value; }
                 }
             });
-
-            // Ensure essential known fields have defaults
             emp.status = emp.status || 'Active';
-            emp.salaryHeld = (emp.salaryHeld === true); // Ensure boolean
-
+            emp.salaryHeld = (emp.salaryHeld === true);
             return emp;
         });
 
         console.log(`Processed ${employees.length} employees dynamically.`);
-        return { statusCode: 200, body: JSON.stringify(employees) }; // Return only employees
+        return { statusCode: 200, body: JSON.stringify(employees) };
 
     } catch (error) {
         console.error("Error inside getEmployees action:", error.stack || error.message);
@@ -132,44 +142,35 @@ async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
 }
 
 async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, employeeData) {
-     console.log("Executing saveEmployee with dynamic data:", JSON.stringify(employeeData).substring(0, 500));
-    // Get Current Headers from Sheet
+     console.log("Executing saveEmployee...");
     const actualHeaders = (await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${EMPLOYEE_SHEET_NAME}!1:1` })).data.values?.[0] || [];
     if (actualHeaders.length === 0) throw new Error("Cannot save: No headers found in sheet.");
     const normalizedHeaders = actualHeaders.map(h => (h || '').trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
 
-    // Ensure defaults for specific fields before mapping
-     const dataToSave = { ...employeeData }; // Work with a copy
-     dataToSave.status = dataToSave.status || 'Active';
-     dataToSave.salaryHeld = (dataToSave.salaryHeld === true || String(dataToSave.salaryHeld).toUpperCase() === 'TRUE'); // Convert input boolean/string
-     dataToSave.separationDate = dataToSave.separationDate || '';
-     dataToSave.remarks = dataToSave.remarks || '';
-     dataToSave.holdTimestamp = dataToSave.holdTimestamp || '';
-     dataToSave.lastTransferDate = dataToSave.lastTransferDate || '';
-     dataToSave.lastSubcenter = dataToSave.lastSubcenter || '';
-     dataToSave.lastTransferReason = dataToSave.lastTransferReason || '';
+     const dataToSave = { ...employeeData };
+     if (!dataToSave.originalEmployeeId) { // Set defaults only for new employees
+         dataToSave.status = dataToSave.status || 'Active';
+         dataToSave.salaryHeld = (dataToSave.salaryHeld === true || String(dataToSave.salaryHeld).toUpperCase() === 'TRUE');
+         dataToSave.separationDate = dataToSave.separationDate || '';
+         dataToSave.remarks = dataToSave.remarks || '';
+         dataToSave.holdTimestamp = dataToSave.holdTimestamp || '';
+         dataToSave.lastTransferDate = dataToSave.lastTransferDate || '';
+         dataToSave.lastSubcenter = dataToSave.lastSubcenter || '';
+         dataToSave.lastTransferReason = dataToSave.lastTransferReason || '';
+     }
 
-    // Prepare data based on ACTUAL headers
     const newRow = actualHeaders.map((header, index) => {
          const normalizedHeader = normalizedHeaders[index];
-         // Find the corresponding JS key
          let key = null;
          for (const jsKey in HEADER_MAPPING) { if (HEADER_MAPPING[jsKey] === normalizedHeader) { key = jsKey; break; } }
-         if (!key) { key = headerToKey(header); } // Fallback to generated key
-
-         let value = dataToSave[key] ?? ''; // Get value using the determined key from the prepared data
-
-         // Format specific known fields back for sheet
+         if (!key) { key = headerToKey(header); }
+         let value = dataToSave[key] ?? '';
          if (key === 'salaryHeld') {
               value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
          }
-         // Ensure other values are strings
          value = (value == null) ? '' : String(value);
-
          return value;
     });
-    console.log("Mapped dynamic row data for save/update:", newRow);
-
 
     const lookupId = dataToSave.originalEmployeeId || dataToSave.employeeId;
     if (!lookupId) throw new Error("Employee ID missing for save.");
@@ -178,7 +179,6 @@ async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
 
     if (rowIndex !== -1) { // Update
         if (dataToSave.originalEmployeeId && dataToSave.employeeId !== dataToSave.originalEmployeeId) {
-             console.warn(`Attempted ID change. Reverting.`);
              const idColIndex = normalizedHeaders.indexOf(HEADER_MAPPING.employeeId);
              if (idColIndex !== -1) newRow[idColIndex] = dataToSave.originalEmployeeId;
         }
@@ -208,6 +208,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     const dataToUpdate = [];
     const formattedTimestamp = helpers.formatDateForSheet(new Date());
     const currentSalary = await helpers.getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers.findEmployeeRow, helpers.getSheetHeaders, employeeId);
+    
     if (updates.hasOwnProperty('salaryHeld')) {
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
@@ -220,6 +221,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
      if (updates.hasOwnProperty('status') && (updates.status === 'Resigned' || updates.status === 'Terminated')) {
          await helpers.logEvent(sheets, SPREADSHEET_ID, SEPARATION_LOG_SHEET_NAME, SEPARATION_LOG_HEADERS, [employeeId, currentSalary || 'N/A', updates.separationDate || '', updates.status, updates.remarks || ''], formattedTimestamp, helpers.ensureSheetAndHeaders);
      }
+    
     for (const key in updates) {
         if (!updates.hasOwnProperty(key)) continue;
         const headerName = HEADER_MAPPING[key];
@@ -232,6 +234,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
         valueToSave = (valueToSave == null) ? '' : String(valueToSave);
         dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${colLetter}${rowIndex}`, values: [[valueToSave]] });
     }
+    
     if (updates.hasOwnProperty('status') && updates.status !== 'Active') {
         const heldHeader = HEADER_MAPPING.salaryHeld; const heldColIndex = headerRow.indexOf(heldHeader);
         if (heldColIndex !== -1) {
@@ -253,6 +256,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
             if (existing) existing.values = [['Active']]; else dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`, values: [['Active']] });
         }
     }
+    
     if (dataToUpdate.length > 0) {
         await sheets.spreadsheets.values.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate } });
     } else {
@@ -261,12 +265,8 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     return { statusCode: 200, body: JSON.stringify({ message: 'Status updated successfully.' }) };
 }
 
-async function getSubCenters(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
-    return getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, 'subCenter');
-}
-
 async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
-    { employeeId, newProject, newProjectOffice, newSubCenter, newReportProject, reason, transferDate } // Added new fields
+    { employeeId, newProject, newProjectOffice, newSubCenter, newReportProject, reason, transferDate }
 ) {
     console.log(`Executing transferEmployee for ${employeeId} to Project:${newProject}, Office:${newProjectOffice}, SubCenter:${newSubCenter}, Report:${newReportProject}`);
     if (!employeeId || !newProject || !newProjectOffice || !newSubCenter || !newReportProject || !reason || !transferDate) {
@@ -296,7 +296,7 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
         }
 
         const nameColLetter = helpers.getColumnLetter(nameColIndex);
-        const subCenterColLetter = helpers.getColumnLetter(subCenterColIndex);
+        const subCenterColLetter = helpers.getColumnLetter(subCenterColIndex); // Current subcenter
         const rangesToRead = [
             `${EMPLOYEE_SHEET_NAME}!${nameColLetter}${rowIndex}`,
             `${EMPLOYEE_SHEET_NAME}!${subCenterColLetter}${rowIndex}`
@@ -347,14 +347,3 @@ module.exports = {
     getReportProjects,
     transferEmployee
 };
-
-// --- Helper functions used internally ---
-function headerToKey(header) {
-    if (!header) return '';
-    return header.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/[^a-z0-9_]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
-}
-function createReverseHeaderMapping(mapping) {
-    const reverseMap = {};
-    for (const key in mapping) { reverseMap[mapping[key]] = key; }
-    return reverseMap;
-}
