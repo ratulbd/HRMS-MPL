@@ -35,7 +35,7 @@ async function getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME,
         const uniqueValues = [...new Set(rows.map(row => row[0]).filter(val => val && String(val).trim() !== ''))];
         uniqueValues.sort();
 
-        console.log(`Found ${uniqueValues.length} unique values for ${fieldKey}.`);
+        console.log(`Unique values found and sorted for ${fieldKey}:`, JSON.stringify(uniqueValues));
         return { statusCode: 200, body: JSON.stringify(uniqueValues) };
 
     } catch (error) {
