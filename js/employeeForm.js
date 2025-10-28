@@ -18,12 +18,10 @@ const mandatoryFields = [
 const allFormFields = [
     'employeeId', 'name', 'employeeType', 'designation', 'joiningDate', 'workExperience', 'education',
     'project', 'projectOffice', 'reportProject', 'subCenter',
-    'fatherName', 'motherName', 'personalMobile', 'dob', 'bloodGroup', 'address', 'identification',
+    'fatherName', 'motherName', 'personalMobile', 'dob', 'bloodGroup', 'address', 'identification', 'identificationType',
     'nomineeName', 'nomineeMobile', 'officialMobile', 'mobileLimit',
-    'salary', 'bankAccount'
-    // Add IDs of any other custom fields you added to the HTML form
-    // e.g., 'basic', 'tds', 'motorbikeLoan', 'welfareFund', 'salaryLoanOthers',
-    // 'subsidizedVehicle', 'lwpcpf', 'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
+    'salary', 'bankAccount', 'basic', 'others', 'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund',
+    'salaryLoanOthers', 'subsidizedVehicle', 'lwpcpf', 'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
 ];
 
 export function openEmployeeModal(employee = null, localEmployees = []) {
@@ -47,7 +45,12 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
                 if (fieldId === 'joiningDate' || fieldId === 'dob') {
                     input.value = formatDateForInput(employee[fieldId]);
                 } else {
-                    input.value = employee[fieldId] ?? ''; // Use ?? for null/undefined
+                    // Handle number fields that might be 0
+                    if (input.type === 'number' && (employee[fieldId] === 0 || employee[fieldId])) {
+                         input.value = employee[fieldId];
+                    } else {
+                         input.value = employee[fieldId] ?? ''; // Use ?? for null/undefined
+                    }
                 }
             }
         });
@@ -104,7 +107,13 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                 const element = $(fieldId);
                 if (element) {
                     // Convert specific fields to numbers, handle potential NaN/emptiness
-                    if (['workExperience', 'mobileLimit', 'salary'].includes(fieldId)) {
+                    const numberFields = [
+                        'workExperience', 'mobileLimit', 'salary', 'basic', 'others', 'subsidizedLunch', 'tds',
+                        'motorbikeLoan', 'welfareFund', 'salaryLoanOthers', 'subsidizedVehicle', 'lwpcpf',
+                        'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
+                    ];
+
+                    if (numberFields.includes(fieldId)) {
                         const numValue = parseFloat(element.value);
                         formData[fieldId] = isNaN(numValue) ? null : numValue; // Use null if invalid number
                     } else {
@@ -121,30 +130,33 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
             formData.holdTimestamp = $('holdTimestampHidden').value;
 
 
-            // Validation (only for ADD mode)
-            if (!isEditing) {
-                let isValid = true;
-                mandatoryFields.forEach(fieldId => {
-                    const element = $(fieldId);
-                    let value = formData[fieldId];
-                    let isEmpty = (value === null || value === undefined || String(value).trim() === '');
-
-                    if (isEmpty) {
-                        isValid = false;
-                        if(element) {
-                            element.classList.add('border-red-500');
-                            if (!firstErrorField) firstErrorField = element;
-                        }
-                         console.warn(`Validation failed: Mandatory field '${fieldId}' is empty.`);
-                    }
-                });
-
-                if (!isValid) {
-                    customAlert("Validation Error", "Please fill in all mandatory fields marked with *.");
-                    firstErrorField?.focus();
-                    return;
+            // Validation (Mandatory Fields)
+            let isValid = true;
+            mandatoryFields.forEach(fieldId => {
+                const element = $(fieldId);
+                let value = formData[fieldId];
+                // For 'salary', 0 is valid, but null is not
+                let isEmpty = (value === null || value === undefined || String(value).trim() === '');
+                if (fieldId === 'salary' && value === 0) {
+                     isEmpty = false;
                 }
+
+                if (isEmpty) {
+                    isValid = false;
+                    if(element) {
+                        element.classList.add('border-red-500');
+                        if (!firstErrorField) firstErrorField = element;
+                    }
+                     console.warn(`Validation failed: Mandatory field '${fieldId}' is empty.`);
+                }
+            });
+
+            if (!isValid) {
+                customAlert("Validation Error", "Please fill in all mandatory fields marked with *.");
+                firstErrorField?.focus();
+                return;
             }
+             
              // Validate salary format in both modes
              if (formData.salary === null || formData.salary < 0) {
                   customAlert("Validation Error", "Gross Salary must be a valid non-negative number.");
@@ -152,6 +164,41 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                    if (salaryInput) { salaryInput.classList.add('border-red-500'); if (!firstErrorField) firstErrorField = salaryInput; firstErrorField?.focus(); }
                   return;
              }
+             
+             // --- START MODIFICATION: Detailed Duplication Check ---
+             if (!isEditing) {
+                const currentEmployees = getEmployeesFunc();
+                
+                // 1. Check Employee ID
+                const existingById = currentEmployees.find(emp => emp.employeeId.trim().toLowerCase() === formData.employeeId.trim().toLowerCase());
+                if (existingById) {
+                    customAlert("Duplicate Entry", 
+                        `<b>Employee ID "${formData.employeeId}" already exists.</b><br><br>
+                         Assigned to: ${existingById.name}<br>
+                         Designation: ${existingById.designation || 'N/A'}`);
+                    const idInput = $('employeeId'); 
+                    if(idInput) { idInput.classList.add('border-red-500'); idInput.focus(); }
+                    return;
+                }
+                
+                // 2. Check Identification (only if it's not empty)
+                if (formData.identification && formData.identification.trim() !== '') {
+                    const existingByIdentification = currentEmployees.find(emp => 
+                        emp.identification && 
+                        emp.identification.trim().toLowerCase() === formData.identification.trim().toLowerCase()
+                    );
+                    if (existingByIdentification) {
+                        customAlert("Duplicate Entry", 
+                            `<b>Identification "${formData.identification}" already exists.</b><br><br>
+                             Assigned to: ${existingByIdentification.name}<br>
+                             Employee ID: ${existingByIdentification.employeeId}`);
+                        const idenInput = $('identification'); 
+                        if(idenInput) { idenInput.classList.add('border-red-500'); idenInput.focus(); }
+                        return;
+                    }
+                }
+             }
+             // --- END MODIFICATION ---
 
 
             let dataToSend = {};
@@ -164,12 +211,6 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                     originalEmployeeId: $('originalEmployeeIdHidden').value
                 };
             } else {
-                const currentEmployees = getEmployeesFunc();
-                if (currentEmployees.some(emp => emp.employeeId === formData.employeeId)) {
-                     customAlert("Error", `Employee ID "${formData.employeeId}" already exists.`);
-                     const idInput = $('employeeId'); if(idInput) { idInput.classList.add('border-red-500'); idInput.focus(); }
-                     return;
-                }
                 dataToSend = {
                      ...formData,
                      status: 'Active', salaryHeld: false, separationDate: '', remarks: '',

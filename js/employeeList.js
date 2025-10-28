@@ -115,16 +115,42 @@ export function filterAndRenderEmployees(filters, employees) {
     renderEmployeeList(listContainer, filtered); // Render the filtered results
 }
 
-// Function to populate filter dropdowns (includes Project Office)
+// --- NEW HELPER FUNCTION ---
+// Helper to populate a <datalist>
+function populateDataList(elementId, values) {
+    const datalist = $(elementId);
+    if (datalist) {
+        datalist.innerHTML = ''; // Clear old options
+        values.forEach(val => {
+            const option = document.createElement('option');
+            option.value = val;
+            datalist.appendChild(option);
+        });
+    } else {
+        console.warn(`Datalist element with ID '${elementId}' not found.`);
+    }
+}
+// --- END NEW HELPER ---
+
+
+// --- MODIFIED FUNCTION ---
+// Function to populate filter dropdowns AND modal datalists
 export function populateFilterDropdowns(employees) {
     const designationFilter = $('filterDesignation');
     const projectOfficeFilter = $('filterProjectOffice'); // Get the new dropdown
 
     if (!Array.isArray(employees)) employees = [];
 
-    // Populate Designations
+    // --- Get unique, sorted lists ---
+    const designations = [...new Set(employees.map(e => e?.designation).filter(d => d && typeof d === 'string'))].sort();
+    const offices = [...new Set(employees.map(e => e?.projectOffice).filter(o => o && typeof o === 'string'))].sort();
+    const projects = [...new Set(employees.map(e => e?.project).filter(p => p && typeof p === 'string'))].sort();
+    const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(r => r && typeof r === 'string'))].sort();
+    const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(s => s && typeof s === 'string'))].sort();
+
+
+    // --- Populate Filter Dropdowns ---
     if (designationFilter) {
-        const designations = [...new Set(employees.map(e => e?.designation).filter(d => d && typeof d === 'string'))].sort();
         const currentDes = designationFilter.value;
         designationFilter.innerHTML = '<option value="">All</option>';
         designations.forEach(d => {
@@ -133,9 +159,7 @@ export function populateFilterDropdowns(employees) {
         designationFilter.value = designations.includes(currentDes) ? currentDes : "";
     }
 
-    // Populate Project Offices
     if (projectOfficeFilter) {
-        const offices = [...new Set(employees.map(e => e?.projectOffice).filter(o => o && typeof o === 'string'))].sort();
         const currentOffice = projectOfficeFilter.value;
         projectOfficeFilter.innerHTML = '<option value="">All</option>';
         offices.forEach(o => {
@@ -143,7 +167,16 @@ export function populateFilterDropdowns(employees) {
         });
         projectOfficeFilter.value = offices.includes(currentOffice) ? currentOffice : "";
     }
+
+    // --- Populate Modal Datalists ---
+    populateDataList('designation-list', designations);
+    populateDataList('project-list', projects);
+    populateDataList('projectOffice-list', offices);
+    populateDataList('reportProject-list', reportProjects);
+    populateDataList('subCenter-list', subCenters);
 }
+// --- END MODIFIED FUNCTION ---
+
 
 // Function to set up the main event listener for the list
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {

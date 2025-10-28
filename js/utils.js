@@ -21,7 +21,9 @@ export function customAlert(title, message) {
     const alertModal = $('alertModal');
     if (!alertModal) { console.error("Alert modal element not found!"); alert(`${title}\n${message}`); return; }
     $('alertTitle').textContent = title;
-    $('alertMessage').textContent = message;
+    // --- MODIFICATION: Use innerHTML to allow formatted reports ---
+    $('alertMessage').innerHTML = message;
+    // --- END MODIFICATION ---
     openModal('alertModal');
 }
 
