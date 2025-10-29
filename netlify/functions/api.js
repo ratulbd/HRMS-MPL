@@ -18,9 +18,13 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1Cw
 const EMPLOYEE_SHEET_NAME = 'Employees';
 const SALARY_SHEET_PREFIX = 'Salary_';
 const USERS_SHEET_NAME = 'Users';
-const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log'; // Added based on _employeeActions
+const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 
-// *** MODIFICATION: Added identificationType and all salary fields ***
+// *** MODIFICATION: Added missing sheet name constants ***
+const HOLD_LOG_SHEET_NAME = 'Hold_Log';
+const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
+// *** END MODIFICATION ***
+
 const HEADER_MAPPING = {
     // Basic Info
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
@@ -34,40 +38,40 @@ const HEADER_MAPPING = {
     fatherName: 'fathersname', motherName: 'mothersname',
     personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
     bloodGroup: 'bloodgroup', address: 'address',
-    identificationType: 'identificationtype', // <<< Corrected: Added
+    identificationType: 'identificationtype',
     identification: 'identification',
     // Contact & Nominee
     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber',
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit',
     // Salary - Earnings
     previousSalary: 'previoussalary', // Assuming header exists
-    basic: 'basic', // <<< Corrected: Added
-    others: 'others', // <<< Corrected: Added
+    basic: 'basic',
+    others: 'others',
     salary: 'grosssalary', // This is Gross Salary
-    motobikeCarMaintenance: 'motobikecarmaintenanceallowance', // <<< Corrected: Added (Adjust if header normalizes differently)
-    laptopRent: 'laptoprent', // <<< Corrected: Added
-    othersAllowance: 'othersallowance', // <<< Corrected: Added
-    arrear: 'arrear', // <<< Corrected: Added
-    foodAllowance: 'foodallowance', // <<< Corrected: Added
-    stationAllowance: 'stationallowance', // <<< Corrected: Added
-    hardshipAllowance: 'hardshipallowance', // <<< Corrected: Added
+    motobikeCarMaintenance: 'motobikecarmaintenanceallowance', // Adjust if header normalizes differently
+    laptopRent: 'laptoprent',
+    othersAllowance: 'othersallowance',
+    arrear: 'arrear',
+    foodAllowance: 'foodallowance',
+    stationAllowance: 'stationallowance',
+    hardshipAllowance: 'hardshipallowance',
     // Salary - Calculated Earnings Total
-    grandTotal: 'grandtotal', // <<< Corrected: Added
+    grandTotal: 'grandtotal',
     // Salary - Deductions
-    gratuity: 'gratuity', // <<< Corrected: Added
-    subsidizedLunch: 'subsidizedlunch', // <<< Corrected: Added
-    tds: 'tds', // <<< Corrected: Added
-    motorbikeLoan: 'motorbikeloan', // <<< Corrected: Added
-    welfareFund: 'welfarefund', // <<< Corrected: Added
-    salaryOthersLoan: 'salaryothersloan', // <<< Corrected: Added (Adjust if header uses '/' and normalizes differently)
-    subsidizedVehicle: 'subsidizedvehicle', // <<< Corrected: Added
-    lwp: 'lwp', // <<< Corrected: Added
-    cpf: 'cpf', // <<< Corrected: Added
-    othersAdjustment: 'othersadjustment', // <<< Corrected: Added
+    gratuity: 'gratuity',
+    subsidizedLunch: 'subsidizedlunch',
+    tds: 'tds',
+    motorbikeLoan: 'motorbikeloan',
+    welfareFund: 'welfarefund',
+    salaryOthersLoan: 'salaryothersloan', // Adjust if header uses '/' and normalizes differently
+    subsidizedVehicle: 'subsidizedvehicle',
+    lwp: 'lwp',
+    cpf: 'cpf',
+    othersAdjustment: 'othersadjustment',
     // Salary - Calculated Deductions Total
-    totalDeduction: 'totaldeduction', // <<< Corrected: Added
+    totalDeduction: 'totaldeduction',
     // Salary - Calculated Net Total
-    netSalaryPayment: 'netsalarypayment', // <<< Corrected: Added
+    netSalaryPayment: 'netsalarypayment',
     // Bank
     bankAccount: 'bankaccountnumber',
     // Status & History
@@ -76,13 +80,12 @@ const HEADER_MAPPING = {
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason'
 };
-// *** END MODIFICATION ***
 
 
-// Log Headers (Optional, mostly used in modules)
-const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action']; // Referenced in _employeeActions
-const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks']; // Referenced in _employeeActions
-const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date']; // Referenced in _employeeActions
+// Log Headers (Optional, mostly used in modules) - These are arrays, not sheet names
+const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
+const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
+const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
 
 // --- Main Handler ---
@@ -138,14 +141,18 @@ exports.handler = async (event) => {
             const context = {
                 sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
-                HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME // Pass log sheet names if needed by helpers via employeeActions
+                // *** MODIFICATION: These are now defined above and can be passed ***
+                HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME
+                // *** END MODIFICATION ***
             };
 
             switch (action) {
                 // --- Employee Actions ---
                 case 'getEmployees':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    // *** MODIFICATION: Pass full context object (includes log sheet names now) ***
                     else result = await employeeActions.getEmployees(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers);
+                    // *** END MODIFICATION ***
                     break;
                 case 'saveEmployee':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
