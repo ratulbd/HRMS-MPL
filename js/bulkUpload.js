@@ -31,19 +31,40 @@ function parseEmployeeCSV(data) {
         if (lines.length < 1) throw new Error("CSV appears empty or has invalid line breaks.");
 
         const rawHeader = parseCsvLine(lines.shift());
-        const header = rawHeader.map(h => h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
+        
+        // --- MODIFICATION: Improved normalization to strip all special chars ---
+        const header = rawHeader.map(h => 
+            h.trim().toLowerCase().replace(/\(.*\)/g, '').replace(/[^a-z0-9]/g, '')
+        );
+        // --- END MODIFICATION ---
 
+        // --- MODIFICATION: Updated fieldMapping to include all 37 fields ---
         const fieldMapping = {
+            // Basic Info
             employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
-            designation: 'designation', joiningDate: 'joiningdate', project: 'project',
-            projectOffice: 'projectoffice', reportProject: 'reportproject', subCenter: 'subcenter',
-            workExperience: 'workexperience', education: 'education', fatherName: 'fathersname',
-            motherName: 'mothersname', personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
-            bloodGroup: 'bloodgroup', address: 'address', identification: 'identification',
-            nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber', salary: 'grosssalary',
-            officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit', bankAccount: 'bankaccountnumber'
-             // Add other fields from your template here
+            designation: 'designation', joiningDate: 'joiningdate',
+            workExperience: 'workexperienceyears', education: 'education',
+            // Project Info
+            project: 'project', projectOffice: 'projectoffice', 
+            reportProject: 'reportproject', subCenter: 'subcenter',
+            // Personal Info
+            fatherName: 'fathersname', motherName: 'mothersname', 
+            personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
+            bloodGroup: 'bloodgroup', address: 'address', 
+            identificationType: 'identificationtype', identification: 'identification',
+            // Contact & Nominee
+            nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber',
+            officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit',
+            // Salary Details
+            salary: 'grosssalary', // This is the main one
+            basic: 'basic', others: 'others', subsidizedLunch: 'subsidizedlunch',
+            tds: 'tds', motorbikeLoan: 'motorbikeloan', welfareFund: 'welfarefund',
+            salaryLoanOthers: 'salaryloanothers', subsidizedVehicle: 'subsidizedvehicle',
+            lwpcpf: 'lwpcpf', othersAdjustment: 'othersadjustment',
+            totalDeduction: 'totaldeduction', netSalaryPayment: 'netsalarypayment',
+            bankAccount: 'bankaccountnumber'
         };
+        // --- END MODIFICATION ---
         
          const requiredNormalizedFields = [
              'employeeid', 'employeename', 'employeetype', 'designation', 'joiningdate', 'project',
@@ -59,7 +80,7 @@ function parseEmployeeCSV(data) {
             if (index !== -1) {
                 colIndexes[key] = index;
             } else if (requiredNormalizedFields.includes(normalizedHeader)) {
-                 missingHeaders.push(normalizedHeader);
+                 missingHeaders.push(rawHeader[header.indexOf(normalizedHeader)] || normalizedHeader); // Show original header if possible
             }
         }
          if(missingHeaders.length > 0) {
@@ -72,7 +93,6 @@ function parseEmployeeCSV(data) {
             const rowNumber = lineIndex + 2; // +1 for 0-index, +1 for header
             const values = parseCsvLine(line);
             
-            // Basic column count check
             if (values.length < requiredNormalizedFields.length) {
                  console.warn(`Skipping line ${rowNumber}: Too few columns.`); 
                  return null;
@@ -84,10 +104,22 @@ function parseEmployeeCSV(data) {
                 else empData[key] = '';
             }
 
-            // Conversions & Defaults
-            empData.workExperience = parseFloat(empData.workExperience) || null;
-            empData.salary = parseFloat(empData.salary); // Keep as NaN if invalid
-            empData.mobileLimit = parseFloat(empData.mobileLimit) || null;
+            // --- MODIFICATION: Convert all number fields ---
+            const numberFields = [
+                'workExperience', 'mobileLimit', 'salary', 'basic', 'others', 'subsidizedLunch', 'tds',
+                'motorbikeLoan', 'welfareFund', 'salaryLoanOthers', 'subsidizedVehicle', 'lwpcpf',
+                'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
+            ];
+            
+            for (const field of numberFields) {
+                if (empData[field] !== undefined) {
+                    const numValue = parseFloat(empData[field]);
+                    empData[field] = isNaN(numValue) ? null : numValue; // Use null for invalid/empty numbers
+                }
+            }
+            // --- END MODIFICATION ---
+
+            // Defaults
             empData.status = 'Active'; empData.salaryHeld = false; empData.separationDate = ''; empData.remarks = ''; empData.holdTimestamp = '';
             empData.lastTransferDate = ''; empData.lastSubcenter = ''; empData.lastTransferReason = '';
 
@@ -97,8 +129,7 @@ function parseEmployeeCSV(data) {
             else if (!empData.name) missingField = "Employee Name";
             else if (!empData.joiningDate) missingField = "Joining Date";
             else if (!empData.identification) missingField = "Identification";
-            else if (isNaN(empData.salary) || empData.salary === null) missingField = "Gross Salary (must be a number)";
-            // Add other required field checks
+            else if (empData.salary === null) missingField = "Gross Salary (must be a valid number)";
             
             if (missingField) {
                  console.warn(`Skipping line ${rowNumber}: Missing or invalid essential data: ${missingField}.`);
@@ -114,7 +145,6 @@ function parseEmployeeCSV(data) {
     }
 }
 
-// --- MODIFIED FUNCTION ---
 // Adds multiple employees, performs duplicate checks, and provides a detailed report
 async function bulkAddEmployees(employeesWithRow) {
     if (!getMainLocalEmployeesFunc || !mainFetchEmployeesFunc) { 
@@ -202,18 +232,22 @@ async function bulkAddEmployees(employeesWithRow) {
     mainFetchEmployeesFunc(); // Refresh list
 }
 
-// Generates and downloads the CSV template
+// --- MODIFIED FUNCTION ---
+// Generates and downloads the complete CSV template
 function downloadTemplate() {
     const headers = [
         "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date",
         "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)",
-        "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth",
-        "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number",
-        "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number"
-        // Add headers for any other fields included in the form/HEADER_MAPPING
+        "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
+        "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type",
+        "Identification", "Nominee's Name", "Nominee's Mobile Number", "Basic", "Others",
+        "Gross Salary", "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund",
+        "Salary Loan/ Others", "Subsidized Vehicle", "LWP/CPF", "Others Adjustment",
+        "Total Deduction", "Net Salary Payment", "Bank Account Number"
     ];
     downloadCSV(headers.join(','), "employee_upload_template.csv");
 }
+// --- END MODIFICATION ---
 
 export function setupBulkUploadModal(fetchFunc, getEmployeesFunc) {
     mainFetchEmployeesFunc = fetchFunc;
