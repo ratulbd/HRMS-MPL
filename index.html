@@ -86,7 +86,8 @@
                  <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Add/Edit Employee</h2>
                  <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
              </div>
-             <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
+             
+             <form id="employeeForm" class="relative flex-grow overflow-y-auto p-6">
                   <input type="hidden" id="employeeDocId"><input type="hidden" id="employeeStatus"><input type="hidden" id="employeeSalaryHeld"><input type="hidden" id="separationDateHidden"><input type="hidden" id="remarksHidden"><input type="hidden" id="originalEmployeeIdHidden"><input type="hidden" id="holdTimestampHidden"><input type="hidden" id="lastTransferDateHidden"><input type="hidden" id="lastSubcenterHidden"><input type="hidden" id="lastTransferReasonHidden">
                   
                   <div class="space-y-6">
@@ -96,9 +97,7 @@
                                <div><label for="employeeId" class="block text-sm font-medium text-gray-700">Employee ID<span class="text-red-500">*</span></label><input type="text" id="employeeId" required class="input"></div>
                                <div><label for="name" class="block text-sm font-medium text-gray-700">Employee Name<span class="text-red-500">*</span></label><input type="text" id="name" required class="input"></div>
                                <div><label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type<span class="text-red-500">*</span></label><select id="employeeType" required class="input-select"><option>Permanent</option><option>Casual</option><option>Contractual</option><option>Temporary</option></select></div>
-                               
                                <div><label for="designation" class="block text-sm font-medium text-gray-700">Designation<span class="text-red-500">*</span></label><input type="text" id="designation" required class="input" list="designation-list"><datalist id="designation-list"></datalist></div>
-                               
                                <div><label for="joiningDate" class="block text-sm font-medium text-gray-700">Joining Date<span class="text-red-500">*</span></label><input type="date" id="joiningDate" required class="input"></div>
                                <div><label for="workExperience" class="block text-sm font-medium text-gray-700">Work Experience (Years)</label><input type="number" step="0.5" id="workExperience" class="input"></div>
                                <div><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" class="input"></div>
@@ -107,12 +106,10 @@
                        <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Project Details</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                
                                 <div><label for="project" class="block text-sm font-medium text-gray-700">Project<span class="text-red-500">*</span></label><input type="text" id="project" required class="input" list="project-list"><datalist id="project-list"></datalist></div>
                                 <div><label for="projectOffice" class="block text-sm font-medium text-gray-700">Project Office<span class="text-red-500">*</span></label><input type="text" id="projectOffice" required class="input" list="projectOffice-list"><datalist id="projectOffice-list"></datalist></div>
                                 <div><label for="reportProject" class="block text-sm font-medium text-gray-700">Report Project<span class="text-red-500">*</span></label><input type="text" id="reportProject" required class="input" list="reportProject-list"><datalist id="reportProject-list"></datalist></div>
                                 <div><label for="subCenter" class="block text-sm font-medium text-gray-700">Sub Center<span class="text-red-500">*</span></label><input type="text" id="subCenter" required class="input" list="subCenter-list"><datalist id="subCenter-list"></datalist></div>
-                           
                            </div>
                        </div>
                        <div>
@@ -201,6 +198,7 @@
                      <div>
                          <label for="remarks" class="block text-sm font-medium text-gray-700">Remarks (Optional)</label>
                          <textarea id="remarks" rows="3" class="input"></textarea>
+.
                      </div>
                  </div>
                  <div class="mt-8 flex justify-end gap-4">
@@ -265,7 +263,6 @@
                  <form id="transferForm">
                      <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName">
                      <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p>
-
                      <div class="space-y-4">
                          <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div>
                          <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project<span class="text-red-500">*</span></label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div>
