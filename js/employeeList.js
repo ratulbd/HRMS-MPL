@@ -179,7 +179,7 @@ export function populateFilterDropdowns(employees) {
 
     // --- END MODIFICATION ---
     console.log("Found Identification Types:", identificationTypes);
-    
+
     // --- Populate Filter <select> Dropdowns ---
     populateSelectDropdown('filterDesignation', designations, "All Designations");
     populateSelectDropdown('filterProjectOffice', offices, "All Offices");
