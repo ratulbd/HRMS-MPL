@@ -81,13 +81,15 @@
     </div>
 
     <div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
-         <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl modal max-h-[90vh] flex flex-col" id="employeeModalContent">
+        
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl modal max-h-[90vh] flex flex-col transform scale-100" id="employeeModalContent">
+            
             <div class="flex justify-between items-center p-6 border-b flex-shrink-0">
                  <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Add/Edit Employee</h2>
                  <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
              </div>
              
-             <form id="employeeForm" class="relative flex-grow overflow-y-auto p-6">
+             <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
                   <input type="hidden" id="employeeDocId"><input type="hidden" id="employeeStatus"><input type="hidden" id="employeeSalaryHeld"><input type="hidden" id="separationDateHidden"><input type="hidden" id="remarksHidden"><input type="hidden" id="originalEmployeeIdHidden"><input type="hidden" id="holdTimestampHidden"><input type="hidden" id="lastTransferDateHidden"><input type="hidden" id="lastSubcenterHidden"><input type="hidden" id="lastTransferReasonHidden">
                   
                   <div class="space-y-6">
@@ -235,7 +237,7 @@
     <div id="salarySheetModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
          <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-5xl modal h-full max-h-[90vh] flex flex-col">
              <div class="flex-shrink-0"><h2 class="text-2xl font-bold mb-2">Salary Sheet</h2><p id="sheetMonthYear" class="text-gray-500 mb-6"></p></div>
-             <div class="flex-grow overflow-y-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody id="salarySheetBody" class="bg-white divide-y divide-gray-200"></tbody></table></div>
+             <div class="flex-grow overflow-y-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction</th><th class="px-6 py-3 text-left text-xs font-medium text-Gras-500 uppercase tracking-wider">Net</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody id="salarySheetBody" class="bg-white divide-y divide-gray-200"></tbody></table></div>
              <div class="mt-8 flex justify-end gap-4 flex-shrink-0"><button type="button" id="closeSheetModal" class="btn btn-secondary">Close</button></div>
          </div>
     </div>
