@@ -1,15 +1,23 @@
 // js/viewDetails.js
 import { $, openModal, closeModal, formatDateForDisplay } from './utils.js';
 
+// --- MODIFICATION: Improved keyToLabel to handle more cases ---
 // Helper to convert camelCase/snake_case keys to Title Case Labels
 function keyToLabel(key) {
     if (!key) return '';
+    // Handle specific acronyms first
+    key = key.replace('dob', 'Date of Birth');
+    key = key.replace('tds', 'TDS');
+    key = key.replace('lwp', 'LWP');
+    key = key.replace('cpf', 'CPF');
+    
     // Replace underscores with spaces, handle camelCase by inserting space before uppercase letters
     let label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
     // Uppercase first letter of each word
     label = label.replace(/\b\w/g, char => char.toUpperCase());
     return label.trim();
 }
+// --- END MODIFICATION ---
 
 
 export function openViewDetailsModal(employee) {
@@ -24,12 +32,21 @@ export function openViewDetailsModal(employee) {
     const excludedKeys = [
         'id', // Internal row ID
         'originalEmployeeId', // Internal edit logic key
-        // Explicitly excluded fields as requested
+        // Explicitly excluded fields (now shown on main card)
         'status', 'salaryHeld', 'holdTimestamp', 'separationDate',
         'remarks', 'lastTransferDate', 'lastSubcenter', 'lastTransferReason'
     ];
+    
+    // --- MODIFICATION: List of all keys that should be formatted as currency ---
+    const currencyKeys = [
+        'previousSalary', 'basic', 'others', 'salary', 'motobikeCarMaintenance', 'laptopRent',
+        'othersAllowance', 'arrear', 'foodAllowance', 'stationAllowance', 'hardshipAllowance', 'grandTotal', 'gratuity',
+        'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund', 'salaryOthersLoan', 'subsidizedVehicle', 'lwp', 'cpf',
+        'othersAdjustment', 'totalDeduction', 'netSalaryPayment', 'mobileLimit'
+    ];
+    // --- END MODIFICATION ---
 
-    let html = '<dl class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">';
+    let html = '<dl class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">';
 
     // Dynamically iterate through employee object properties
     for (const key in employee) {
@@ -47,19 +64,19 @@ export function openViewDetailsModal(employee) {
         let value = employee[key];
         let displayValue = value;
 
-        // Apply Specific Formatting for KNOWN keys
+        // Apply Specific Formatting
         if ((key === "joiningDate" || key === "dob") && value) {
-             // Check if it needs formatting or might already be formatted
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                  displayValue = formatDateForDisplay(value);
              } else {
-                 displayValue = value; // Assume already formatted correctly
+                 displayValue = value;
              }
         }
-        else if (key === "salary" && (value || value === 0)) {
-            displayValue = `৳${Number(value).toLocaleString('en-IN')}`;
+        // --- MODIFICATION: Use the currencyKeys array for formatting ---
+        else if (currencyKeys.includes(key) && (value || value === 0)) {
+            displayValue = `৳${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
-        // Add more specific formatting rules here if needed for other known keys
+        // --- END MODIFICATION ---
 
         // Ensure N/A for empty/null/undefined values AFTER potential formatting
         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;

@@ -9,20 +9,71 @@ const mandatoryFields = [
     'employeeId', 'name', 'employeeType', 'designation', 'joiningDate',
     'project', 'projectOffice', 'reportProject', 'subCenter',
     'personalMobile', 'dob', 'address', 'identification',
-    'salary'
-    // Add IDs of other fields from your index.html form if they are mandatory
-    // e.g., 'basic', 'identificationType', etc.
+    'salary' // Gross Salary
 ];
 
+// --- MODIFICATION: Added all new salary fields ---
 // List of ALL field IDs present in the employeeForm HTML
 const allFormFields = [
+    // Basic
     'employeeId', 'name', 'employeeType', 'designation', 'joiningDate', 'workExperience', 'education',
+    // Project
     'project', 'projectOffice', 'reportProject', 'subCenter',
+    // Personal
     'fatherName', 'motherName', 'personalMobile', 'dob', 'bloodGroup', 'address', 'identification', 'identificationType',
+    // Contact
     'nomineeName', 'nomineeMobile', 'officialMobile', 'mobileLimit',
-    'salary', 'bankAccount', 'basic', 'others', 'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund',
-    'salaryLoanOthers', 'subsidizedVehicle', 'lwpcpf', 'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
+    // Salary - Earnings
+    'salary', 'basic', 'others', 'motobikeCarMaintenance', 'laptopRent', 'othersAllowance',
+    'arrear', 'foodAllowance', 'stationAllowance', 'hardshipAllowance',
+    // Salary - Deductions
+    'gratuity', 'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund', 'salaryOthersLoan',
+    'subsidizedVehicle', 'lwp', 'cpf', 'othersAdjustment',
+    // Salary - Totals
+    'grandTotal', 'totalDeduction', 'netSalaryPayment',
+    // Bank
+    'bankAccount'
 ];
+// --- END MODIFICATION ---
+
+// --- NEW FUNCTION: Auto-calculates salary totals ---
+function getNumericValue(elementId) {
+    const el = $(elementId);
+    if (!el) return 0;
+    const value = parseFloat(el.value);
+    return isNaN(value) ? 0 : value;
+}
+
+function calculateSalaryTotals() {
+    // Sum Earnings
+    const earnings = [
+        getNumericValue('salary'), getNumericValue('motobikeCarMaintenance'), getNumericValue('laptopRent'),
+        getNumericValue('othersAllowance'), getNumericValue('arrear'), getNumericValue('foodAllowance'),
+        getNumericValue('stationAllowance'), getNumericValue('hardshipAllowance')
+    ];
+    const grandTotal = earnings.reduce((sum, val) => sum + val, 0);
+
+    // Sum Deductions
+    const deductions = [
+        getNumericValue('gratuity'), getNumericValue('subsidizedLunch'), getNumericValue('tds'),
+        getNumericValue('motorbikeLoan'), getNumericValue('welfareFund'), getNumericValue('salaryOthersLoan'),
+        getNumericValue('subsidizedVehicle'), getNumericValue('lwp'), getNumericValue('cpf')
+    ];
+    const totalDeduction = deductions.reduce((sum, val) => sum + val, 0);
+
+    // Calculate Net
+    const netSalaryPayment = grandTotal - totalDeduction;
+
+    // Set Readonly Fields
+    const grandTotalEl = $('grandTotal');
+    const totalDeductionEl = $('totalDeduction');
+    const netSalaryPaymentEl = $('netSalaryPayment');
+    
+    if (grandTotalEl) grandTotalEl.value = grandTotal.toFixed(2);
+    if (totalDeductionEl) totalDeductionEl.value = totalDeduction.toFixed(2);
+    if (netSalaryPaymentEl) netSalaryPaymentEl.value = netSalaryPayment.toFixed(2);
+}
+// --- END NEW FUNCTION ---
 
 export function openEmployeeModal(employee = null, localEmployees = []) {
     const form = $('employeeForm');
@@ -45,12 +96,8 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
                 if (fieldId === 'joiningDate' || fieldId === 'dob') {
                     input.value = formatDateForInput(employee[fieldId]);
                 } else {
-                    // Handle number fields that might be 0
-                    if (input.type === 'number' && (employee[fieldId] === 0 || employee[fieldId])) {
-                         input.value = employee[fieldId];
-                    } else {
-                         input.value = employee[fieldId] ?? ''; // Use ?? for null/undefined
-                    }
+                    // Use ?? for null/undefined, ensures 0 is displayed
+                    input.value = employee[fieldId] ?? ''; 
                 }
             }
         });
@@ -80,6 +127,11 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
         if (empIdInput) { empIdInput.removeAttribute('readonly'); empIdInput.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
         $('employeeType').value = 'Permanent';
     }
+    
+    // --- MODIFICATION: Run calculation on open ---
+    calculateSalaryTotals();
+    // --- END MODIFICATION ---
+    
     openModal('employeeModal');
 }
 
@@ -93,6 +145,13 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
     if (cancelBtn) cancelBtn.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; });
     if (cancelBtnTop) cancelBtnTop.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; });
 
+    // --- MODIFICATION: Attach listeners for auto-calculation ---
+    const salaryFields = form.querySelectorAll('.salary-component-earning, .salary-component-deduction');
+    salaryFields.forEach(field => {
+        field.addEventListener('input', calculateSalaryTotals);
+    });
+    // --- END MODIFICATION ---
+
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -100,20 +159,17 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
 
             form.querySelectorAll('.input, .input-select').forEach(el => el.classList.remove('border-red-500'));
             let firstErrorField = null;
+            
+            // --- MODIFICATION: Re-run calculation before submit to be safe ---
+            calculateSalaryTotals();
+            // --- END MODIFICATION ---
 
             // Gather data from ALL known form fields defined in allFormFields array
             const formData = {};
             allFormFields.forEach(fieldId => {
                 const element = $(fieldId);
                 if (element) {
-                    // Convert specific fields to numbers, handle potential NaN/emptiness
-                    const numberFields = [
-                        'workExperience', 'mobileLimit', 'salary', 'basic', 'others', 'subsidizedLunch', 'tds',
-                        'motorbikeLoan', 'welfareFund', 'salaryLoanOthers', 'subsidizedVehicle', 'lwpcpf',
-                        'othersAdjustment', 'totalDeduction', 'netSalaryPayment'
-                    ];
-
-                    if (numberFields.includes(fieldId)) {
+                    if (element.type === 'number') {
                         const numValue = parseFloat(element.value);
                         formData[fieldId] = isNaN(numValue) ? null : numValue; // Use null if invalid number
                     } else {
@@ -165,7 +221,6 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                   return;
              }
              
-             // --- START MODIFICATION: Detailed Duplication Check ---
              if (!isEditing) {
                 const currentEmployees = getEmployeesFunc();
                 
@@ -198,7 +253,6 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                     }
                 }
              }
-             // --- END MODIFICATION ---
 
 
             let dataToSend = {};
@@ -217,6 +271,12 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                      holdTimestamp: '', lastTransferDate: '', lastSubcenter: '', lastTransferReason: ''
                  };
             }
+            
+            // Ensure calculated fields are numbers
+            dataToSend.grandTotal = parseFloat(formData.grandTotal) || 0;
+            dataToSend.totalDeduction = parseFloat(formData.totalDeduction) || 0;
+            dataToSend.netSalaryPayment = parseFloat(formData.netSalaryPayment) || 0;
+
 
             // API Call
             try {

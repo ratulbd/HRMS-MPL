@@ -109,11 +109,32 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
               }
         }
 
-        // --- Export Data ---
+        // --- MODIFICATION: Updated Export Headers and Keys ---
         function handleExportData() {
              if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
-             const headers = [ "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center", "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Date of Birth", "Blood Group", "Address", "Identification", "Nominee's Name", "Nominee's Mobile Number", "Gross Salary", "Official Mobile Number", "Mobile Limit", "Bank Account Number", "Status", "Salary Held", "Separation Date", "Remarks", "Hold Timestamp", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason"];
-             const headerKeys = [ "employeeId", "name", "employeeType", "designation", "joiningDate", "project", "projectOffice", "reportProject", "subCenter", "workExperience", "education", "fatherName", "motherName", "personalMobile", "dob", "bloodGroup", "address", "identification", "nomineeName", "nomineeMobile", "salary", "officialMobile", "mobileLimit", "bankAccount", "status", "salaryHeld", "separationDate", "remarks", "holdTimestamp", "lastTransferDate", "lastSubcenter", "lastTransferReason"];
+             
+             const headers = [
+                "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
+                "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
+                "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
+                "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
+                "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
+                "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
+                "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
+                "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason"
+             ];
+             
+             const headerKeys = [
+                "employeeId", "name", "employeeType", "designation", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
+                "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
+                "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
+                "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
+                "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
+                "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
+                "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+                "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason"
+             ];
+             
              let csvContent = headers.join(',') + '\n';
              mainLocalEmployees.forEach(emp => {
                 const row = headerKeys.map(key => {
@@ -127,6 +148,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
              });
              if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
         }
+        // --- END MODIFICATION ---
 
          // --- Setup Global Listeners ---
          function setupGlobalListeners() {
