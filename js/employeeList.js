@@ -176,8 +176,10 @@ export function populateFilterDropdowns(employees) {
     const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
     // --- MODIFICATION: Get Identification Types ---
     const identificationTypes = [...new Set(employees.map(e => e?.identificationType).filter(Boolean))].sort();
-    // --- END MODIFICATION ---
 
+    // --- END MODIFICATION ---
+    console.log("Found Identification Types:", identificationTypes);
+    
     // --- Populate Filter <select> Dropdowns ---
     populateSelectDropdown('filterDesignation', designations, "All Designations");
     populateSelectDropdown('filterProjectOffice', offices, "All Offices");
