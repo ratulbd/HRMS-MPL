@@ -8,6 +8,7 @@ import { apiCall } from './apiClient.js';
 
 // --- Global variable for ExcelJS ---
 const ExcelJS = window.ExcelJS;
+const JSZip = window.JSZip; // Get JSZip from global scope
 let allEmployees = []; // To be populated by getMainLocalEmployees
 let allArchives = [];  // To store the fetched archives
 
@@ -24,7 +25,15 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
 
             try {
                 const archives = await apiCall('getSalaryArchive');
-                allArchives = archives.sort((a, b) => b.monthYear.localeCompare(a.monthYear)); // Newest first
+                
+                // MODIFIED SORT: Sort by timestamp (descending) first.
+                allArchives = archives.sort((a, b) => {
+                    const dateA = a.timestamp ? new Date(a.timestamp) : new Date('1970-01-01');
+                    const dateB = b.timestamp ? new Date(b.timestamp) : new Date('1970-01-01');
+                    if (dateB !== dateA) return dateB - dateA;
+                    // Fallback to monthYear if timestamps are missing or identical
+                    return b.monthYear.localeCompare(a.monthYear);
+                });
 
                 if (allArchives.length === 0) {
                     listElement.innerHTML = '<p class="text-gray-500">No past salary sheets found in the archive.</p>';
@@ -33,14 +42,36 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
 
                 listElement.innerHTML = ''; // Clear spinner
                 allArchives.forEach((archive, index) => {
+                    // --- MODIFICATION: Format and display the timestamp ---
+                    let displayTime = 'Generated before timestamping';
+                    if (archive.timestamp) {
+                        try {
+                            displayTime = new Date(archive.timestamp).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                            });
+                        } catch (e) { /* ignore bad date */ }
+                    }
+                    // --- END MODIFICATION ---
+
                     const item = document.createElement('div');
                     item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded-lg border';
+                    
+                    // --- MODIFIED INNERHTML ---
                     item.innerHTML = `
-                        <span class="font-medium text-gray-700">${archive.monthYear}</span>
+                        <div>
+                            <span class="font-medium text-gray-700">${archive.monthYear}</span>
+                            <span class="block text-xs text-gray-500">${displayTime}</span>
+                        </div>
                         <button class="btn btn-secondary text-sm py-1 px-3" data-index="${index}">
                             Re-download
                         </button>
                     `;
+                    // --- END MODIFICATION ---
+                    
                     listElement.appendChild(item);
                 });
 
@@ -58,8 +89,9 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
     const listElement = $('pastSheetsList');
     if (listElement) {
         listElement.addEventListener('click', async (e) => {
-            if (e.target.tagName === 'BUTTON' && e.target.dataset.index) {
-                const index = parseInt(e.target.dataset.index, 10);
+            const button = e.target.closest('button[data-index]');
+            if (button) {
+                const index = parseInt(button.dataset.index, 10);
                 const archive = allArchives[index];
                 
                 if (!archive || !archive.jsonData) {
@@ -67,9 +99,8 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
                     return;
                 }
 
-                const btn = e.target;
-                btn.disabled = true;
-                btn.textContent = 'Generating...';
+                button.disabled = true;
+                button.textContent = 'Generating...';
 
                 try {
                     // Re-process the archived data
@@ -83,20 +114,39 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
                         return acc;
                     }, {});
 
+                    // --- MODIFICATION: Re-generate Zip File ---
+                    if (!JSZip) {
+                        throw new Error("JSZip library is not loaded. Please check index.html.");
+                    }
+                    const zip = new JSZip();
+
                     // Re-generate Excel file for each project
                     for (const project of Object.keys(employeesByProject)) {
                         // This uses the helper functions duplicated below
-                        await generateExcelReport(project, salaryMonth, employeesByProject[project]);
+                        // Pass 'true' for isArchive flag
+                        const { fileName, blob } = await generateExcelReport(project, salaryMonth, employeesByProject[project], true);
+                        zip.file(fileName, blob); // Add file to zip
                     }
 
-                    customAlert("Success", `Re-generated salary reports for ${salaryMonth}.`);
+                    // Download the single zip file
+                    const zipBlob = await zip.generateAsync({ type: "blob" });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(zipBlob);
+                    link.download = `Salary-Reports-${salaryMonth}-Archive.zip`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    // --- END MODIFICATION ---
+
+                    customAlert("Success", `Re-generated salary reports for ${salaryMonth} as a .zip file.`);
 
                 } catch (error) {
                     console.error("Failed to re-generate report:", error);
                     customAlert("Error", `Failed to re-generate report: ${error.message}`);
                 } finally {
-                    btn.disabled = false;
-                    btn.textContent = 'Re-download';
+                    button.disabled = false;
+                    button.textContent = 'Re-download';
                 }
             }
         });
@@ -109,13 +159,13 @@ export function setupPastSheetsModal(getMainLocalEmployees) {
 // In a larger refactor, these would live in a shared 'payrollLogic.js' file.
 
 /**
- * Uses ExcelJS to build and download one .xlsx file for a project.
+ * Uses ExcelJS to build and return one .xlsx file blob for a project.
  */
-async function generateExcelReport(project, salaryMonth, projectEmployees) {
+async function generateExcelReport(project, salaryMonth, projectEmployees, isArchive = false) {
     if (!ExcelJS) throw new Error("ExcelJS library is not loaded.");
     
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'HR Management System (Archive)';
+    workbook.creator = `HR Management System ${isArchive ? '(Archive)' : ''}`;
     workbook.created = new Date();
 
     // 1. Create Salary Sheet
@@ -123,14 +173,14 @@ async function generateExcelReport(project, salaryMonth, projectEmployees) {
     // 2. Create Advice Sheet
     createAdviceWorksheet(workbook, projectEmployees, salaryMonth);
 
-    // 3. Download the file
+    // 3. Return the file blob and name
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Salary-${project}-${salaryMonth}-Archive.xlsx`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    
+    const archiveSuffix = isArchive ? '-Archive' : '';
+    const fileName = `Salary-${project}-${salaryMonth}${archiveSuffix}.xlsx`;
+
+    return { fileName, blob };
 }
 
 /**

@@ -5,6 +5,7 @@ import { apiCall } from './apiClient.js';
 // --- Global variable for ExcelJS, loaded from index.html ---
 // This assumes ExcelJS is loaded via CDN
 const ExcelJS = window.ExcelJS;
+const JSZip = window.JSZip; // Get JSZip from global scope
 
 let allEmployees = []; // To be populated by getMainLocalEmployees
 
@@ -31,23 +32,39 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const generateBtn = $('generateSheetBtn');
+            const generateBtn = e.target.querySelector('button[type="submit"]');
             generateBtn.disabled = true;
             generateBtn.textContent = 'Generating...';
 
             try {
                 const salaryMonth = $('salaryMonth').value;
                 const attendanceFile = $('attendanceFile').files[0];
-                const accountabilityFile = $('accountabilityFile').files[0];
+                const accountabilityFile = $('accountabilityFile').files[0]; // Assuming you re-add this field
 
-                if (!salaryMonth || !attendanceFile || !accountabilityFile) {
-                    customAlert("Missing Data", "Please select a month and provide both CSV files.");
+                if (!salaryMonth || !attendanceFile) {
+                    // MODIFIED: Removed accountabilityFile requirement for now as it's not in your HTML
+                    customAlert("Missing Data", "Please select a month and provide the attendance CSV file.");
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = 'Generate Sheet';
                     return;
                 }
+                
+                // --- MOCK accountabilityData if file input is missing ---
+                // In a real scenario, you'd re-add the 'accountabilityFile' input to your index.html
+                // For now, we'll create a blank one to avoid errors in processPayrollData
+                let accountabilityData = [];
+                // const accountabilityFile = $('accountabilityFile').files[0];
+                // if (accountabilityFile) {
+                //     accountabilityData = await parseCSV(accountabilityFile);
+                // } else {
+                //     console.warn("Accountability file input not found, proceeding with cash payments as 'unassigned'.");
+                // }
+                // --- END MOCK ---
+
 
                 // 1. Parse CSV files
                 const attendanceData = await parseCSV(attendanceFile);
-                const accountabilityData = await parseCSV(accountabilityFile);
+                // const accountabilityData = await parseCSV(accountabilityFile); // Uncomment when ready
 
                 // 2. Process data
                 const processedData = processPayrollData(attendanceData, accountabilityData, allEmployees);
@@ -60,18 +77,38 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
                     return acc;
                 }, {});
 
-                // 4. Generate Excel file for each project
+                // 4. Generate Zip File
+                if (!JSZip) {
+                    throw new Error("JSZip library is not loaded. Please check index.html.");
+                }
+                const zip = new JSZip();
+
+                // 5. Generate Excel file for each project and add to zip
                 for (const project of Object.keys(employeesByProject)) {
-                    await generateExcelReport(project, salaryMonth, employeesByProject[project]);
+                    // Pass 'false' for isArchive flag
+                    const { fileName, blob } = await generateExcelReport(project, salaryMonth, employeesByProject[project], false);
+                    zip.file(fileName, blob); // Add file to zip
                 }
 
-                // 5. Archive the report
+                // 6. Download the single zip file
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = `Salary-Reports-${salaryMonth}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                // 7. Archive the report
+                const archiveTimestamp = new Date().toISOString(); // <-- Get timestamp
                 await apiCall('saveSalaryArchive', 'POST', {
                     monthYear: salaryMonth,
+                    timestamp: archiveTimestamp, // <-- Send timestamp
                     jsonData: processedData // Archive the successfully processed data
                 });
 
-                customAlert("Success", `Successfully generated and archived salary reports for ${salaryMonth}.`);
+                customAlert("Success", `Successfully generated and archived salary reports for ${salaryMonth}. Downloaded as a .zip file.`);
                 closeModal('attendanceModal');
 
             } catch (error) {
@@ -79,7 +116,7 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
                 customAlert("Error", `Failed to generate salary sheet: ${error.message}`);
             } finally {
                 generateBtn.disabled = false;
-                generateBtn.textContent = 'Generate & Download';
+                generateBtn.textContent = 'Generate Sheet';
             }
         });
     }
@@ -102,10 +139,26 @@ function parseCSV(file) {
                 const headers = headerLine.replace(/^\uFEFF/, '').split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
                 
                 const data = lines.map(line => {
-                    const values = line.split(',');
+                    // Robust CSV parsing to handle commas inside quoted values
+                    const values = [];
+                    let inQuote = false;
+                    let currentVal = '';
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            inQuote = !inQuote;
+                        } else if (char === ',' && !inQuote) {
+                            values.push(currentVal.trim());
+                            currentVal = '';
+                        } else {
+                            currentVal += char;
+                        }
+                    }
+                    values.push(currentVal.trim());
+
                     const obj = {};
                     headers.forEach((header, index) => {
-                        obj[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
+                        obj[header] = values[index] ? values[index].replace(/"/g, '') : '';
                     });
                     return obj;
                 });
@@ -148,7 +201,7 @@ function processPayrollData(attendanceData, accountabilityData, allEmployeeData)
                 paymentType = 'Cash';
                 const key = `${emp.reportProject}|${emp.subCenter}`;
                 accountableEmployeeId = accountabilityMap.get(key) || null;
-                if (!accountableEmployeeId) {
+                if (!accountableEmployeeId && accountabilityData.length > 0) { // Only warn if accountability data was provided
                     console.warn(`No accountable person found for ${key}. Employee ${emp.employeeId} will not be paid.`);
                 }
             }
@@ -168,13 +221,13 @@ function processPayrollData(attendanceData, accountabilityData, allEmployeeData)
 }
 
 /**
- * Uses ExcelJS to build and download one .xlsx file for a project.
+ * Uses ExcelJS to build and return one .xlsx file blob for a project.
  */
-async function generateExcelReport(project, salaryMonth, projectEmployees) {
+async function generateExcelReport(project, salaryMonth, projectEmployees, isArchive = false) {
     if (!ExcelJS) throw new Error("ExcelJS library is not loaded.");
     
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'HR Management System';
+    workbook.creator = `HR Management System ${isArchive ? '(Archive)' : ''}`;
     workbook.created = new Date();
 
     // 1. Create Salary Sheet (matches "Telecom" template)
@@ -183,15 +236,16 @@ async function generateExcelReport(project, salaryMonth, projectEmployees) {
     // 2. Create Advice Sheet
     createAdviceWorksheet(workbook, projectEmployees, salaryMonth);
 
-    // 3. Download the file
+    // 3. Return the file blob and name
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Salary-${project}-${salaryMonth}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    
+    const archiveSuffix = isArchive ? '-Archive' : '';
+    const fileName = `Salary-${project}-${salaryMonth}${archiveSuffix}.xlsx`;
+
+    return { fileName, blob };
 }
+
 
 /**
  * Creates the main "Salary Sheet" worksheet (like "Telecom").
