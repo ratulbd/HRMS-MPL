@@ -28,7 +28,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
         // --- Global State ---
         let mainLocalEmployees = [];
-        // MODIFICATION: Update filter state to use arrays for multi-select
         let currentFilters = { 
             name: '', 
             status: [], 
@@ -39,14 +38,12 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             reportProject: [], 
             subCenter: [] 
         };
-        // MODIFICATION: Store Tom Select instances
         let tomSelects = {};
-        // END MODIFICATION
 
         // --- State Accessor ---
         const getMainLocalEmployees = () => mainLocalEmployees;
         
-        // --- MODIFICATION: Helper function to populate Tom Select instances ---
+        // --- Helper function to populate Tom Select instances ---
         function updateTomSelectFilterOptions(employees) {
             if (!Array.isArray(employees)) employees = [];
 
@@ -80,7 +77,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             updateOptions(tomSelects.reportProject, formatOptions(reportProjects));
             updateOptions(tomSelects.subCenter, formatOptions(subCenters));
         }
-        // --- END MODIFICATION ---
 
         // --- Main Fetch Function ---
         async function fetchAndRenderEmployees() {
@@ -99,12 +95,8 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
                 mainLocalEmployees = employees || [];
                 setLocalEmployees(mainLocalEmployees);
-                populateFilterDropdowns(mainLocalEmployees); // This now *only* populates modal datalists
-                
-                // MODIFICATION: Populate the new Tom Select filters
+                populateFilterDropdowns(mainLocalEmployees);
                 updateTomSelectFilterOptions(mainLocalEmployees);
-                // END MODIFICATION
-
                 filterAndRenderEmployees(currentFilters, mainLocalEmployees);
 
                 const initialLoading = $('#initialLoading');
@@ -120,13 +112,12 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             }
         }
 
-        // --- MODIFICATION: Rewritten to support Tom Select ---
+        // --- Setup Filter Listeners ---
         function setupFilterListeners() {
             const tomSelectConfig = {
                 plugins: ['remove_button'],
             };
 
-            // 1. Text Search
             const nameInput = $('filterName');
             if (nameInput) {
                 nameInput.addEventListener('input', (e) => {
@@ -135,7 +126,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                 });
             }
 
-            // 2. Multi-select Dropdowns
             const filterMap = {
                 'filterStatus': 'status',
                 'filterDesignation': 'designation',
@@ -159,34 +149,25 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                 }
             }
 
-            // 3. Reset Button
             const resetBtn = $('resetFiltersBtn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
-                    // Reset the state object
                     currentFilters = { 
                         name: '', status: [], designation: [], type: [], 
                         project: [], projectOffice: [], reportProject: [], subCenter: [] 
                     };
-
-                    // Reset the HTML input
                     if (nameInput) nameInput.value = '';
-                    
-                    // Clear all Tom Select instances
                     for (const key in tomSelects) {
                         if (tomSelects[key]) {
                             tomSelects[key].clear();
                         }
                     }
-
-                    // Re-filter and render
                     filterAndRenderEmployees(currentFilters, mainLocalEmployees);
                 });
             } else {
                  console.warn("Reset Filters button (#resetFiltersBtn) not found.");
             }
         }
-        // --- END MODIFICATION ---
 
         function handleExportData() {
              if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
@@ -242,23 +223,24 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         // --- Initialize Application ---
         function initializeApp() {
             console.log("Initializing HRMS App (Modular & Authenticated)...");
-            setupFilterListeners(); // This now sets up the Tom Select inputs
+            setupFilterListeners();
             setupGlobalListeners();
+            
             // Setup module-specific listeners
             if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
-            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchEmployeesFunc);
-            if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchEmployeesFunc);
-            if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
+            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees); // <-- Corrected this line
+            if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
+            if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
             if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
             
             // --- MODIFICATION: Pass getMainLocalEmployees to setupPastSheetsModal ---
             if (typeof setupPastSheetsModal === 'function') {
-                setupPastSheetsModal(getMainLocalEmployees);
+                setupPastSheetsModal(getMainLocalEmployees); // <-- This is the fix
             }
             // --- END MODIFICATION ---
 
             if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
-            if (typeof setupTransferModal === 'function') setupTransferModal(fetchEmployeesFunc);
+            if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
             // Initial data load
             fetchAndRenderEmployees();
         }
