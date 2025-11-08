@@ -246,13 +246,19 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             setupGlobalListeners();
             // Setup module-specific listeners
             if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
-            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
-            if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
-            if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchEmployeesFunc);
+            if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchEmployeesFunc);
+            if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
             if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
-            if (typeof setupPastSheetsModal === 'function') setupPastSheetsModal();
+            
+            // --- MODIFICATION: Pass getMainLocalEmployees to setupPastSheetsModal ---
+            if (typeof setupPastSheetsModal === 'function') {
+                setupPastSheetsModal(getMainLocalEmployees);
+            }
+            // --- END MODIFICATION ---
+
             if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
-            if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
+            if (typeof setupTransferModal === 'function') setupTransferModal(fetchEmployeesFunc);
             // Initial data load
             fetchAndRenderEmployees();
         }
