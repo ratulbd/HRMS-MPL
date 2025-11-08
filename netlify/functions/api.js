@@ -6,6 +6,10 @@ const employeeActions = require('./lib/_employeeActions');
 const sheetActions = require('./lib/_sheetActions');
 const authActions = require('./lib/_authActions');
 
+// --- MODIFICATION: Log all loaded functions from sheetActions ---
+console.log("Loaded sheetActions, keys:", Object.keys(sheetActions));
+// --- END MODIFICATION ---
+
 // --- Authorization ---
 const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS),
@@ -21,9 +25,7 @@ const USERS_SHEET_NAME = 'Users';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
-// --- MODIFICATION: Add Salary Archive Sheet ---
 const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
-// --- END MODIFICATION ---
 
 const HEADER_MAPPING = {
     // Basic Info
@@ -136,9 +138,7 @@ exports.handler = async (event) => {
                 sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
                 HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
-                // --- MODIFICATION: Pass new archive sheet name ---
                 SALARY_ARCHIVE_SHEET_NAME
-                // --- END MODIFICATION ---
             };
 
             switch (action) {
@@ -181,7 +181,6 @@ exports.handler = async (event) => {
                      break;
 
                 // --- Sheet Actions ---
-                // (saveSheet and getSheetData are now deprecated by the new Excel flow but left for now)
                 case 'saveSheet':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.saveSalarySheet(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX, context.helpers, requestBody);
@@ -198,8 +197,6 @@ exports.handler = async (event) => {
                          result = await sheetActions.getSheetData(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX, sheetId);
                     }
                     break;
-
-                // --- MODIFICATION: Add Salary Archive Actions ---
                 case 'saveSalaryArchive':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.saveSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers, requestBody);
@@ -208,7 +205,6 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.getSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers);
                     break;
-                // --- END MODIFICATION ---
 
                 // --- Auth Actions ---
                 case 'loginUser':
