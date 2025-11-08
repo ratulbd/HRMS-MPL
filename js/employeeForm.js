@@ -1,6 +1,6 @@
 // js/employeeForm.js
-// --- MODIFICATION: Import customConfirm ---
-import { $, openModal, closeModal, customAlert, formatDateForInput, customConfirm } from './utils.js';
+// --- MODIFICATION: Import customConfirm AND formatDateForDisplay ---
+import { $, openModal, closeModal, customAlert, formatDateForInput, formatDateForDisplay, customConfirm } from './utils.js';
 // --- END MODIFICATION ---
 import { apiCall } from './apiClient.js';
 
@@ -14,7 +14,6 @@ const mandatoryFields = [
     'salary' // Gross Salary
 ];
 
-// --- MODIFICATION: Added all new salary fields ---
 // List of ALL field IDs present in the employeeForm HTML
 const allFormFields = [
     // Basic
@@ -36,7 +35,6 @@ const allFormFields = [
     // Bank
     'bankAccount'
 ];
-// --- END MODIFICATION ---
 
 // --- NEW FUNCTION: Auto-calculates salary totals ---
 function getNumericValue(elementId) {
@@ -70,7 +68,7 @@ function calculateSalaryTotals() {
     const grandTotalEl = $('grandTotal');
     const totalDeductionEl = $('totalDeduction');
     const netSalaryPaymentEl = $('netSalaryPayment');
-
+    
     if (grandTotalEl) grandTotalEl.value = grandTotal.toFixed(2);
     if (totalDeductionEl) totalDeductionEl.value = totalDeduction.toFixed(2);
     if (netSalaryPaymentEl) netSalaryPaymentEl.value = netSalaryPayment.toFixed(2);
@@ -99,7 +97,7 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
                     input.value = formatDateForInput(employee[fieldId]);
                 } else {
                     // Use ?? for null/undefined, ensures 0 is displayed
-                    input.value = employee[fieldId] ?? '';
+                    input.value = employee[fieldId] ?? ''; 
                 }
             }
         });
@@ -129,11 +127,9 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
         if (empIdInput) { empIdInput.removeAttribute('readonly'); empIdInput.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
         $('employeeType').value = 'Permanent';
     }
-
-    // --- MODIFICATION: Run calculation on open ---
+    
     calculateSalaryTotals();
-    // --- END MODIFICATION ---
-
+    
     openModal('employeeModal');
 }
 
@@ -147,12 +143,10 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
     if (cancelBtn) cancelBtn.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; });
     if (cancelBtnTop) cancelBtnTop.addEventListener('click', () => { closeModal('employeeModal'); currentlyEditingEmployeeFullData = null; });
 
-    // --- MODIFICATION: Attach listeners for auto-calculation ---
     const salaryFields = form.querySelectorAll('.salary-component-earning, .salary-component-deduction');
     salaryFields.forEach(field => {
         field.addEventListener('input', calculateSalaryTotals);
     });
-    // --- END MODIFICATION ---
 
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -166,10 +160,8 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
 
             form.querySelectorAll('.input, .input-select').forEach(el => el.classList.remove('border-red-500'));
             let firstErrorField = null;
-
-            // --- MODIFICATION: Re-run calculation before submit to be safe ---
+            
             calculateSalaryTotals();
-            // --- END MODIFICATION ---
 
             // Gather data from ALL known form fields defined in allFormFields array
             const formData = {};
@@ -219,7 +211,7 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                 firstErrorField?.focus();
                 return;
             }
-
+             
              // Validate salary format in both modes
              if (formData.salary === null || formData.salary < 0) {
                   customAlert("Validation Error", "Gross Salary must be a valid non-negative number.");
@@ -227,58 +219,59 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                    if (salaryInput) { salaryInput.classList.add('border-red-500'); if (!firstErrorField) firstErrorField = salaryInput; firstErrorField?.focus(); }
                   return;
              }
-
+             
              if (!isEditing) {
                 const currentEmployees = getEmployeesFunc();
-
+                
                 // 1. Check Employee ID
                 const existingById = currentEmployees.find(emp => emp.employeeId.trim().toLowerCase() === formData.employeeId.trim().toLowerCase());
                 if (existingById) {
-                    customAlert("Duplicate Entry",
+                    customAlert("Duplicate Entry", 
                         `<b>Employee ID "${formData.employeeId}" already exists.</b><br><br>
                          Assigned to: ${existingById.name}<br>
                          Designation: ${existingById.designation || 'N/A'}`);
-                    const idInput = $('employeeId');
+                    const idInput = $('employeeId'); 
                     if(idInput) { idInput.classList.add('border-red-500'); idInput.focus(); }
                     return;
                 }
-
+                
                 // --- MODIFICATION: Check Identification and handle re-join prompt ---
                 if (formData.identification && formData.identification.trim() !== '') {
-                    existingByIdentification = currentEmployees.find(emp =>
-                        emp.identification &&
+                    existingByIdentification = currentEmployees.find(emp => 
+                        emp.identification && 
                         emp.identification.trim().toLowerCase() === formData.identification.trim().toLowerCase()
                     );
-
+                    
                     if (existingByIdentification) {
                         // If employee is Active or Held, it's a hard block.
                         if (existingByIdentification.status === 'Active' || existingByIdentification.status === 'Salary Held') {
-                            customAlert("Duplicate Entry",
+                            customAlert("Duplicate Entry", 
                                 `<b>Identification "${formData.identification}" already exists and is assigned to an ACTIVE employee.</b><br><br>
                                  Assigned to: ${existingByIdentification.name}<br>
                                  Employee ID: ${existingByIdentification.employeeId}`);
-                            const idenInput = $('identification');
+                            const idenInput = $('identification'); 
                             if(idenInput) { idenInput.classList.add('border-red-500'); idenInput.focus(); }
                             return;
                         }
 
                         // If employee is Inactive, prompt for re-join
+                        // This is line 269 where the error occurred
                         const confirmMsg = `<b>Identification "${formData.identification}" matches an inactive employee:</b><br><br>
                                             <b>Name:</b> ${existingByIdentification.name}<br>
                                             <b>Employee ID:</b> ${existingByIdentification.employeeId}<br>
                                             <b>Status:</b> ${existingByIdentification.status}<br>
                                             <b>Separation Date:</b> ${formatDateForDisplay(existingByIdentification.separationDate) || 'N/A'}<br><br>
                                             Do you want to proceed and re-join this person using the <b>new Employee ID (${formData.employeeId})</b>?`;
-
+                        
                         const confirmed = await customConfirm("Re-join Confirmation", confirmMsg);
 
                         if (!confirmed) {
                             customAlert("Action Cancelled", "Employee addition has been cancelled.");
-                            const idenInput = $('identification');
+                            const idenInput = $('identification'); 
                             if(idenInput) { idenInput.classList.add('border-red-500'); idenInput.focus(); }
                             return;
                         }
-
+                        
                         // User confirmed re-join
                         isRejoining = true;
                     }
@@ -303,7 +296,7 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                      holdTimestamp: '', lastTransferDate: '', lastSubcenter: '', lastTransferReason: ''
                  };
             }
-
+            
             // Ensure calculated fields are numbers
             dataToSend.grandTotal = parseFloat(formData.grandTotal) || 0;
             dataToSend.totalDeduction = parseFloat(formData.totalDeduction) || 0;
