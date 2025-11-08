@@ -75,7 +75,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
     }
 }
 
-// Function to filter and render, including updating the count
+// --- MODIFICATION: Updated to handle array filters ---
 export function filterAndRenderEmployees(filters, employees) {
     const listContainer = $('employee-list');
     const countDisplay = $('filterCountDisplay');
@@ -91,26 +91,43 @@ export function filterAndRenderEmployees(filters, employees) {
         renderEmployeeList(listContainer, []); return;
     }
 
+    // Define safe filters, defaulting to arrays for multi-select
      const safeFilters = {
-         name: filters?.name || '', status: filters?.status || '',
-         designation: filters?.designation || '', type: filters?.type || '',
-         projectOffice: filters?.projectOffice || ''
+         name: filters?.name || '', 
+         status: filters?.status || [],
+         designation: filters?.designation || [], 
+         type: filters?.type || [],
+         project: filters?.project || [],
+         projectOffice: filters?.projectOffice || [],
+         reportProject: filters?.reportProject || [],
+         subCenter: filters?.subCenter || []
      };
      const nameFilterLower = safeFilters.name.toLowerCase();
 
     const filtered = employees.filter(emp => {
         if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
+        
+        // Determine the single effective status for the employee
         let effectiveStatus = emp.status || 'Active';
-        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) { effectiveStatus = 'Salary Held'; }
+        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) { 
+            effectiveStatus = 'Salary Held'; 
+        }
 
+        // Check each filter
         const nameMatch = nameFilterLower === '' || emp.name.toLowerCase().includes(nameFilterLower) || emp.employeeId.toLowerCase().includes(nameFilterLower);
-        const statusMatch = safeFilters.status === '' || effectiveStatus === safeFilters.status;
-        const designationMatch = safeFilters.designation === '' || emp.designation === safeFilters.designation;
-        const typeMatch = safeFilters.type === '' || emp.employeeType === safeFilters.type;
-        const projectOfficeMatch = safeFilters.projectOffice === '' || (emp.projectOffice && emp.projectOffice.trim() === safeFilters.projectOffice.trim());
+        
+        // Array filter logic: empty array means "match all" OR the array includes the employee's value
+        const statusMatch = safeFilters.status.length === 0 || safeFilters.status.includes(effectiveStatus);
+        const designationMatch = safeFilters.designation.length === 0 || safeFilters.designation.includes(emp.designation);
+        const typeMatch = safeFilters.type.length === 0 || safeFilters.type.includes(emp.employeeType);
+        const projectMatch = safeFilters.project.length === 0 || safeFilters.project.includes(emp.project);
+        const projectOfficeMatch = safeFilters.projectOffice.length === 0 || safeFilters.projectOffice.includes(emp.projectOffice);
+        const reportProjectMatch = safeFilters.reportProject.length === 0 || safeFilters.reportProject.includes(emp.reportProject);
+        const subCenterMatch = safeFilters.subCenter.length === 0 || safeFilters.subCenter.includes(emp.subCenter);
 
-        return nameMatch && statusMatch && designationMatch && typeMatch && projectOfficeMatch;
+        return nameMatch && statusMatch && designationMatch && typeMatch && projectMatch && projectOfficeMatch && reportProjectMatch && subCenterMatch;
     });
+    // --- END MODIFICATION ---
 
     if(countDisplay) {
         countDisplay.textContent = `Showing ${filtered.length} of ${employees.length} employees.`;
@@ -134,55 +151,19 @@ function populateDataList(elementId, values) {
     }
 }
 
-// Helper to populate a <select> dropdown (used for filters)
-function populateSelectDropdown(elementId, values, defaultOptionText) {
-    const select = $(elementId);
-    if (select) {
-        const currentValue = select.value;
-        select.innerHTML = '';
-
-        const defaultOption = document.createElement('option');
-        defaultOption.value = "";
-        defaultOption.textContent = defaultOptionText;
-        defaultOption.selected = true; // "All..." is always the default
-        select.appendChild(defaultOption);
-
-        values.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            option.textContent = val;
-            select.appendChild(option);
-        });
-
-        if (values.includes(currentValue)) {
-            select.value = currentValue;
-        }
-    } else {
-        console.warn(`Select element with ID '${elementId}' not found.`);
-    }
-}
-
-
-// --- MODIFIED FUNCTION ---
-// Function to populate filter dropdowns AND modal datalists
+// --- MODIFICATION: Renamed and simplified to only populate modal datalists ---
+// The filter dropdowns are now populated from main.js
 export function populateFilterDropdowns(employees) {
     if (!Array.isArray(employees)) employees = [];
 
-    // --- Get unique, sorted lists ---
+    // --- Get unique, sorted lists for MODAL datalists ---
     const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
     const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
     const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
     const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
     const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
-    // --- MODIFICATION: Get Identification Types ---
     const identificationTypes = [...new Set(employees.map(e => e?.identificationType).filter(Boolean))].sort();
-
-    // --- END MODIFICATION ---
-    console.log("Found Identification Types:", identificationTypes);
-
-    // --- Populate Filter <select> Dropdowns ---
-    populateSelectDropdown('filterDesignation', designations, "All Designations");
-    populateSelectDropdown('filterProjectOffice', offices, "All Offices");
+    // (Employee Type is a fixed <select> in the modal, no datalist needed)
 
     // --- Populate Modal <datalist> Autocompletes ---
     populateDataList('designation-list', designations);
@@ -190,12 +171,9 @@ export function populateFilterDropdowns(employees) {
     populateDataList('projectOffice-list', offices);
     populateDataList('reportProject-list', reportProjects);
     populateDataList('subCenter-list', subCenters);
-
-    // --- MODIFICATION: Populate Identification Type <datalist> ---
     populateDataList('identificationType-list', identificationTypes);
-    // --- END MODIFICATION ---
 }
-// --- END MODIFIED FUNCTION ---
+// --- END MODIFICATION ---
 
 
 // Function to set up the main event listener for the list

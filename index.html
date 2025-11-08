@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -30,6 +31,42 @@
         .input:focus, .input-select:focus { border-color: #4f46e5; --tw-ring-color: #4f46e5; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
         .input-select { padding-left: 0.75rem; padding-right: 2.5rem; /* font-size: 1rem; line-height: 1.5rem; */ appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
         .input-readonly { background-color: #f3f4f6; cursor: not-allowed; }
+        
+        /* MODIFICATION: Tom Select Styles */
+        .ts-control {
+            padding: 0.5rem 0.75rem !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.375rem !important;
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important;
+            margin-top: 0.25rem;
+            font-size: 0.875rem; 
+            line-height: 1.25rem;
+        }
+        .ts-control .item {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+        }
+        .ts-plugins .remove_button .item .remove {
+            border-left: 1px solid #c7d2fe;
+            margin-left: 0.5rem;
+            padding-left: 0.5rem;
+        }
+        .ts-dropdown {
+            border: 1px solid #d1d5db !important;
+            border-top: none !important;
+            border-radius: 0 0 0.375rem 0.375rem !important;
+        }
+        .ts-control.focus {
+            border-color: #4f46e5 !important;
+            --tw-ring-color: #4f46e5;
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
+        }
+        /* END MODIFICATION */
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
@@ -60,18 +97,20 @@
 
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
             <h2 class="text-lg font-semibold text-gray-700 mb-4" id="filterCardTitle">Filters</h2>
-             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                  <div><label for="filterName" class="block text-sm font-medium text-gray-600">Search by Name/ID</label><input type="text" id="filterName" class="input mt-1" placeholder="e.g. John Doe or 123"></div>
-                 <div><label for="filterStatus" class="block text-sm font-medium text-gray-600">Status</label><select id="filterStatus" class="input-select mt-1"><option value="">All</option> <option value="Active">Active</option> <option value="Salary Held">Salary Held</option> <option value="Resigned">Resigned</option> <option value="Terminated">Terminated</option></select></div>
-                 <div><label for="filterDesignation" class="block text-sm font-medium text-gray-600">Designation</label><select id="filterDesignation" class="input-select mt-1"><option value="">All Designations</option></select></div>
-                 <div><label for="filterType" class="block text-sm font-medium text-gray-600">Employee Type</label><select id="filterType" class="input-select mt-1"><option value="">All</option> <option>Permanent</option> <option>Casual</option> <option>Contractual</option> <option>Temporary</option></select></div>
-                 <div><label for="filterProjectOffice" class="block text-sm font-medium text-gray-600">Project Office</label><select id="filterProjectOffice" class="input-select mt-1"><option value="">All Offices</option></select></div>
+                 <div><label for="filterStatus" class="block text-sm font-medium text-gray-600">Status</label><input id="filterStatus" placeholder="All Statuses"></div>
+                 <div><label for="filterDesignation" class="block text-sm font-medium text-gray-600">Designation</label><input id="filterDesignation" placeholder="All Designations"></div>
+                 <div><label for="filterType" class="block text-sm font-medium text-gray-600">Employee Type</label><input id="filterType" placeholder="All Types"></div>
+                 <div><label for="filterProject" class="block text-sm font-medium text-gray-600">Project</label><input id="filterProject" placeholder="All Projects"></div>
+                 <div><label for="filterProjectOffice" class="block text-sm font-medium text-gray-600">Project Office</label><input id="filterProjectOffice" placeholder="All Offices"></div>
+                 <div><label for="filterReportProject" class="block text-sm font-medium text-gray-600">Report Project</label><input id="filterReportProject" placeholder="All Report Projects"></div>
+                 <div><label for="filterSubCenter" class="block text-sm font-medium text-gray-600">Sub Center</label><input id="filterSubCenter" placeholder="All Sub Centers"></div>
              </div>
             <div class="mt-4 text-right">
                 <button id="resetFiltersBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Reset Filters</button>
             </div>
         </div>
-
         <div class="mb-4 text-sm text-gray-600" id="filterCountDisplay">Loading employees...</div>
 
         <main id="employee-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -227,6 +266,7 @@
     <div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-sm modal text-center"><h3 id="confirmTitle" class="text-xl font-bold mb-4">Confirmation</h3><p id="confirmMessage" class="text-gray-600 mb-6"></p><div class="flex justify-center gap-4"><button id="confirmCancelBtn" class="btn btn-secondary w-1/2">Cancel</button><button id="confirmOkBtn" class="btn btn-danger w-1/2">Confirm</button></div></div> </div>
     <div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl w-full max-w-md modal flex flex-col max-h-[90vh]"> <div class="p-6 border-b flex-shrink-0"><h2 class="text-2xl font-bold text-gray-900">Transfer Employee</h2></div> <div class="p-6 flex-grow overflow-y-auto"> <form id="transferForm"> <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName"> <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p> <div class="space-y-4"> <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div> <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project<span class="text-red-500">*</span></label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferProjectOffice" class="block text-sm font-medium text-gray-700">New Project Office<span class="text-red-500">*</span></label><select id="transferProjectOffice" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="newSubCenter" class="block text-sm font-medium text-gray-700">New Sub Center<span class="text-red-500">*</span></label><select id="newSubCenter" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferReportProject" class="block text-sm font-medium text-gray-700">New Report Project<span class="text-red-500">*</span></label><select id="transferReportProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferDate" class="block text-sm font-medium text-gray-700">Transfer Date<span class="text-red-500">*</span></label><input type="date" id="transferDate" required class="input"></div> <div><label for="transferReason" class="block text-sm font-medium text-gray-700">Reason for Transfer<span class="text-red-500">*</span></label><textarea id="transferReason" rows="3" required class="input"></textarea></div> </div> <div id="transferError" class="text-red-600 text-sm mt-4 hidden"></div> </form> </div> <div class="p-6 border-t flex justify-end gap-4 flex-shrink-0"> <button type="button" id="cancelTransferModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="transferForm" class="btn btn-primary">Confirm Transfer</button> </div> </div> </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script type="module" src="js/main.js"></script>
 
 </body>

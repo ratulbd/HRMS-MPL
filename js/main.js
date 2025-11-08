@@ -15,9 +15,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
     async function initializeAppModules() {
         // --- Dynamic Imports ---
-        // --- MODIFICATION: Add formatDateForInput to the import list ---
         const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
-        // --- END MODIFICATION ---
         const { apiCall } = await import('./apiClient.js');
         const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
         const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
@@ -30,10 +28,59 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
         // --- Global State ---
         let mainLocalEmployees = [];
-        let currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' };
+        // MODIFICATION: Update filter state to use arrays for multi-select
+        let currentFilters = { 
+            name: '', 
+            status: [], 
+            designation: [], 
+            type: [], 
+            project: [], 
+            projectOffice: [], 
+            reportProject: [], 
+            subCenter: [] 
+        };
+        // MODIFICATION: Store Tom Select instances
+        let tomSelects = {};
+        // END MODIFICATION
 
         // --- State Accessor ---
         const getMainLocalEmployees = () => mainLocalEmployees;
+        
+        // --- MODIFICATION: Helper function to populate Tom Select instances ---
+        function updateTomSelectFilterOptions(employees) {
+            if (!Array.isArray(employees)) employees = [];
+
+            // Helper to create {value: 'x', text: 'x'} format
+            const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
+
+            // Get unique, sorted lists
+            const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
+            const types = [...new Set(employees.map(e => e?.employeeType).filter(Boolean))].sort();
+            const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
+            const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
+            const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
+            const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
+            
+            // Fixed list for status
+            const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
+
+            // Update Tom Select instances
+            const updateOptions = (instance, newOptions) => {
+                if (instance) {
+                    instance.clearOptions();
+                    instance.addOptions(newOptions);
+                }
+            };
+
+            updateOptions(tomSelects.status, statusOptions);
+            updateOptions(tomSelects.designation, formatOptions(designations));
+            updateOptions(tomSelects.type, formatOptions(types));
+            updateOptions(tomSelects.project, formatOptions(projects));
+            updateOptions(tomSelects.projectOffice, formatOptions(offices));
+            updateOptions(tomSelects.reportProject, formatOptions(reportProjects));
+            updateOptions(tomSelects.subCenter, formatOptions(subCenters));
+        }
+        // --- END MODIFICATION ---
 
         // --- Main Fetch Function ---
         async function fetchAndRenderEmployees() {
@@ -42,21 +89,22 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                  if (countDisplay) countDisplay.textContent = 'Loading employees...';
                 const employees = await apiCall('getEmployees');
                 
-                // --- MODIFICATION: Sort employees by joining date (newest to oldest) ---
                 if (Array.isArray(employees)) {
                     employees.sort((a, b) => {
-                        // Use formatDateForInput to normalize dates to YYYY-MM-DD, then convert to Date
-                        // Use '1970-01-01' as fallback for invalid/missing dates to sort them to the end (oldest)
                         const dateA = new Date(formatDateForInput(a.joiningDate) || '1970-01-01');
                         const dateB = new Date(formatDateForInput(b.joiningDate) || '1970-01-01');
-                        return dateB - dateA; // Descending order (newest first)
+                        return dateB - dateA; 
                     });
                 }
-                // --- END MODIFICATION ---
 
                 mainLocalEmployees = employees || [];
                 setLocalEmployees(mainLocalEmployees);
-                populateFilterDropdowns(mainLocalEmployees);
+                populateFilterDropdowns(mainLocalEmployees); // This now *only* populates modal datalists
+                
+                // MODIFICATION: Populate the new Tom Select filters
+                updateTomSelectFilterOptions(mainLocalEmployees);
+                // END MODIFICATION
+
                 filterAndRenderEmployees(currentFilters, mainLocalEmployees);
 
                 const initialLoading = $('#initialLoading');
@@ -72,59 +120,74 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             }
         }
 
-        // --- Setup Filter Listeners ---
+        // --- MODIFICATION: Rewritten to support Tom Select ---
         function setupFilterListeners() {
-             ['filterName', 'filterStatus', 'filterDesignation', 'filterType', 'filterProjectOffice'].forEach(id => {
-                 const element = $(id);
-                 if(element) {
-                     element.addEventListener('input', (e) => {
-                          const filterKeyMap = { // Map IDs to state keys
-                               filterName: 'name',
-                               filterStatus: 'status',
-                               filterDesignation: 'designation',
-                               filterType: 'type',
-                               filterProjectOffice: 'projectOffice'
-                          };
-                          const filterKey = filterKeyMap[id];
-                          if (filterKey) { // Check if key exists
-                               currentFilters[filterKey] = e.target.value;
-                               if (typeof filterAndRenderEmployees === 'function') {
-                                  filterAndRenderEmployees(currentFilters, mainLocalEmployees);
-                               }
-                          } else {
-                               console.warn(`No filter key mapping found for ID: ${id}`);
-                          }
-                     });
-                 } else {
-                      console.warn(`Filter element with ID '${id}' not found.`);
-                 }
-             });
+            const tomSelectConfig = {
+                plugins: ['remove_button'],
+            };
 
-              const resetBtn = $('resetFiltersBtn');
-              if(resetBtn) {
-                  resetBtn.addEventListener('click', () => {
-                       // Reset the state object
-                       currentFilters = { name: '', status: '', designation: '', type: '', projectOffice: '' };
+            // 1. Text Search
+            const nameInput = $('filterName');
+            if (nameInput) {
+                nameInput.addEventListener('input', (e) => {
+                    currentFilters.name = e.target.value;
+                    filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                });
+            }
 
-                       // --- FIX: Reset the values of the HTML elements ---
-                       const nameInput = $('filterName'); if(nameInput) nameInput.value = '';
-                       const statusSelect = $('filterStatus'); if(statusSelect) statusSelect.value = '';
-                       const desSelect = $('filterDesignation'); if(desSelect) desSelect.value = '';
-                       const typeSelect = $('filterType'); if(typeSelect) typeSelect.value = '';
-                       const officeSelect = $('filterProjectOffice'); if(officeSelect) officeSelect.value = '';
-                       // --- END FIX ---
+            // 2. Multi-select Dropdowns
+            const filterMap = {
+                'filterStatus': 'status',
+                'filterDesignation': 'designation',
+                'filterType': 'type',
+                'filterProject': 'project',
+                'filterProjectOffice': 'projectOffice',
+                'filterReportProject': 'reportProject',
+                'filterSubCenter': 'subCenter'
+            };
 
-                        // Re-filter and render with empty filters
-                        if (typeof filterAndRenderEmployees === 'function') {
-                            filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+            for (const [elementId, filterKey] of Object.entries(filterMap)) {
+                const el = $(elementId);
+                if (el) {
+                    tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
+                    tomSelects[filterKey].on('change', (values) => {
+                        currentFilters[filterKey] = values;
+                        filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                    });
+                } else {
+                    console.warn(`Filter element with ID '${elementId}' not found.`);
+                }
+            }
+
+            // 3. Reset Button
+            const resetBtn = $('resetFiltersBtn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    // Reset the state object
+                    currentFilters = { 
+                        name: '', status: [], designation: [], type: [], 
+                        project: [], projectOffice: [], reportProject: [], subCenter: [] 
+                    };
+
+                    // Reset the HTML input
+                    if (nameInput) nameInput.value = '';
+                    
+                    // Clear all Tom Select instances
+                    for (const key in tomSelects) {
+                        if (tomSelects[key]) {
+                            tomSelects[key].clear();
                         }
-                  });
-              } else {
-                   console.warn("Reset Filters button (#resetFiltersBtn) not found.");
-              }
-        }
+                    }
 
-        // --- MODIFICATION: Updated Export Headers and Keys ---
+                    // Re-filter and render
+                    filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                });
+            } else {
+                 console.warn("Reset Filters button (#resetFiltersBtn) not found.");
+            }
+        }
+        // --- END MODIFICATION ---
+
         function handleExportData() {
              if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
              
@@ -163,7 +226,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
              });
              if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
         }
-        // --- END MODIFICATION ---
 
          // --- Setup Global Listeners ---
          function setupGlobalListeners() {
@@ -180,7 +242,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         // --- Initialize Application ---
         function initializeApp() {
             console.log("Initializing HRMS App (Modular & Authenticated)...");
-            setupFilterListeners();
+            setupFilterListeners(); // This now sets up the Tom Select inputs
             setupGlobalListeners();
             // Setup module-specific listeners
             if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
