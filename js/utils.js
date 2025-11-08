@@ -27,30 +27,40 @@ export function customAlert(title, message) {
     openModal('alertModal');
 }
 
-// --- Custom Confirm ---
+// --- MODIFICATION: Updated Custom Confirm to return a Promise and use innerHTML ---
 // Note: Requires corresponding HTML modal elements
-let confirmCallback = null;
-export function customConfirm(title, message, callback) {
-    const confirmModal = $('confirmModal');
-    if (!confirmModal) { console.error("Confirm modal element not found!"); if(confirm(message)) callback(); return; }
-    $('confirmTitle').textContent = title;
-    $('confirmMessage').textContent = message;
-    confirmCallback = callback; // Store the callback to be used by the confirm button
-    openModal('confirmModal');
+let confirmResolve = null;
+export function customConfirm(title, message) {
+    return new Promise((resolve) => {
+        const confirmModal = $('confirmModal');
+        if (!confirmModal) {
+            console.error("Confirm modal element not found!");
+            resolve(confirm(message.replace(/<br>/g, '\n').replace(/<b>/g, '').replace(/<\/b>/g, ''))); // Fallback
+            return;
+        }
+        $('confirmTitle').textContent = title;
+        $('confirmMessage').innerHTML = message; // Use innerHTML for formatted messages
+        confirmResolve = resolve; // Store the resolve function
+        openModal('confirmModal');
+    });
 }
 // Function to handle the actual confirmation action
 export function handleConfirmAction() {
-    if (confirmCallback) {
-        confirmCallback();
+    if (confirmResolve) {
+        confirmResolve(true);
     }
-    confirmCallback = null;
+    confirmResolve = null;
     closeModal('confirmModal');
 }
 // Function to handle cancellation
 export function handleConfirmCancel() {
-    confirmCallback = null;
+    if (confirmResolve) {
+        confirmResolve(false);
+    }
+    confirmResolve = null;
     closeModal('confirmModal');
 }
+// --- END MODIFICATION ---
 
 // --- Date Formatting ---
 export function formatDateForDisplay(dateString) {

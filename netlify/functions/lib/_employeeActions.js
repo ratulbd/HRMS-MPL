@@ -4,6 +4,10 @@
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
+// --- MODIFICATION: Add Rejoin Log constants ---
+const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
+const REJOIN_LOG_HEADERS = ['Timestamp', 'Previous Employee ID', 'Previous Subcenter', 'Separation Date', 'Separation Reason', 'New Employee ID', 'New Subcenter', 'New Joining Date'];
+// --- END MODIFICATION ---
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
 const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
@@ -159,6 +163,11 @@ async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
          dataToSave.lastTransferReason = dataToSave.lastTransferReason || '';
      }
 
+    // --- MODIFICATION: Remove re-join helper data before saving to sheet ---
+    delete dataToSave.isRejoin;
+    delete dataToSave.rejoinLogData;
+    // --- END MODIFICATION ---
+
     const newRow = actualHeaders.map((header, index) => {
          const normalizedHeader = normalizedHeaders[index];
          let key = null;
@@ -208,7 +217,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     const dataToUpdate = [];
     const formattedTimestamp = helpers.formatDateForSheet(new Date());
     const currentSalary = await helpers.getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers.findEmployeeRow, helpers.getSheetHeaders, employeeId);
-    
+
     if (updates.hasOwnProperty('salaryHeld')) {
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
@@ -221,7 +230,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
      if (updates.hasOwnProperty('status') && (updates.status === 'Resigned' || updates.status === 'Terminated')) {
          await helpers.logEvent(sheets, SPREADSHEET_ID, SEPARATION_LOG_SHEET_NAME, SEPARATION_LOG_HEADERS, [employeeId, currentSalary || 'N/A', updates.separationDate || '', updates.status, updates.remarks || ''], formattedTimestamp, helpers.ensureSheetAndHeaders);
      }
-    
+
     for (const key in updates) {
         if (!updates.hasOwnProperty(key)) continue;
         const headerName = HEADER_MAPPING[key];
@@ -234,7 +243,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
         valueToSave = (valueToSave == null) ? '' : String(valueToSave);
         dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${colLetter}${rowIndex}`, values: [[valueToSave]] });
     }
-    
+
     if (updates.hasOwnProperty('status') && updates.status !== 'Active') {
         const heldHeader = HEADER_MAPPING.salaryHeld; const heldColIndex = headerRow.indexOf(heldHeader);
         if (heldColIndex !== -1) {
@@ -256,7 +265,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
             if (existing) existing.values = [['Active']]; else dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`, values: [['Active']] });
         }
     }
-    
+
     if (dataToUpdate.length > 0) {
         await sheets.spreadsheets.values.batchUpdate({ spreadsheetId: SPREADSHEET_ID, resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate } });
     } else {
@@ -337,6 +346,56 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
     }
 }
 
+// --- MODIFICATION: Add logRejoin function ---
+async function logRejoin(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, logData) {
+    console.log("Executing logRejoin for:", logData?.newEmployeeId);
+    try {
+        const {
+            previousEmployeeId,
+            previousSubcenter,
+            separationDate,
+            separationReason,
+            newEmployeeId,
+            newSubcenter,
+            newJoiningDate
+        } = logData;
+
+        if (!newEmployeeId || !previousEmployeeId) {
+            throw new Error("Missing new or previous Employee ID for re-join log.");
+        }
+
+        const formattedTimestamp = helpers.formatDateForSheet(new Date());
+
+        const logRow = [
+            previousEmployeeId,
+            previousSubcenter || 'N/A',
+            separationDate || 'N/A',
+            separationReason || 'N/A',
+            newEmployeeId,
+            newSubcenter || 'N/A',
+            newJoiningDate || 'N/A'
+        ];
+
+        await helpers.logEvent(
+            sheets,
+            SPREADSHEET_ID,
+            REJOIN_LOG_SHEET_NAME,
+            REJOIN_LOG_HEADERS,
+            logRow,
+            formattedTimestamp,
+            helpers.ensureSheetAndHeaders
+        );
+
+        return { statusCode: 200, body: JSON.stringify({ message: 'Re-join event logged successfully.' }) };
+
+    } catch (error) {
+        console.error("Error in logRejoin action:", error.stack || error.message);
+        return { statusCode: 500, body: JSON.stringify({ error: 'Failed to log re-join event.', details: error.message }) };
+    }
+}
+// --- END MODIFICATION ---
+
+
 module.exports = {
     getEmployees,
     saveEmployee,
@@ -345,5 +404,8 @@ module.exports = {
     getProjects,
     getProjectOffices,
     getReportProjects,
-    transferEmployee
+    transferEmployee,
+    // --- MODIFICATION: Export logRejoin ---
+    logRejoin
+    // --- END MODIFICATION ---
 };

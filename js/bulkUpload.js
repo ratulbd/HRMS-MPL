@@ -221,30 +221,49 @@ async function bulkAddEmployees(parsedResult) {
         const newEmployeeId = emp.employeeId.trim().toLowerCase();
         const newIdentification = (emp.identification || '').trim().toLowerCase();
 
-        // 1. Check against existing DB employees
+        // 1. Check against existing DB employees (Employee ID)
         const existingById = employeeIdMap.get(newEmployeeId);
         if (existingById) {
             skippedForDuplicates.push({ row: rowNumber, id: emp.employeeId, reason: `Employee ID already exists for ${existingById.name}` });
             continue;
         }
 
+        // --- MODIFICATION: Handle re-join logic for Identification ---
         if (newIdentification) {
             const existingByIdent = identificationMap.get(newIdentification);
             if (existingByIdent) {
-                skippedForDuplicates.push({ row: rowNumber, id: emp.employeeId, reason: `Identification "${emp.identification}" already exists for ${existingByIdent.name} (ID: ${existingByIdent.employeeId})` });
-                continue;
+                // If employee is Active or Held, it's a hard block.
+                if (existingByIdent.status === 'Active' || existingByIdent.status === 'Salary Held') {
+                    skippedForDuplicates.push({ row: rowNumber, id: emp.employeeId, reason: `Identification "${emp.identification}" already exists for ACTIVE employee ${existingByIdent.name} (ID: ${existingByIdent.employeeId})` });
+                    continue;
+                }
+
+                // If Inactive, mark for re-join and logging. Do not skip.
+                emp.isRejoin = true;
+                emp.rejoinLogData = {
+                    previousEmployeeId: existingByIdent.employeeId,
+                    previousSubcenter: existingByIdent.subCenter || 'N/A',
+                    separationDate: existingByIdent.separationDate || 'N/A',
+                    separationReason: existingByIdent.remarks || 'N/A',
+                    newEmployeeId: emp.employeeId,
+                    newSubcenter: emp.subCenter,
+                    newJoiningDate: emp.joiningDate
+                };
             }
         }
+        // --- END MODIFICATION ---
 
         // 2. Check for duplicates *within the file* (by adding to maps as we go)
         if (employeeIdMap.has(newEmployeeId)) {
              skippedForDuplicates.push({ row: rowNumber, id: emp.employeeId, reason: `Duplicate Employee ID found within the upload file` });
              continue;
         }
-        if (newIdentification && identificationMap.has(newIdentification)) {
+        // --- MODIFICATION: Only check *within-file* identification duplicates if it wasn't a re-join ---
+        if (newIdentification && !emp.isRejoin && identificationMap.has(newIdentification)) {
              skippedForDuplicates.push({ row: rowNumber, id: emp.employeeId, reason: `Duplicate Identification "${emp.identification}" found within the upload file` });
              continue;
         }
+        // --- END MODIFICATION ---
 
         // If no duplicates, add to upload list and to Maps
         employeesToUpload.push(emp);
@@ -257,15 +276,31 @@ async function bulkAddEmployees(parsedResult) {
     // --- Second pass: Upload valid, non-duplicate employees ---
     let addedCount = 0;
     let errorCount = 0;
+    let rejoinLoggedCount = 0;
 
+    // --- MODIFICATION: Handle re-join logging after successful save ---
     const promises = employeesToUpload.map(emp =>
         apiCall('saveEmployee', 'POST', emp)
-            .then(() => { addedCount++; })
+            .then(() => {
+                addedCount++;
+                if (emp.isRejoin && emp.rejoinLogData) {
+                    // Chain the log call
+                    return apiCall('logRejoin', 'POST', emp.rejoinLogData)
+                        .then(() => {
+                            rejoinLoggedCount++;
+                        })
+                        .catch(logError => {
+                            console.warn(`Failed to log re-join for ${emp.employeeId}:`, logError);
+                            // Don't fail the add, just warn
+                        });
+                }
+            })
             .catch(error => {
                 console.error(`Error adding ${emp.employeeId} (Bulk):`, error);
                 errorCount++;
             })
     );
+    // --- END MODIFICATION ---
 
     await Promise.allSettled(promises); // Wait for all, even if some fail
 
@@ -273,6 +308,10 @@ async function bulkAddEmployees(parsedResult) {
     let reportMessage = `<b>Upload Complete</b><br>
                          Successfully Added: ${addedCount}<br>
                          Failed: ${errorCount}`;
+
+    if (rejoinLoggedCount > 0) {
+        reportMessage += `<br>Re-joins Logged: ${rejoinLoggedCount}`;
+    }
 
     // Combine all skipped rows
     const allSkippedRows = [...skippedForMissingData, ...skippedForDuplicates];
