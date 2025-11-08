@@ -15,7 +15,9 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 
     async function initializeAppModules() {
         // --- Dynamic Imports ---
-        const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV } = await import('./utils.js');
+        // --- MODIFICATION: Add formatDateForInput to the import list ---
+        const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
+        // --- END MODIFICATION ---
         const { apiCall } = await import('./apiClient.js');
         const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
         const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
@@ -39,6 +41,19 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             try {
                  if (countDisplay) countDisplay.textContent = 'Loading employees...';
                 const employees = await apiCall('getEmployees');
+                
+                // --- MODIFICATION: Sort employees by joining date (newest to oldest) ---
+                if (Array.isArray(employees)) {
+                    employees.sort((a, b) => {
+                        // Use formatDateForInput to normalize dates to YYYY-MM-DD, then convert to Date
+                        // Use '1970-01-01' as fallback for invalid/missing dates to sort them to the end (oldest)
+                        const dateA = new Date(formatDateForInput(a.joiningDate) || '1970-01-01');
+                        const dateB = new Date(formatDateForInput(b.joiningDate) || '1970-01-01');
+                        return dateB - dateA; // Descending order (newest first)
+                    });
+                }
+                // --- END MODIFICATION ---
+
                 mainLocalEmployees = employees || [];
                 setLocalEmployees(mainLocalEmployees);
                 populateFilterDropdowns(mainLocalEmployees);
