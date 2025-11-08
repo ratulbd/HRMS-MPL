@@ -80,13 +80,15 @@ async function getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId
 /**
  * Saves a new salary archive (JSON data) to the archive sheet.
  */
-async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, { monthYear, jsonData }) {
+// --- MODIFICATION: Accept 'timestamp' from requestBody ---
+async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, { monthYear, timestamp, jsonData }) {
     console.log(`Executing saveSalaryArchive for: ${monthYear}`);
-    if (!monthYear || !jsonData) {
-        throw new Error("Invalid input: monthYear and jsonData required.");
+    if (!monthYear || !jsonData || !timestamp) { // Added timestamp validation
+        throw new Error("Invalid input: monthYear, timestamp, and jsonData required.");
     }
     
-    const headers = ["MonthYear", "JsonData"];
+    // --- MODIFICATION: Add "Timestamp" header ---
+    const headers = ["MonthYear", "Timestamp", "JsonData"];
     const jsonString = JSON.stringify(jsonData);
     
     try {
@@ -94,7 +96,8 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
 
         // Append the new row
-        const rowToLog = [monthYear, jsonString];
+        // --- MODIFICATION: Add timestamp to the row ---
+        const rowToLog = [monthYear, timestamp, jsonString];
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SALARY_ARCHIVE_SHEET_NAME}!A1`,
@@ -118,11 +121,12 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
 async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers) {
     console.log("Executing getSalaryArchive");
     try {
-        // Ensure the sheet exists (it will be created if it doesn't)
-        const headers = ["MonthYear", "JsonData"];
+        // --- MODIFICATION: Ensure "Timestamp" header exists ---
+        const headers = ["MonthYear", "Timestamp", "JsonData"];
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
         
-        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:B`; // Get all data starting from row 2
+        // --- MODIFICATION: Read up to column C ---
+        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:C`; // Get all data starting from row 2
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const rows = response.data.values;
         
@@ -133,9 +137,11 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
 
         const archives = rows.map(row => {
             try {
+                // --- MODIFICATION: Read timestamp from row[1] ---
                 return {
                     monthYear: row[0],
-                    jsonData: JSON.parse(row[1]) // Parse the JSON data
+                    timestamp: row[1] || null, // Get timestamp (or null if empty)
+                    jsonData: JSON.parse(row[2]) // Parse the JSON data from row[2]
                 };
             } catch (e) {
                 console.warn(`Failed to parse JSON for archive: ${row[0]}`, e);
