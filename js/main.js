@@ -189,7 +189,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                 "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
                 "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
                 "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
-                "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+                "othersAdjustment", "totalDDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
                 "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason"
              ];
              
@@ -227,26 +227,35 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
             
             // Setup module-specific listeners
             if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
-            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees); // <-- Corrected this line
+            if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
             if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
             if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
             if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
-            
-            // --- MODIFICATION: Pass getMainLocalEmployees to setupPastSheetsModal ---
-            if (typeof setupPastSheetsModal === 'function') {
-                setupPastSheetsModal(getMainLocalEmployees); // <-- This is the fix
-            }
-            // --- END MODIFICATION ---
-
+            if (typeof setupPastSheetsModal === 'function') setupPastSheetsModal(getMainLocalEmployees);
             if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
             if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
+            
             // Initial data load
             fetchAndRenderEmployees();
         }
 
         // --- Run ---
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initializeApp); }
-        else { initializeApp(); }
+        // --- MODIFICATION: Simplified and wrapped in a DOMContentLoaded listener ---
+        try {
+            initializeApp();
+        } catch (err) {
+            console.error("Failed to initialize app:", err);
+            // Use document.body directly, it will exist by the time this runs
+            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">Error initializing application components: ${err.message}. Please try refreshing.</div>`;
+        }
+        // --- END MODIFICATION ---
     }
-    initializeAppModules().catch(err => { console.error("Failed to init app modules:", err); document.body.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error loading application components. Please try refreshing.</div>'; });
+    
+    // --- MODIFICATION: Wait for the DOM to be ready before initializing ---
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAppModules);
+    } else {
+        // DOM is already ready
+        initializeAppModules();
+    }
 }

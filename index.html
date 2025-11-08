@@ -72,7 +72,29 @@
 </head>
 <body class="bg-gray-100 text-gray-900">
 
-    <div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> </div>
+    <div id="loadingOverlay" class="loading-overlay hidden"><div class="spinner"></div></div>
+
+    <nav class="bg-white shadow-sm">
+        </nav>
+
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <main id="employee-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="initialLoading" class="col-span-full text-center p-8"><div class="spinner mx-auto"></div><p class="text-gray-500 mt-2">Loading employee data...</p></div>
+        </main>
+
+        <footer class="text-center text-xs text-gray-400 mt-12 border-t pt-4">&copy; 2025 Md. Rakibul Islam Ratul <br> Sr. Manager, Telecom Service, Metal Plus</footer>
+    </div>
+
+    <div id="employeeModal" </div>
+    <div id="bulkUploadModal" </div>
+    <div id="statusChangeModal" </div>
+    <div id="viewDetailsModal" </div>
+    <div id="attendanceModal" </div>
+    <div id="salarySheetModal" </div>
+    <div id="viewSheetsModal" </div>
+    <div id="alertModal" </div>
+    <div id="confirmModal" </div>
+    <div id="transferModal" </div>
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
