@@ -10,9 +10,11 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
     }
 } else {
     // --- App Initialization ---
-    console.log("User is logged in. Initializing app...");
+    console.log("User is logged in. Adding DOM listener...");
 
     async function initializeAppModules() {
+        console.log("DOM loaded. Initializing app modules..."); // Log to confirm
+        
         // --- Dynamic Imports ---
         const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
         const { apiCall } = await import('./apiClient.js');
@@ -189,7 +191,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
                 "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
                 "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
                 "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
-                "othersAdjustment", "totalDDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+                "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
                 "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason"
              ];
              
@@ -240,22 +242,25 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
         }
 
         // --- Run ---
-        // --- MODIFICATION: Simplified and wrapped in a DOMContentLoaded listener ---
+        // This code runs *inside* the initializeAppModules function
         try {
             initializeApp();
         } catch (err) {
             console.error("Failed to initialize app:", err);
-            // Use document.body directly, it will exist by the time this runs
-            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">Error initializing application components: ${err.message}. Please try refreshing.</div>`;
+            const appDiv = $('app'); // Use the imported $ function
+            const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
+            if (appDiv) {
+                // Don't wipe out the whole page, just the app area
+                appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
+            } else {
+                // Fallback if #app itself isn't found
+                document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
+            }
         }
-        // --- END MODIFICATION ---
     }
-    
-    // --- MODIFICATION: Wait for the DOM to be ready before initializing ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeAppModules);
-    } else {
-        // DOM is already ready
-        initializeAppModules();
-    }
+
+    // --- THIS IS THE FIX ---
+    // We ONLY add the event listener. We do not try to run the code immediately.
+    // This guarantees the HTML is loaded before initializeAppModules is called.
+    document.addEventListener('DOMContentLoaded', initializeAppModules);
 }
