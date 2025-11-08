@@ -14,22 +14,22 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 
 // --- Constants ---
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ'; // Make sure this is your actual Sheet ID
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
-const SALARY_SHEET_PREFIX = 'Salary_';
+const SALARY_SHEET_PREFIX = 'Salary_'; // No longer used for saving, but kept for getSheetData if needed
 const USERS_SHEET_NAME = 'Users';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
-
-// *** MODIFICATION: Added missing sheet name constants ***
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
-// *** END MODIFICATION ***
+// --- MODIFICATION: Add Salary Archive Sheet ---
+const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
+// --- END MODIFICATION ---
 
 const HEADER_MAPPING = {
     // Basic Info
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
     designation: 'designation', joiningDate: 'joiningdate',
-    workExperience: 'workexperienceyears', // Assuming header is "Work Experience (Years)"
+    workExperience: 'workexperienceyears', 
     education: 'education',
     // Project Info
     project: 'project', projectOffice: 'projectoffice',
@@ -44,11 +44,11 @@ const HEADER_MAPPING = {
     nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber',
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit',
     // Salary - Earnings
-    previousSalary: 'previoussalary', // Assuming header exists
+    previousSalary: 'previoussalary', 
     basic: 'basic',
     others: 'others',
     salary: 'grosssalary', // This is Gross Salary
-    motobikeCarMaintenance: 'motobikecarmaintenanceallowance', // Adjust if header normalizes differently
+    motobikeCarMaintenance: 'motobikecarmaintenanceallowance', 
     laptopRent: 'laptoprent',
     othersAllowance: 'othersallowance',
     arrear: 'arrear',
@@ -63,7 +63,7 @@ const HEADER_MAPPING = {
     tds: 'tds',
     motorbikeLoan: 'motorbikeloan',
     welfareFund: 'welfarefund',
-    salaryOthersLoan: 'salaryothersloan', // Adjust if header uses '/' and normalizes differently
+    salaryOthersLoan: 'salaryothersloan', 
     subsidizedVehicle: 'subsidizedvehicle',
     lwp: 'lwp',
     cpf: 'cpf',
@@ -80,12 +80,6 @@ const HEADER_MAPPING = {
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason'
 };
-
-
-// Log Headers (Optional, mostly used in modules) - These are arrays, not sheet names
-const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
-const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
-const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
 
 // --- Main Handler ---
@@ -141,18 +135,17 @@ exports.handler = async (event) => {
             const context = {
                 sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
-                // *** MODIFICATION: These are now defined above and can be passed ***
-                HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME
-                // *** END MODIFICATION ***
+                HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
+                // --- MODIFICATION: Pass new archive sheet name ---
+                SALARY_ARCHIVE_SHEET_NAME
+                // --- END MODIFICATION ---
             };
 
             switch (action) {
                 // --- Employee Actions ---
                 case 'getEmployees':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                    // *** MODIFICATION: Pass full context object (includes log sheet names now) ***
                     else result = await employeeActions.getEmployees(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers);
-                    // *** END MODIFICATION ***
                     break;
                 case 'saveEmployee':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -182,15 +175,13 @@ exports.handler = async (event) => {
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                      else result = await employeeActions.transferEmployee(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
-
-                // --- MODIFICATION: Add the logRejoin case ---
                 case 'logRejoin':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                      else result = await employeeActions.logRejoin(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
-                // --- END MODIFICATION ---
 
                 // --- Sheet Actions ---
+                // (saveSheet and getSheetData are now deprecated by the new Excel flow but left for now)
                 case 'saveSheet':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.saveSalarySheet(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX, context.helpers, requestBody);
@@ -207,6 +198,17 @@ exports.handler = async (event) => {
                          result = await sheetActions.getSheetData(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX, sheetId);
                     }
                     break;
+
+                // --- MODIFICATION: Add Salary Archive Actions ---
+                case 'saveSalaryArchive':
+                    if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await sheetActions.saveSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers, requestBody);
+                    break;
+                case 'getSalaryArchive':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await sheetActions.getSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers);
+                    break;
+                // --- END MODIFICATION ---
 
                 // --- Auth Actions ---
                 case 'loginUser':
