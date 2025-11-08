@@ -183,6 +183,13 @@ exports.handler = async (event) => {
                      else result = await employeeActions.transferEmployee(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
 
+                // --- MODIFICATION: Add the logRejoin case ---
+                case 'logRejoin':
+                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     else result = await employeeActions.logRejoin(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
+                     break;
+                // --- END MODIFICATION ---
+
                 // --- Sheet Actions ---
                 case 'saveSheet':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
