@@ -1,5 +1,4 @@
 // js/main.js
-
 // --- Authentication Check ---
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
     if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
