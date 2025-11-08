@@ -3,7 +3,6 @@ import { $, openModal, closeModal, customAlert } from './utils.js';
 import { apiCall } from './apiClient.js';
 
 // --- Global variable for ExcelJS, loaded from index.html ---
-// This assumes ExcelJS is loaded via CDN
 const ExcelJS = window.ExcelJS;
 const JSZip = window.JSZip; // Get JSZip from global scope
 
@@ -39,32 +38,22 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
             try {
                 const salaryMonth = $('salaryMonth').value;
                 const attendanceFile = $('attendanceFile').files[0];
-                const accountabilityFile = $('accountabilityFile').files[0]; // Assuming you re-add this field
+                const accountabilityFile = $('accountabilityFile').files[0]; // Get the file
 
-                if (!salaryMonth || !attendanceFile) {
-                    // MODIFIED: Removed accountabilityFile requirement for now as it's not in your HTML
-                    customAlert("Missing Data", "Please select a month and provide the attendance CSV file.");
+                // --- MODIFICATION: Validation now includes accountabilityFile ---
+                if (!salaryMonth || !attendanceFile || !accountabilityFile) {
+                    customAlert("Missing Data", "Please select a month and provide both the Attendance and Accountability CSV files.");
                     generateBtn.disabled = false;
                     generateBtn.textContent = 'Generate Sheet';
                     return;
                 }
+                // --- END MODIFICATION ---
                 
-                // --- MOCK accountabilityData if file input is missing ---
-                // In a real scenario, you'd re-add the 'accountabilityFile' input to your index.html
-                // For now, we'll create a blank one to avoid errors in processPayrollData
-                let accountabilityData = [];
-                // const accountabilityFile = $('accountabilityFile').files[0];
-                // if (accountabilityFile) {
-                //     accountabilityData = await parseCSV(accountabilityFile);
-                // } else {
-                //     console.warn("Accountability file input not found, proceeding with cash payments as 'unassigned'.");
-                // }
-                // --- END MOCK ---
-
-
+                // --- MODIFICATION: Removed mock data block ---
                 // 1. Parse CSV files
                 const attendanceData = await parseCSV(attendanceFile);
-                // const accountabilityData = await parseCSV(accountabilityFile); // Uncomment when ready
+                const accountabilityData = await parseCSV(accountabilityFile); // Parse the real file
+                // --- END MODIFICATION ---
 
                 // 2. Process data
                 const processedData = processPayrollData(attendanceData, accountabilityData, allEmployees);
@@ -127,6 +116,10 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
  */
 function parseCSV(file) {
     return new Promise((resolve, reject) => {
+        if (!file) {
+             reject(new Error("No file provided to parse."));
+             return;
+        }
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
