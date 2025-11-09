@@ -110,7 +110,7 @@ async function initializeAppModules() {
         <div class="hero-inner">
           <div class="hero-subtitle">
             <span class="eyebrow">Employee Dashboard</span>
-            <p class="lead">View and manage your employee data.</p>
+            <p class="lead">View and manage employee data.</p>
           </div>
         </div>
       `;

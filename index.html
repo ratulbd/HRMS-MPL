@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* This is the old style block from your file */
         body { font-family: 'Inter', sans-serif; }
         .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); }
         .modal { transition: opacity 0.3s ease, transform 0.3s ease; }
@@ -30,18 +31,10 @@
         .btn-teal { background-color: #0d9488; color: white; } .btn-teal:hover { background-color: #0f766e; }
         .btn-purple { background-color: #9333ea; color: white; } .btn-purple:hover { background-color: #7e22ce; }
         .btn-danger { background-color: #dc2626; color: white; } .btn-danger:hover { background-color: #b91c1c; }
-        
-        /* === ADDED NEW STYLE === */
         .btn-purple-light {
-            background-color: #f5f3ff; /* purple-50 */
-            color: #6d28d9; /* purple-700 */
-            border: 1px solid #ddd6fe; /* purple-200 */
+            background-color: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe;
         }
-        .btn-purple-light:hover {
-            background-color: #ede9fe; /* purple-100 */
-        }
-        /* === END ADDED STYLE === */
-
+        .btn-purple-light:hover { background-color: #ede9fe; }
         .input, .input-select { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
         .input:focus, .input-select:focus { border-color: #4f46e5; --tw-ring-color: #4f46e5; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
         .input-select { padding-left: 0.75rem; padding-right: 2.5rem; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
@@ -92,19 +85,51 @@
         <footer class="text-center text-xs text-gray-400 mt-12 border-t pt-4">&copy; 2025 Md. Rakibul Islam Ratul <br> Sr. Manager, Telecom Service, Metal Plus</footer>
     </div>
 
-    <div id="employeeModal" </div>
-    <div id="bulkUploadModal" </div>
-    <div id="statusChangeModal" </div>
-    <div id="viewDetailsModal" </div>
-    <div id="attendanceModal" </div>
-    <div id="salarySheetModal" </div>
-    <div id="viewSheetsModal" </div>
-    <div id="alertModal" </div>
-    <div id="confirmModal" </div>
-    <div id="transferModal" </div>
-    <div id="reportModal" </div>
+    <div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
+         <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl modal max-h-[90vh] flex flex-col transform scale-100" id="employeeModalContent">
+            <div class="flex justify-between items-center p-6 border-b flex-shrink-0">
+                 <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Add/Edit Employee</h2>
+                 <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+             </div>
+             <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
+                </form>
+         </div>
+    </div>
+    <div id="bulkUploadModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> </div>
+    <div id="statusChangeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> </div>
+    <div id="viewDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> </div>
+    <div id="attendanceModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> </div>
+    <div id="salarySheetModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> </div>
+    <div id="viewSheetsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> </div>
+    <div id="alertModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> </div>
+    <div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> </div>
+    <div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> </div>
 
+    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal">
+            <h2 class="text-2xl font-bold mb-6">Download Reports</h2>
+            <p class="text-gray-500 mb-6 text-sm">Select a report to download as a .csv file.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button id="downloadEmployeeDatabase" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-database mr-2"></i> Employee Database
+                </button>
+                <button id="downloadHoldLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-pause-circle mr-2"></i> Salary Hold Log
+                </button>
+                <button id="downloadSeparationLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-user-minus mr-2"></i> Separation Log
+                </button>
+                <button id="downloadTransferLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-exchange-alt mr-2"></i> Transfer Log
+                </button>
+            </div>
 
+            <div class="mt-8 flex justify-end gap-4">
+                <button type="button" id="cancelReportModal" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
