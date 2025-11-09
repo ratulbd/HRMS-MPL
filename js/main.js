@@ -79,18 +79,15 @@ async function initializeAppModules() {
         document.body.insertBefore(appBar, document.body.firstChild);
       }
 
-      // --- MODIFICATION: Fixed the ID for "Generate Salary Sheet" ---
       // Move existing action buttons (by ID) into the right container
-      // The original ID `uploadAttendanceBtn` is now correctly used
       ['addEmployeeBtn','bulkUploadBtn','uploadAttendanceBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) {
             el.classList.add('topbar-btn');
-            // Updated style rule for primary buttons
-            if (id === 'reportBtn' || id === 'addEmployeeBtn' || id === 'bulkUploadBtn') {
-                el.classList.add('topbar-btn--primary');
-            }
+            
+            // --- MODIFICATION: Removed the if-block that added 'topbar-btn--primary' ---
+            
             right.appendChild(el);
           } else {
             console.warn(`Button with ID #${id} not found in HTML.`);
@@ -98,13 +95,12 @@ async function initializeAppModules() {
         });
     }
 
-    // --- MODIFICATION: Remove the OLD nav and header from index.html ---
+    // Remove the OLD nav and header from index.html
     const oldNav = document.querySelector('nav.bg-white.shadow-sm');
     if (oldNav) oldNav.remove();
     
     const oldHeader = document.querySelector('#app > header.mb-6');
     if (oldHeader) oldHeader.remove();
-    // --- END MODIFICATION ---
 
   } catch (e) {
     console.warn('Top bar build failed:', e);
@@ -116,8 +112,6 @@ async function initializeAppModules() {
     if (!document.querySelector('.hero')) {
       const hero = document.createElement('section');
       hero.className = 'hero';
-      
-      // --- MODIFICATION: Removed the H1 title to leave only the logo in the top bar ---
       hero.innerHTML = `
         <div class="hero-inner">
           <div class="hero-subtitle">
@@ -126,8 +120,6 @@ async function initializeAppModules() {
           </div>
         </div>
       `;
-      // --- END MODIFICATION ---
-
       const app = document.querySelector('#app');
       if (app) app.parentNode.insertBefore(hero, app);
     }
@@ -333,7 +325,7 @@ async function initializeAppModules() {
       "Mobile Limit","Date of Birth","Blood Group","Address","Identification Type","Identification","Nominee's Name",
       "Nominee's Mobile Number","Previous Salary","Basic","Others","Gross Salary","Motobike / Car Maintenance Allowance","Laptop Rent",
       "Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","Grand Total","Gratuity",
-      "Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","LWP","CPF",
+      "Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsididized Vehicle","LWP","CPF",
       "Others Adjustment","Total Deduction","Net Salary Payment","Bank Account Number","Status","Salary Held","Hold Timestamp",
       "Separation Date","Remarks","Last Transfer Date","Last Subcenter","Last Transfer Reason"
     ];
@@ -450,12 +442,12 @@ async function initializeAppModules() {
       );
     }
 
-    // --- MODIFICATION: Replaced all instances of `fetchEmployeesFunc` ---
+    // --- MODIFICATION: Replaced `fetchEmployeesFunc` with `fetchAndRenderEmployees` ---
     // Module listeners
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees); // <-- This was the typo
     if (typeof setupStatusChangeModal === 'function')
       setupStatusChangeModal(fetchAndRenderEmployees);
     if (typeof setupBulkUploadModal === 'function')
