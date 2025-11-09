@@ -66,17 +66,17 @@ header.app-bar .bar-inner {
 }
 .bar-left { display: flex; align-items: center; gap: 10px; }
 
-/* === MODIFICATION: Logo size increased, drop-shadow removed === */
+/* === MODIFICATION: Logo size increased to 72px === */
 header.app-bar img.logo {
-  width: 56px; 
-  height: 56px; 
+  width: 72px; 
+  height: 72px; 
   object-fit: contain;
 }
 /* === END MODIFICATION === */
 
 .bar-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: end; }
 
-/* === MODIFICATION: All buttons set to green background, white text === */
+/* === All buttons set to green background, white text === */
 .topbar-btn {
   border: 1px solid rgba(47,107,58,.35);
   background: var(--brand-600); /* Green background */
@@ -93,7 +93,6 @@ header.app-bar img.logo {
 }
 /* === END MODIFICATION === */
 
-/* DELETED .topbar-btn--primary style block */
 
 /* ===== HERO under top bar ===== */
 .hero { background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65)); }
