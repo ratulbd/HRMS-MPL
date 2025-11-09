@@ -43,7 +43,7 @@ async function initializeAppModules() {
   }
   // --- END THEME INJECTION ---
 
-  // --- TOP BAR (logo left, action buttons right) ---
+  // --- TOP BAR (logo left, buttons right) ---
   try {
     let appBar = document.querySelector('header.app-bar');
     if (!appBar) {
@@ -56,12 +56,10 @@ async function initializeAppModules() {
       // Left: only company logo
       const left = document.createElement('div');
       left.className = 'bar-left';
-
       const logo = document.createElement('img');
       logo.className = 'logo';
       logo.alt = 'MPL Telecom';
-      logo.src = '/assets/logo.png'; // <-- update if your path differs
-
+      logo.src = '/assets/logo.png'; // <-- change if your path differs
       left.appendChild(logo);
 
       // Right: actions container
@@ -80,30 +78,22 @@ async function initializeAppModules() {
         document.body.insertBefore(appBar, document.body.firstChild);
       }
 
-      // Move existing action buttons into bar-actions and style them
-      const maybeIds = [
-        'addEmployeeBtn',
-        'bulkUploadBtn',
-        'generateSalarySheetBtn',
-        'pastSalarySheetsBtn',
-        'reportBtn',
-        'logoutBtn'
-      ];
-      maybeIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.classList.add('topbar-btn');
-          // emphasize Add New Employee + Report
-          if (id === 'reportBtn' || id === 'addEmployeeBtn') el.classList.add('topbar-btn--primary');
-          right.appendChild(el);
-        }
-      });
+      // Move existing action buttons (by ID) into the right container
+      ['addEmployeeBtn','bulkUploadBtn','generateSalarySheetBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.add('topbar-btn');
+            if (id === 'reportBtn' || id === 'addEmployeeBtn') el.classList.add('topbar-btn--primary');
+            right.appendChild(el);
+          }
+        });
     }
 
-    // Remove any big, old H1 headers titled exactly "HR Management System" (to avoid duplicates in top area)
-    const oldHeads = Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
-      .filter(el => (el.textContent || '').trim().toLowerCase() === 'hr management system');
-    oldHeads.forEach(el => el.remove());
+    // Remove any old big H1 headers exactly titled "HR Management System"
+    Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
+      .filter(el => (el.textContent || '').trim().toLowerCase() === 'hr management system')
+      .forEach(el => el.remove());
   } catch (e) {
     console.warn('Top bar build failed:', e);
   }
@@ -111,8 +101,7 @@ async function initializeAppModules() {
 
   // --- HERO SECTION (headline + subhead) ---
   try {
-    const heroExists = document.querySelector('.hero');
-    if (!heroExists) {
+    if (!document.querySelector('.hero')) {
       const hero = document.createElement('section');
       hero.className = 'hero';
       hero.innerHTML = `
@@ -429,12 +418,15 @@ async function initializeAppModules() {
         handleExportData();
         closeModal('reportModal');
       });
+
       $('downloadHoldLog').addEventListener('click', () =>
         handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
       );
+
       $('downloadSeparationLog').addEventListener('click', () =>
         handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
       );
+
       $('downloadTransferLog').addEventListener('click', () =>
         handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
       );
@@ -475,3 +467,4 @@ async function initializeAppModules() {
       document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
     }
   }
+}

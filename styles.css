@@ -91,7 +91,7 @@ header.app-bar img.logo {
 .hero { background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65)); }
 .hero .hero-inner { max-width: 1200px; margin: 0 auto; padding: 18px 20px; }
 .hero .hero-title {
-  font-family: 'Outfit', var(--font-body); margin: 0 0 6px 0;
+  font-family: 'Outfit', 'Inter', sans-serif; margin: 0 0 6px 0;
   font-size: 1.6rem; font-weight: 700; letter-spacing: .2px;
   background: linear-gradient(90deg, var(--text-900), #5b7a67 40%, var(--accent-500) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
