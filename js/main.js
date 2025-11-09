@@ -81,6 +81,7 @@ async function initializeAppModules() {
 
       // --- MODIFICATION: Fixed the ID for "Generate Salary Sheet" ---
       // Move existing action buttons (by ID) into the right container
+      // The original ID `uploadAttendanceBtn` is now correctly used
       ['addEmployeeBtn','bulkUploadBtn','uploadAttendanceBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
         .forEach(id => {
           const el = document.getElementById(id);
@@ -115,15 +116,18 @@ async function initializeAppModules() {
     if (!document.querySelector('.hero')) {
       const hero = document.createElement('section');
       hero.className = 'hero';
+      
+      // --- MODIFICATION: Removed the H1 title to leave only the logo in the top bar ---
       hero.innerHTML = `
         <div class="hero-inner">
-          <h1 class="hero-title">HR Management System-MPL Telecom</h1>
           <div class="hero-subtitle">
             <span class="eyebrow">Employee Dashboard</span>
             <p class="lead">View and manage your employee data.</p>
           </div>
         </div>
       `;
+      // --- END MODIFICATION ---
+
       const app = document.querySelector('#app');
       if (app) app.parentNode.insertBefore(hero, app);
     }
@@ -446,15 +450,16 @@ async function initializeAppModules() {
       );
     }
 
+    // --- MODIFICATION: Replaced all instances of `fetchEmployeesFunc` ---
     // Module listeners
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchEmployeesFunc);
+      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
     if (typeof setupStatusChangeModal === 'function')
-      setupStatusChangeModal(fetchEmployeesFunc);
+      setupStatusChangeModal(fetchAndRenderEmployees);
     if (typeof setupBulkUploadModal === 'function')
-      setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
+      setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupSalarySheetModal === 'function')
       setupSalarySheetModal(getMainLocalEmployees);
     if (typeof setupPastSheetsModal === 'function')
@@ -462,10 +467,11 @@ async function initializeAppModules() {
     if (typeof setupViewDetailsModal === 'function')
       setupViewDetailsModal();
     if (typeof setupTransferModal === 'function')
-      setupTransferModal(fetchEmployeesFunc);
+      setupTransferModal(fetchAndRenderEmployees);
 
     // Initial load
     fetchAndRenderEmployees();
+    // --- END MODIFICATION ---
   }
 
   // --- Run ---
