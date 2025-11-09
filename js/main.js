@@ -34,9 +34,10 @@ async function initializeAppModules() {
 
       const themeLink = document.createElement('link');
       themeLink.rel = 'stylesheet';
-      themeLink.href = '/styles.css';
+      themeLink.href = '/styles.css'; // This loads your styles.css file
       head.appendChild(themeLink);
     }
+    // This sets the BROWSER TAB title
     document.title = 'HR Management System-MPL Telecom';
   } catch (e) {
     console.warn('Theme injection failed:', e);
@@ -59,7 +60,7 @@ async function initializeAppModules() {
       const logo = document.createElement('img');
       logo.className = 'logo';
       logo.alt = 'MPL Telecom';
-      logo.src = '/assets/logo.png'; // <-- change if your path differs
+      logo.src = '/assets/logo.png'; // Make sure this path is correct
       left.appendChild(logo);
 
       // Right: actions container
@@ -78,22 +79,32 @@ async function initializeAppModules() {
         document.body.insertBefore(appBar, document.body.firstChild);
       }
 
+      // --- MODIFICATION: Fixed the ID for "Generate Salary Sheet" ---
       // Move existing action buttons (by ID) into the right container
-      ['addEmployeeBtn','bulkUploadBtn','generateSalarySheetBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
+      ['addEmployeeBtn','bulkUploadBtn','uploadAttendanceBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) {
             el.classList.add('topbar-btn');
-            if (id === 'reportBtn' || id === 'addEmployeeBtn') el.classList.add('topbar-btn--primary');
+            // Updated style rule for primary buttons
+            if (id === 'reportBtn' || id === 'addEmployeeBtn' || id === 'bulkUploadBtn') {
+                el.classList.add('topbar-btn--primary');
+            }
             right.appendChild(el);
+          } else {
+            console.warn(`Button with ID #${id} not found in HTML.`);
           }
         });
     }
 
-    // Remove any old big H1 headers exactly titled "HR Management System"
-    Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
-      .filter(el => (el.textContent || '').trim().toLowerCase() === 'hr management system')
-      .forEach(el => el.remove());
+    // --- MODIFICATION: Remove the OLD nav and header from index.html ---
+    const oldNav = document.querySelector('nav.bg-white.shadow-sm');
+    if (oldNav) oldNav.remove();
+    
+    const oldHeader = document.querySelector('#app > header.mb-6');
+    if (oldHeader) oldHeader.remove();
+    // --- END MODIFICATION ---
+
   } catch (e) {
     console.warn('Top bar build failed:', e);
   }
@@ -151,6 +162,9 @@ async function initializeAppModules() {
     const addRipple = (e) => {
       const target = e.target.closest('button, .btn');
       if (!target) return;
+      // Prevent ripple on non-themed buttons if needed
+      if(target.classList.contains('btn-secondary') && !target.classList.contains('topbar-btn')) return;
+
       const rect = target.getBoundingClientRect();
       const ripple = document.createElement('span');
       ripple.className = 'ripple';
@@ -436,11 +450,11 @@ async function initializeAppModules() {
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+      setupEmployeeForm(getMainLocalEmployees, fetchEmployeesFunc);
     if (typeof setupStatusChangeModal === 'function')
-      setupStatusChangeModal(fetchAndRenderEmployees);
+      setupStatusChangeModal(fetchEmployeesFunc);
     if (typeof setupBulkUploadModal === 'function')
-      setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+      setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
     if (typeof setupSalarySheetModal === 'function')
       setupSalarySheetModal(getMainLocalEmployees);
     if (typeof setupPastSheetsModal === 'function')
@@ -448,7 +462,7 @@ async function initializeAppModules() {
     if (typeof setupViewDetailsModal === 'function')
       setupViewDetailsModal();
     if (typeof setupTransferModal === 'function')
-      setupTransferModal(fetchAndRenderEmployees);
+      setupTransferModal(fetchEmployeesFunc);
 
     // Initial load
     fetchAndRenderEmployees();
