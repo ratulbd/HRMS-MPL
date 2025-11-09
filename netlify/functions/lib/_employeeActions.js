@@ -395,6 +395,62 @@ async function logRejoin(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
 }
 // --- END MODIFICATION ---
 
+// --- MODIFICATION: Add new generic function to get log data ---
+/**
+ * Fetches all data from a specified log sheet and returns it as JSON.
+ */
+async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
+    console.log(`Executing getLogData for sheet: ${sheetName}`);
+    try {
+        // 1. Get actual headers (non-normalized)
+        const headerResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!1:1`,
+        });
+        const actualHeaders = headerResponse.data.values ? headerResponse.data.values[0] : [];
+
+        if (!actualHeaders || actualHeaders.length === 0) {
+             console.warn(`No headers found in ${sheetName}. Returning empty list.`);
+             return { statusCode: 200, body: JSON.stringify([]) };
+        }
+        
+        // 2. Get all data rows
+        const lastColumnLetter = helpers.getColumnLetter(actualHeaders.length - 1);
+        const range = `${sheetName}!A2:${lastColumnLetter}`; // Read from row 2 to end
+        console.log(`Fetching log data from range: ${range}`);
+        
+        const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+        const dataRows = response.data.values;
+
+        if (!dataRows || dataRows.length === 0) {
+             console.log(`No data rows found in ${sheetName}.`);
+             return { statusCode: 200, body: JSON.stringify([]) };
+        }
+        console.log(`Fetched ${dataRows.length} data rows from ${sheetName}.`);
+
+        // 3. Map rows to objects using the actual headers as keys
+        const logData = dataRows.map((row) => {
+            const entry = {};
+            actualHeaders.forEach((header, i) => {
+                entry[header] = row[i] ?? ''; // Use actual header as key
+            });
+            return entry;
+        });
+
+        console.log(`Processed ${logData.length} log entries.`);
+        return { statusCode: 200, body: JSON.stringify(logData) };
+
+    } catch (error) {
+        console.error(`Error in getLogData for ${sheetName}:`, error.stack || error.message);
+        if (error.code === 400 && error.message.includes('Unable to parse range')) {
+             console.warn(`Sheet '${sheetName}' might be empty.`);
+             return { statusCode: 200, body: JSON.stringify([]) };
+        }
+        return { statusCode: 500, body: JSON.stringify({ error: `Internal server error fetching ${sheetName} log.`, details: error.message }) };
+    }
+}
+// --- END MODIFICATION ---
+
 
 module.exports = {
     getEmployees,
@@ -406,6 +462,8 @@ module.exports = {
     getReportProjects,
     transferEmployee,
     // --- MODIFICATION: Export logRejoin ---
-    logRejoin
+    logRejoin,
+    // --- MODIFICATION: Export new function ---
+    getLogData
     // --- END MODIFICATION ---
 };

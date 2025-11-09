@@ -37,7 +37,7 @@ async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
     
     // --- Dynamic Imports ---
-    const { $, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
+    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
     const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
@@ -191,6 +191,7 @@ async function initializeAppModules() {
         }
     }
 
+    // --- MODIFICATION: This function now only handles the *Employee Database* export ---
     function handleExportData() {
          if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
          
@@ -230,9 +231,53 @@ async function initializeAppModules() {
          if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
     }
 
-     // --- Setup Global Listeners ---
+    // --- ADDITION: Helper to convert JSON log data to CSV ---
+    function jsonToCsv(jsonData) {
+        if (!jsonData || jsonData.length === 0) {
+            return ""; // No data
+        }
+        const headers = Object.keys(jsonData[0]);
+        let csvContent = headers.join(',') + '\n';
+        
+        jsonData.forEach(item => {
+            const row = headers.map(header => {
+                let value = item[header] ?? '';
+                value = String(value).replace(/"/g, '""');
+                if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
+                return value;
+            });
+            csvContent += row.join(',') + '\n';
+        });
+        return csvContent;
+    }
+
+    // --- ADDITION: Helper function to download log reports ---
+    async function handleLogReportDownload(logName, apiAction, fileName) {
+        try {
+            const logData = await apiCall(apiAction);
+            if (!logData || logData.length === 0) {
+                customAlert("No Data", `No data found for the ${logName}.`);
+                return;
+            }
+            const csvContent = jsonToCsv(logData);
+            downloadCSV(csvContent, fileName);
+            closeModal('reportModal');
+        } catch (error) {
+            customAlert("Error", `Failed to download ${logName}: ${error.message}`);
+        }
+    }
+    // --- END ADDITION ---
+
+     // --- MODIFICATION: Updated setupGlobalListeners ---
      function setupGlobalListeners() {
-         const exportBtn = $('exportDataBtn'); if (exportBtn) exportBtn.addEventListener('click', handleExportData);
+         // This button now opens the new report modal
+         const reportBtn = $('reportBtn'); 
+         if (reportBtn) {
+             reportBtn.addEventListener('click', () => openModal('reportModal'));
+         } else {
+             console.warn("Report button (#reportBtn) not found.");
+         }
+         
          const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
          const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
          const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
@@ -241,6 +286,7 @@ async function initializeAppModules() {
              logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
          } else { console.warn("Logout button (#logoutBtn) not found."); }
      }
+     // --- END MODIFICATION ---
 
     // --- Initialize Application ---
     function initializeApp() {
@@ -248,13 +294,46 @@ async function initializeAppModules() {
         setupFilterListeners();
         setupGlobalListeners();
         
+        // --- ADDITION: Setup listeners for the new Report Modal ---
+        const reportModal = $('reportModal');
+        if (reportModal) {
+            $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
+            
+            // 1. Employee Database
+            $('downloadEmployeeDatabase').addEventListener('click', () => {
+                handleExportData(); // Re-use the existing function
+                closeModal('reportModal');
+            });
+            
+            // 2. Hold Log
+            $('downloadHoldLog').addEventListener('click', () => {
+                handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv');
+            });
+            
+            // 3. Separation Log
+            $('downloadSeparationLog').addEventListener('click', () => {
+                handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv');
+            });
+            
+            // 4. Transfer Log
+            $('downloadTransferLog').addEventListener('click', () => {
+                handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv');
+            });
+        }
+        // --- END ADDITION ---
+        
         // Setup module-specific listeners
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
-        if (typeof setupPastSheetsModal === 'function') setupPastSheetsModal(getMainLocalEmployees);
+        
+        // --- MODIFICATION: Pass the new button ID to the setup function ---
+        if (typeof setupPastSheetsModal === 'function') {
+            setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn'); 
+        }
+        
         if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
         if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
         

@@ -12,8 +12,9 @@ const JSZip = window.JSZip; // Get JSZip from global scope
 let allEmployees = []; // To be populated by getMainLocalEmployees
 let allArchives = [];  // To store the fetched archives
 
-export function setupPastSheetsModal(getMainLocalEmployees) {
-    const openBtn = $('viewSheetsBtn');
+// --- MODIFICATION: Now accepts the button ID from main.js ---
+export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
+    const openBtn = $(openButtonId); // Use the new ID
     const closeBtn = $('closePastSheetsModal');
 
     if (openBtn) {

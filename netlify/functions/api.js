@@ -26,6 +26,8 @@ const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
+// --- ADDITION: Add Rejoin Log constant from your _employeeActions.js ---
+const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
 
 const HEADER_MAPPING = {
     // Basic Info
@@ -86,6 +88,7 @@ const HEADER_MAPPING = {
 
 // --- Main Handler ---
 exports.handler = async (event) => {
+    // ... (corsHeaders and body parsing remain the same) ...
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -128,6 +131,7 @@ exports.handler = async (event) => {
 
     console.log("Using requestBody:", JSON.stringify(requestBody).substring(0, 200) + '...');
 
+
     try {
         let result;
         if (!['GET', 'POST'].includes(event.httpMethod)) {
@@ -138,7 +142,9 @@ exports.handler = async (event) => {
                 sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
                 HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
-                SALARY_ARCHIVE_SHEET_NAME
+                SALARY_ARCHIVE_SHEET_NAME,
+                // --- ADDITION: Add Rejoin log to context ---
+                REJOIN_LOG_SHEET_NAME 
             };
 
             switch (action) {
@@ -177,8 +183,24 @@ exports.handler = async (event) => {
                      break;
                 case 'logRejoin':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     // --- MODIFICATION: Pass full context ---
                      else result = await employeeActions.logRejoin(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
+
+                // --- MODIFICATION: Add Report Log Endpoints ---
+                case 'getHoldLog':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.HOLD_LOG_SHEET_NAME, context.helpers);
+                    break;
+                case 'getSeparationLog':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.SEPARATION_LOG_SHEET_NAME, context.helpers);
+                    break;
+                case 'getTransferLog':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.TRANSFER_LOG_SHEET_NAME, context.helpers);
+                    break;
+                // --- END MODIFICATION ---
 
                 // --- Sheet Actions ---
                 case 'saveSheet':
