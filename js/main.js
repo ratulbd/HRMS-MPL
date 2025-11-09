@@ -3,19 +3,26 @@
 // --- Authentication Check ---
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
   if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
+    console.log("User not logged in. Redirecting to login page.");
     window.location.href = '/login.html';
   } else if (window.location.pathname.endsWith('/')) {
+    console.log("User not logged in at root. Redirecting to login page.");
     window.location.href = '/login.html';
   }
 } else {
   if (window.location.pathname.endsWith('login.html')) {
+    console.log("User logged in, redirecting from login to index.");
     window.location.href = '/index.html';
   } else {
+    console.log("User is logged in. Adding DOM listener...");
     document.addEventListener('DOMContentLoaded', initializeAppModules);
   }
 }
 
+// --- Main App Logic ---
 async function initializeAppModules() {
+  console.log("DOM loaded. Initializing app modules...");
+
   // --- THEME INJECTION (fonts + stylesheet + tab title) ---
   try {
     const head = document.head || document.getElementsByTagName('head')[0];
@@ -27,17 +34,17 @@ async function initializeAppModules() {
 
       const themeLink = document.createElement('link');
       themeLink.rel = 'stylesheet';
-      themeLink.href = '/styles.css';
+      themeLink.href = '/styles.css'; // This loads your styles.css file
       head.appendChild(themeLink);
     }
-    // You asked to remove the <title>. Setting an empty string blanks the browser tab text.
-    // (If you ever want the tab title back, set a non-empty string here.)
-    document.title = '';
+    // This sets the BROWSER TAB title
+    document.title = 'HR Management System-MPL Telecom';
   } catch (e) {
     console.warn('Theme injection failed:', e);
   }
+  // --- END THEME INJECTION ---
 
-  // --- TOP BAR (LOGO ONLY on left; all action buttons RIGHT on same row) ---
+  // --- TOP BAR (logo left, buttons right) ---
   try {
     let appBar = document.querySelector('header.app-bar');
     if (!appBar) {
@@ -47,13 +54,13 @@ async function initializeAppModules() {
       const barInner = document.createElement('div');
       barInner.className = 'bar-inner';
 
-      // Left: ONLY company logo
+      // Left: only company logo
       const left = document.createElement('div');
       left.className = 'bar-left';
       const logo = document.createElement('img');
       logo.className = 'logo';
       logo.alt = 'MPL Telecom';
-      logo.src = '/assets/logo.png'; // <-- update path if needed
+      logo.src = '/assets/logo.png'; // Make sure this path is correct
       left.appendChild(logo);
 
       // Right: actions container
@@ -71,68 +78,37 @@ async function initializeAppModules() {
       } else {
         document.body.insertBefore(appBar, document.body.firstChild);
       }
+
+      // --- MODIFICATION: Fixed the ID for "Generate Salary Sheet" ---
+      // Move existing action buttons (by ID) into the right container
+      ['addEmployeeBtn','bulkUploadBtn','uploadAttendanceBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.add('topbar-btn');
+            // Updated style rule for primary buttons
+            if (id === 'reportBtn' || id === 'addEmployeeBtn' || id === 'bulkUploadBtn') {
+                el.classList.add('topbar-btn--primary');
+            }
+            right.appendChild(el);
+          } else {
+            console.warn(`Button with ID #${id} not found in HTML.`);
+          }
+        });
     }
 
-    // Remove ANY legacy page-level text nodes/headings that show “HR Management System” (outside hero)
-    Array.from(document.querySelectorAll('body *')).forEach(el => {
-      const txt = (el.textContent || '').trim().toLowerCase();
-      if (txt === 'hr management system' && !el.closest('.hero') && !el.closest('header.app-bar')) {
-        el.remove();
-      }
-    });
+    // --- MODIFICATION: Remove the OLD nav and header from index.html ---
+    const oldNav = document.querySelector('nav.bg-white.shadow-sm');
+    if (oldNav) oldNav.remove();
+    
+    const oldHeader = document.querySelector('#app > header.mb-6');
+    if (oldHeader) oldHeader.remove();
+    // --- END MODIFICATION ---
 
-    // Normalize/move all action buttons to the right container (by id OR by text as fallback)
-    const right = document.querySelector('.bar-actions');
-
-    const wantedOrder = [
-      'addEmployeeBtn',
-      'bulkUploadBtn',
-      'generateSalarySheetBtn',
-      'pastSalarySheetsBtn',
-      'reportBtn',
-      'logoutBtn'
-    ];
-
-    const normalizeBtn = (el, makePrimary = false) => {
-      if (!el || !right) return;
-      // Strip legacy inline positioning that can misplace buttons (like your Generate Salary Sheet)
-      ['position', 'float', 'margin', 'top', 'right', 'left', 'bottom', 'transform'].forEach(p => (el.style[p] = ''));
-      el.classList.add('topbar-btn');
-      if (makePrimary) el.classList.add('topbar-btn--primary');
-      right.appendChild(el);
-    };
-
-    // 1) Move known IDs in the target order
-    wantedOrder.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) normalizeBtn(el, id === 'reportBtn' || id === 'addEmployeeBtn');
-    });
-
-    // 2) Fallback: if Generate Salary Sheet still not found by id, find by text
-    const ensureGenSheet = () => {
-      const already = document.getElementById('generateSalarySheetBtn');
-      if (already && right.contains(already)) return;
-      const candidates = Array.from(document.querySelectorAll('button, a'));
-      const found = candidates.find(b => (b.textContent || '').trim().toLowerCase() === 'generate salary sheet');
-      if (found && !right.contains(found)) {
-        found.id = found.id || 'generateSalarySheetBtn';
-        normalizeBtn(found, false);
-      }
-    };
-    ensureGenSheet();
-
-    // 3) Observe DOM for any late injections and re-normalize buttons
-    const mo = new MutationObserver(() => {
-      wantedOrder.forEach(id => {
-        const el = document.getElementById(id);
-        if (el && !right.contains(el)) normalizeBtn(el, id === 'reportBtn' || id === 'addEmployeeBtn');
-      });
-      ensureGenSheet();
-    });
-    mo.observe(document.body, { childList: true, subtree: true });
   } catch (e) {
-    console.warn('Top bar build/normalize failed:', e);
+    console.warn('Top bar build failed:', e);
   }
+  // --- END TOP BAR ---
 
   // --- HERO SECTION (headline + subhead) ---
   try {
@@ -154,6 +130,7 @@ async function initializeAppModules() {
   } catch (e) {
     console.warn('Hero injection failed:', e);
   }
+  // --- END HERO ---
 
   // --- CARD ACTION BUTTONS: compact pills mapper ---
   try {
@@ -185,6 +162,9 @@ async function initializeAppModules() {
     const addRipple = (e) => {
       const target = e.target.closest('button, .btn');
       if (!target) return;
+      // Prevent ripple on non-themed buttons if needed
+      if(target.classList.contains('btn-secondary') && !target.classList.contains('topbar-btn')) return;
+
       const rect = target.getBoundingClientRect();
       const ripple = document.createElement('span');
       ripple.className = 'ripple';
@@ -204,13 +184,13 @@ async function initializeAppModules() {
   const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
   const { apiCall } = await import('./apiClient.js');
   const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
-  const { setupEmployeeForm } = await import('./employeeForm.js');
-  const { setupStatusChangeModal } = await import('./statusChange.js');
+  const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
+  const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
   const { setupBulkUploadModal } = await import('./bulkUpload.js');
   const { setupSalarySheetModal } = await import('./salarySheet.js');
   const { setupPastSheetsModal } = await import('./pastSheets.js');
-  const { setupViewDetailsModal } = await import('./viewDetails.js');
-  const { setupTransferModal } = await import('./transferModal.js');
+  const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
+  const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
   // --- Global State ---
   let mainLocalEmployees = [];
@@ -225,6 +205,7 @@ async function initializeAppModules() {
     subCenter: []
   };
   let tomSelects = {};
+
   const getMainLocalEmployees = () => mainLocalEmployees;
 
   // --- Populate Tom Select instances ---
@@ -287,6 +268,7 @@ async function initializeAppModules() {
   // --- Setup Filter Listeners ---
   function setupFilterListeners() {
     const tomSelectConfig = { plugins: ['remove_button'] };
+
     const nameInput = $('filterName');
     if (nameInput) {
       nameInput.addEventListener('input', (e) => {
@@ -294,6 +276,7 @@ async function initializeAppModules() {
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
     }
+
     const filterMap = {
       'filterStatus':        'status',
       'filterDesignation':   'designation',
@@ -303,6 +286,7 @@ async function initializeAppModules() {
       'filterReportProject': 'reportProject',
       'filterSubCenter':     'subCenter'
     };
+
     for (const [elementId, filterKey] of Object.entries(filterMap)) {
       const el = $(elementId);
       if (el) {
@@ -315,6 +299,7 @@ async function initializeAppModules() {
         console.warn(`Filter element with ID '${elementId}' not found.`);
       }
     }
+
     const resetBtn = $('resetFiltersBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
@@ -326,6 +311,8 @@ async function initializeAppModules() {
         for (const key in tomSelects) if (tomSelects[key]) tomSelects[key].clear();
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
+    } else {
+      console.warn("Reset Filters button (#resetFiltersBtn) not found.");
     }
   }
 
@@ -408,7 +395,11 @@ async function initializeAppModules() {
   // --- Global Listeners ---
   function setupGlobalListeners() {
     const reportBtn = $('reportBtn');
-    if (reportBtn) reportBtn.addEventListener('click', () => openModal('reportModal'));
+    if (reportBtn) {
+      reportBtn.addEventListener('click', () => openModal('reportModal'));
+    } else {
+      console.warn("Report button (#reportBtn) not found.");
+    }
 
     const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
     const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
@@ -421,31 +412,49 @@ async function initializeAppModules() {
         sessionStorage.removeItem('loggedInUser');
         window.location.href = '/login.html';
       });
+    } else {
+      console.warn("Logout button (#logoutBtn) not found.");
     }
   }
 
-  // --- Initialize & Run ---
+  // --- Initialize Application ---
   function initializeApp() {
+    console.log("Initializing HRMS App (Modular & Authenticated)...");
     setupFilterListeners();
     setupGlobalListeners();
 
+    // Report Modal
     const reportModal = $('reportModal');
     if (reportModal) {
       $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
-      $('downloadEmployeeDatabase').addEventListener('click', () => { handleExportData(); closeModal('reportModal'); });
-      $('downloadHoldLog').addEventListener('click', () => handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv'));
-      $('downloadSeparationLog').addEventListener('click', () => handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv'));
-      $('downloadTransferLog').addEventListener('click', () => handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv'));
+
+      $('downloadEmployeeDatabase').addEventListener('click', () => {
+        handleExportData();
+        closeModal('reportModal');
+      });
+
+      $('downloadHoldLog').addEventListener('click', () =>
+        handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
+      );
+
+      $('downloadSeparationLog').addEventListener('click', () =>
+        handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
+      );
+
+      $('downloadTransferLog').addEventListener('click', () =>
+        handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
+      );
     }
 
+    // Module listeners
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+      setupEmployeeForm(getMainLocalEmployees, fetchEmployeesFunc);
     if (typeof setupStatusChangeModal === 'function')
-      setupStatusChangeModal(fetchAndRenderEmployees);
+      setupStatusChangeModal(fetchEmployeesFunc);
     if (typeof setupBulkUploadModal === 'function')
-      setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+      setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
     if (typeof setupSalarySheetModal === 'function')
       setupSalarySheetModal(getMainLocalEmployees);
     if (typeof setupPastSheetsModal === 'function')
@@ -453,11 +462,13 @@ async function initializeAppModules() {
     if (typeof setupViewDetailsModal === 'function')
       setupViewDetailsModal();
     if (typeof setupTransferModal === 'function')
-      setupTransferModal(fetchAndRenderEmployees);
+      setupTransferModal(fetchEmployeesFunc);
 
+    // Initial load
     fetchAndRenderEmployees();
   }
 
+  // --- Run ---
   try {
     initializeApp();
   } catch (err) {
@@ -470,3 +481,4 @@ async function initializeAppModules() {
       document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
     }
   }
+}
