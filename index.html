@@ -1,163 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HR Management System-MPL Telecom</title>
 
-  <!-- Fonts & App Styles -->
-  https://fonts.googleapis.com
-  https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;600;700&display=swap
-  /styles.css
+<link rel="https://fonts.googleapis.com">
 
-  <!-- Tom Select (required by main.js) -->
-  https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css
-  https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); }
+        .modal { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .status-badge { display: inline-flex; align-items: center; padding: 0.25em 0.75em; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-active { background-color: #dcfce7; color: #166534; }
+        .status-held { background-color: #ffedd5; color: #9a3412; }
+        .status-resigned { background-color: #fef9c3; color: #854d0e; }
+        .status-terminated { background-color: #fee2e2; color: #991b1b; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #4f46e5; animation: spin 1s ease infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-overlay { position: fixed; inset: 0; background-color: rgba(249, 250, 251, 0.7); display: flex; align-items: center; justify-content: center; z-index: 110; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.375rem; transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 0.875rem; line-height: 1.25rem; }
+        .btn-primary { background-color: #4f46e5; color: white; } .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; } .btn-secondary:hover { background-color: #f9fafb; }
+        .btn-green { background-color: #059669; color: white; } .btn-green:hover { background-color: #047857; }
+        .btn-teal { background-color: #0d9488; color: white; } .btn-teal:hover { background-color: #0f766e; }
+        .btn-purple { background-color: #9333ea; color: white; } .btn-purple:hover { background-color: #7e22ce; }
+        .btn-danger { background-color: #dc2626; color: white; } .btn-danger:hover { background-color: #b91c1c; }
+        
+        /* === ADDED NEW STYLE === */
+        .btn-purple-light {
+            background-color: #f5f3ff; /* purple-50 */
+            color: #6d28d9; /* purple-700 */
+            border: 1px solid #ddd6fe; /* purple-200 */
+        }
+        .btn-purple-light:hover {
+            background-color: #ede9fe; /* purple-100 */
+        }
+        /* === END ADDED STYLE === */
+
+        .input, .input-select { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
+        .input:focus, .input-select:focus { border-color: #4f46e5; --tw-ring-color: #4f46e5; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
+        .input-select { padding-left: 0.75rem; padding-right: 2.5rem; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
+        .input-readonly { background-color: #f3f4f6; cursor: not-allowed; }
+        .ts-control { padding: 0.5rem 0.75rem !important; border: 1px solid #d1d5db !important; border-radius: 0.375rem !important; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important; margin-top: 0.25rem; font-size: 0.875rem; line-height: 1.25rem; }
+        .ts-control .item { background-color: #e0e7ff; color: #3730a3; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500; }
+        .ts-plugins .remove_button .item .remove { border-left: 1px solid #c7d2fe; margin-left: 0.5rem; padding-left: 0.5rem; }
+        .ts-dropdown { border: 1px solid #d1d5db !important; border-top: none !important; border-radius: 0 0 0.375rem 0.375rem !important; }
+        .ts-control.focus { border-color: #4f46e5 !important; --tw-ring-color: #4f46e5; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important; }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-900">
 
-  <!-- ===== TOP BAR: logo (left) + action buttons (right) ===== -->
-  <header class="app-bar">
-    <div class="bar-inner">
-      <div class="bar-left">
-        /assets/logo.png
-      </div>
-      <div class="bar-actions">
-        <!-- Keep these IDs; main.js relocates/wires/styles them -->
-        <button id="addEmployeeBtn" class="topbar-btn topbar-btn--primary">Add New Employee</button>
-        <button id="bulkUploadBtn" class="topbar-btn">Bulk Upload</button>
-        <button id="generateSalarySheetBtn" class="topbar-btn">Generate Salary Sheet</button>
-        <button id="pastSalarySheetsBtn" class="topbar-btn">Past Salary Sheets</button>
-        <button id="reportBtn" class="topbar-btn topbar-btn--primary">Report</button>
-        <button id="logoutBtn" class="topbar-btn">Logout</button>
-      </div>
+    <div id="loadingOverlay" class="loading-overlay hidden"><div class="spinner"></div></div>
+
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center"><span class="text-xl font-bold text-indigo-600">HR Management System</span></div>
+                <div class="flex items-center space-x-2">
+                    <button id="addEmployeeBtn" class="btn btn-primary">Add New Employee</button>
+                    <button id="bulkUploadBtn" class="btn btn-teal">Bulk Upload</button>
+                    <button id="uploadAttendanceBtn" class="btn btn-green">Generate Salary Sheet</button>
+                    <button id="pastSalarySheetsBtn" class="btn btn-purple-light">Past Salary Sheets</button>
+                    <button id="reportBtn" class="btn btn-purple-light">Report</button>
+                    <button id="logoutBtn" class="btn btn-secondary border-red-300 text-red-600 hover:bg-red-50">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-6">
+            <h1 class="text-2xl font-semibold text-gray-800">Employee Dashboard</h1>
+            <p class="text-gray-500 mt-1">View and manage your employee data.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4" id="filterCardTitle">Filters</h2>
+             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                 <div><label for="filterName" class="block text-sm font-medium text-gray-600">Search by Name/ID</label><input type="text" id="filterName" class="input mt-1" placeholder="e.g. John Doe or 123"></div>
+                 <div><label for="filterStatus" class="block text-sm font-medium text-gray-600">Status</label><input id="filterStatus" placeholder="All Statuses"></div>
+                 <div><label for="filterDesignation" class="block text-sm font-medium text-gray-600">Designation</label><input id="filterDesignation" placeholder="All Designations"></div>
+                 <div><label for="filterType" class="block text-sm font-medium text-gray-600">Employee Type</label><input id="filterType" placeholder="All Types"></div>
+                 <div><label for="filterProject" class="block text-sm font-medium text-gray-600">Project</label><input id="filterProject" placeholder="All Projects"></div>
+                 <div><label for="filterProjectOffice" class="block text-sm font-medium text-gray-600">Project Office</label><input id="filterProjectOffice" placeholder="All Offices"></div>
+                 <div><label for="filterReportProject" class="block text-sm font-medium text-gray-600">Report Project</label><input id="filterReportProject" placeholder="All Report Projects"></div>
+                 <div><label for="filterSubCenter" class="block text-sm font-medium text-gray-600">Sub Center</label><input id="filterSubCenter" placeholder="All Sub Centers"></div>
+             </div>
+            <div class="mt-4 text-right">
+                <button id="resetFiltersBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Reset Filters</button>
+            </div>
+        </div>
+        <div class="mb-4 text-sm text-gray-600" id="filterCountDisplay">Loading employees...</div>
+
+        <main id="employee-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="initialLoading" class="col-span-full text-center p-8"><div class="spinner mx-auto"></div><p class="text-gray-500 mt-2">Loading employee data...</p></div>
+        </main>
+
+        <footer class="text-center text-xs text-gray-400 mt-12 border-t pt-4">&copy; 2025 Md. Rakibul Islam Ratul <br> Sr. Manager, Telecom Service, Metal Plus</footer>
     </div>
-  </header>
 
-  <!-- ===== HERO (headline + subhead) ===== -->
-  <section class="hero">
-    <div class="hero-inner">
-      <h1 class="hero-title">HR Management System-MPL Telecom</h1>
-      <div class="hero-subtitle">
-        <span class="eyebrow">Employee Dashboard</span>
-        <p class="lead">View and manage your employee data.</p>
-      </div>
+    <div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
+         <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl modal max-h-[90vh] flex flex-col transform scale-100" id="employeeModalContent">
+            <div class="flex justify-between items-center p-6 border-b flex-shrink-0">
+                 <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">Add/Edit Employee</h2>
+                 <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+             </div>
+             <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
+                  <input type="hidden" id="employeeDocId"><input type="hidden" id="employeeStatus"><input type="hidden" id="employeeSalaryHeld"><input type="hidden" id="separationDateHidden"><input type="hidden" id="remarksHidden"><input type="hidden" id="originalEmployeeIdHidden"><input type="hidden" id="holdTimestampHidden"><input type="hidden" id="lastTransferDateHidden"><input type="hidden" id="lastSubcenterHidden"><input type="hidden" id="lastTransferReasonHidden">
+                  <div class="space-y-6">
+                      <div>
+                          <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Basic Information</h3>
+                           <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                               <div><label for="employeeId" class="block text-sm font-medium text-gray-700">Employee ID<span class="text-red-500">*</span></label><input type="text" id="employeeId" required class="input"></div>
+                               <div><label for="name" class="block text-sm font-medium text-gray-700">Employee Name<span class="text-red-500">*</span></label><input type="text" id="name" required class="input"></div>
+                               <div><label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type<span class="text-red-500">*</span></label><select id="employeeType" required class="input-select"><option>Permanent</option><option>Casual</option><option>Contractual</option><option>Temporary</option></select></div>
+                               <div><label for="designation" class="block text-sm font-medium text-gray-700">Designation<span class="text-red-500">*</span></label>
+                                <input type="text" id="designation" required class="input" list="designation-list"><datalist id="designation-list"></datalist>
+                               </div>
+                               <div><label for="joiningDate" class="block text-sm font-medium text-gray-700">Joining Date<span class="text-red-500">*</span></label><input type="date" id="joiningDate" required class="input"></div>
+                               <div><label for="workExperience" class="block text-sm font-medium text-gray-700">Work Experience (Years)</label><input type="number" step="0.5" id="workExperience" class="input"></div>
+                               <div class="md:col-span-2"><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" class="input"></div>
+                           </div>
+                       </div>
+                       <div>
+                            <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Project Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                <div><label for="project" class="block text-sm font-medium text-gray-700">Project<span class="text-red-500">*</span></label>
+                                    <input type="text" id="project" required class="input" list="project-list"><datalist id="project-list"></datalist>
+                                </div>
+                                <div><label for="projectOffice" class="block text-sm font-medium text-gray-700">Project Office<span class="text-red-500">*</span></label>
+                                    <input type="text" id="projectOffice" required class="input" list="projectOffice-list"><datalist id="projectOffice-list"></datalist>
+                                </div>
+                                <div><label for="reportProject" class="block text-sm font-medium text-gray-700">Report Project<span class="text-red-500">*</span></label>
+                                    <input type="text" id="reportProject" required class="input" list="reportProject-list"><datalist id="reportProject-list"></datalist>
+                                </div>
+                                <div><label for="subCenter" class="block text-sm font-medium text-gray-700">Sub Center<span class="text-red-500">*</span></label>
+                                    <input type="text" id="subCenter" required class="input" list="subCenter-list"><datalist id="subCenter-list"></datalist>
+                                </div>
+                           </div>
+                       </div>
+                       <div>
+                            <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Personal Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                <div><label for="fatherName" class="block text-sm font-medium text-gray-700">Father's Name</label><input type="text" id="fatherName" class="input"></div>
+                                <div><label for="motherName" class="block text-sm font-medium text-gray-700">Mother's Name</label><input type="text" id="motherName" class="input"></div>
+                                <div><label for="personalMobile" class="block text-sm font-medium text-gray-700">Personal Mobile<span class="text-red-500">*</span></label><input type="tel" id="personalMobile" required class="input"></div>
+                                <div><label for="dob" class="block text-sm font-medium text-gray-700">Date of Birth<span class="text-red-500">*</span></label><input type="date" id="dob" required class="input"></div>
+                                <div><label for="bloodGroup" class="block text-sm font-medium text-gray-700">Blood Group</label><input type="text" id="bloodGroup" class="input"></div>
+                                <div><label for="identificationType" class="block text-sm font-medium text-gray-700">Identification Type<span class="text-red-500">*</span></label>
+                                    <input type="text" id="identificationType" required class="input" list="identificationType-list">
+                                    <datalist id="identificationType-list"></datalist>
+                                </div>
+                                <div><label for="identification" class="block text-sm font-medium text-gray-700">Identification (NID/Birth Cert.)<span class="text-red-500">*</span></label><input type="text" id="identification" required class="input"></div>
+                                <div class="md:col-span-4"><label for="address" class="block text-sm font-medium text-gray-700">Address<span class="text-red-500">*</span></label><input type="text" id="address" required class="input"></div>
+                           </div>
+                        </div>
+                       <div>
+                            <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Contact & Nominee</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                <div><label for="nomineeName" class="block text-sm font-medium text-gray-700">Nominee's Name</label><input type="text" id="nomineeName" class="input"></div>
+                                <div><label for="nomineeMobile" class="block text-sm font-medium text-gray-700">Nominee's Mobile</label><input type="tel" id="nomineeMobile" class="input"></div>
+                                <div><label for="officialMobile" class="block text-sm font-medium text-gray-700">Official Mobile Number</label><input type="tel" id="officialMobile" class="input"></div>
+                                <div><label for="mobileLimit" class="block text-sm font-medium text-gray-700">Mobile Limit</label><input type="number" step="0.01" id="mobileLimit" class="input"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Salary Details</h3>
+                            <h4 class="text-md font-medium text-gray-700 mb-2 mt-4">Earnings</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                <div><label for="salary" class="block text-sm font-medium text-gray-700">Gross Salary<span class="text-red-500">*</span></label><input type="number" step="0.01" id="salary" required class="input salary-component-earning"></div>
+                                <div><label for="basic" class="block text-sm font-medium text-gray-700">Basic<span class="text-red-500">*</span></label><input type="number" step="0.01" id="basic" required class="input"></div>
+                                <div><label for="others" class="block text-sm font-medium text-gray-700">Others<span class="text-red-500">*</span></label><input type="number" step="0.01" id="others" required class="input"></div>
+                                <div><label for="motobikeCarMaintenance" class="block text-sm font-medium text-gray-700">Motobike/Car Maintenance</label><input type="number" step="0.01" id="motobikeCarMaintenance" class="input salary-component-earning"></div>
+                                <div><label for="laptopRent" class="block text-sm font-medium text-gray-700">Laptop Rent</label><input type="number" step="0.01" id="laptopRent" class="input salary-component-earning"></div>
+                                <div><label for="othersAllowance" class="block text-sm font-medium text-gray-700">Others Allowance</label><input type="number" step="0.01" id="othersAllowance" class="input salary-component-earning"></div>
+                                <div><label for="arrear" class="block text-sm font-medium text-gray-700">Arrear</label><input type="number" step="0.01" id="arrear" class="input salary-component-earning"></div>
+                                <div><label for="foodAllowance" class="block text-sm font-medium text-gray-700">Food Allowance</label><input type="number" step="0.01" id="foodAllowance" class="input salary-component-earning"></div>
+                                <div><label for="stationAllowance" class="block text-sm font-medium text-gray-700">Station Allowance</label><input type="number" step="0.01" id="stationAllowance" class="input salary-component-earning"></div>
+                                <div><label for="hardshipAllowance" class="block text-sm font-medium text-gray-700">Hardship Allowance</label><input type="number" step="0.01" id="hardshipAllowance" class="input salary-component-earning"></div>
+                            </div>
+                            <h4 class="text-md font-medium text-gray-700 mb-2 mt-6">Deductions</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                <div><label for="gratuity" class="block text-sm font-medium text-gray-700">Gratuity</label><input type="number" step="0.01" id="gratuity" class="input salary-component-deduction"></div>
+                                <div><label for="subsidizedLunch" class="block text-sm font-medium text-gray-700">Subsidized Lunch</label><input type="number" step="0.01" id="subsidizedLunch" class="input salary-component-deduction"></div>
+                                <div><label for="tds" class="block text-sm font-medium text-gray-700">TDS</label><input type="number" step="0.01" id="tds" class="input salary-component-deduction"></div>
+                                <div><label for="motorbikeLoan" class="block text-sm font-medium text-gray-700">Motorbike Loan</label><input type="number" step="0.01" id="motorbikeLoan" class="input salary-component-deduction"></div>
+                                <div><label for="welfareFund" class="block text-sm font-medium text-gray-700">Welfare Fund</label><input type="number" step="0.01" id="welfareFund" class="input salary-component-deduction"></div>
+                                <div><label for="salaryOthersLoan" class="block text-sm font-medium text-gray-700">Salary/ Others Loan</label><input type="number" step="0.01" id="salaryOthersLoan" class="input salary-component-deduction"></div>
+                                <div><label for="subsidizedVehicle" class="block text-sm font-medium text-gray-700">Subsidized Vehicle</label><input type="number" step="0.01" id="subsidizedVehicle" class="input salary-component-deduction"></div>
+                                <div><label for="lwp" class="block text-sm font-medium text-gray-700">LWP</label><input type="number" step="0.01" id="lwp" class="input salary-component-deduction"></div>
+                                <div><label for="cpf" class="block text-sm font-medium text-gray-700">CPF</label><input type="number" step="0.01" id="cpf" class="input salary-component-deduction"></div>
+                                <div><label for="othersAdjustment" class="block text-sm font-medium text-gray-700">Others Adjustment</label><input type="number" step="0.01" id="othersAdjustment" class="input"></div>
+                            </div>
+                            <h4 class="text-md font-medium text-gray-700 mb-2 mt-6">Totals</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 p-4 bg-gray-50 rounded-lg border">
+                                <div><label for="grandTotal" class="block text-sm font-medium text-gray-700">Grand Total (Auto)</label><input type="number" step="0.01" id="grandTotal" class="input input-readonly" readonly></div>
+                                <div><label for="totalDeduction" class="block text-sm font-medium text-gray-700">Total Deduction (Auto)</label><input type="number" step="0.01" id="totalDeduction" class="input input-readonly" readonly></div>
+                                <div><label for="netSalaryPayment" class="block text-sm font-medium text-gray-700">Net Salary Payment (Auto)</label><input type="number" step="0.01" id="netSalaryPayment" class="input input-readonly" readonly></div>
+                            </div>
+                            <h4 class="text-md font-medium text-gray-700 mb-2 mt-6">Bank</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                                 <div><label for="bankAccount" class="block text-sm font-medium text-gray-700">Bank Account Number</label><input type="text" id="bankAccount" class="input"></div>
+                             </div>
+                        </div>
+                  </div>
+                  <div class="mt-8 flex justify-end gap-4 flex-shrink-0 pt-6 border-t">
+                      <button type="button" id="cancelEmployeeModal" class="btn btn-secondary">Cancel</button>
+                      <button type="submit" class="btn btn-primary">Save Employee</button>
+                  </div>
+             </form>
+         </div>
     </div>
-  </section>
 
-  <!-- ===== APP CONTENT ===== -->
-  <div id="app">
+    <div id="bulkUploadModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal"> <h2 class="text-2xl font-bold mb-2">Bulk Upload Employees</h2> <p class="text-gray-500 mb-6 text-sm">
+    Upload a CSV file with employee data. Ensure the following columns have valid data for every row:
+    <br>
+    <strong>Employee ID</strong>, <strong>Employee Name</strong>, <strong>Employee Type</strong>, <strong>Designation</strong>, <strong>Joining Date</strong>, <strong>Project</strong>, <strong>Project Office</strong>, <strong>Report Project</strong>, <strong>Sub Center</strong>, <strong>Personal Mobile Number</strong>, <strong>Date of Birth</strong>, <strong>Address</strong>, <strong>Identification Type</strong>, <strong>Identification</strong>, <strong>Gross Salary</strong>, <strong>Basic</strong>, <strong>Others</strong>.
+    <br>
+    Download the template for all headers.
+</p> <form id="bulkUploadForm"> <div class="space-y-4"> <div> <label for="employeeFile" class="block text-sm font-medium text-gray-700">Employee Data File (.csv)</label> <p class="text-xs text-gray-500 mb-2">Download the template to see all required and optional headers.</p> <input type="file" id="employeeFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"> </div> </div> <div class="mt-8 flex justify-between items-center gap-4"> <button type="button" id="downloadTemplateBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Download Template</button> <div class="flex gap-4"> <button type="button" id="cancelBulkUploadModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="bulkUploadForm" class="btn btn-teal">Upload & Save</button> </div> </div> </form> </div> </div>
 
-    <!-- Filters panel -->
-    <section class="panel" aria-labelledby="filters-title" style="padding:16px; margin-bottom:18px;">
-      <h3 id="filters-title" style="margin-top:0;">Filters</h3>
-
-      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
-        <div>
-          <label for="filterName">Search by Name/ID</label>
-          <input id="filterName" type="text" placeholder="e.g. John Doe or 123" />
+    <div id="statusChangeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
+            <h2 id="statusChangeTitle" class="text-2xl font-bold mb-6">Update Employee Status</h2>
+            <form id="statusChangeForm">
+                <input type="hidden" id="statusChangeEmployeeId">
+                <input type="hidden" id="statusChangeNewStatus">
+                <div class="space-y-4">
+                    <div>
+                        <label for="separationDate" class="block text-sm font-medium text-gray-700">
+                            <span id="separationDateLabel">Date</span><span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="separationDate" required class="input">
+                    </div>
+                    <div>
+                        <label for="remarks" class="block text-sm font-medium text-gray-700">Remarks<span class="text-red-500">*</span></label>
+                        <textarea id="remarks" rows="3" class="input" required></textarea>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end gap-4">
+                    <button type="button" id="cancelStatusChangeModal" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
         </div>
-
-        <div>
-          <label for="filterStatus">Status</label>
-          <select id="filterStatus" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterDesignation">Designation</label>
-          <select id="filterDesignation" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterType">Employee Type</label>
-          <select id="filterType" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterProject">Project</label>
-          <select id="filterProject" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterProjectOffice">Project Office</label>
-          <select id="filterProjectOffice" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterReportProject">Report Project</label>
-          <select id="filterReportProject" multiple></select>
-        </div>
-
-        <div>
-          <label for="filterSubCenter">Sub Center</label>
-          <select id="filterSubCenter" multiple></select>
-        </div>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
-        <div id="filterCountDisplay">Loading employees...</div>
-        <button id="resetFiltersBtn" class="btn btn-chip chip-neutral">Reset Filters</button>
-      </div>
-    </section>
-
-    <!-- Employee list -->
-    <section>
-      <div id="employee-list">
-        <div id="initialLoading" class="panel" style="padding:24px; text-align:center;">
-          Loading employee data...
-        </div>
-      </div>
-    </section>
-
-    <!-- Footer (optional) -->
-    <footer style="margin-top:24px;">
-      © 2025 Md. Rakibul Islam Ratul — Sr. Manager, Telecom Service, Metal Plus
-    </footer>
-  </div>
-
-  <!-- ===== MODALS (wired by main.js) ===== -->
-
-  <!-- Alert Modal -->
-  <div id="alertModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
-    <div class="modal-content" style="padding:16px;">
-      <h3 id="alertTitle">Alert</h3>
-      <p id="alertMessage">Message</p>
-      <div style="text-align:right; margin-top:12px;">
-        <button id="alertOkBtn" class="btn btn-chip chip-neutral">OK</button>
-      </div>
     </div>
-  </div>
+    <div id="viewDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-4xl modal max-h-[90vh] flex flex-col"> <h2 class="text-2xl font-bold mb-6 flex-shrink-0 text-gray-900">Employee Details</h2> <div id="viewDetailsContent" class="flex-grow overflow-y-auto pr-4"></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0 pt-4 border-t"> <button type="button" id="closeViewDetailsModal" class="btn btn-secondary">Close</button> </div> </div> </div>
+    <div id="attendanceModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal"> <h2 class="text-2xl font-bold mb-6">Generate Salary Sheet</h2> <form id="attendanceForm"> <div class="space-y-4"> <div><label for="salaryMonth" class="block text-sm font-medium text-gray-700">Select Month</label><input type="month" id="salaryMonth" required class="input"></div> <div><label for="attendanceFile" class="block text-sm font-medium text-gray-700">Attendance File (.csv)</label><p class="text-xs text-gray-500 mb-1">Required columns: `employeeId`, `daysPresent`.</p><input type="file" id="attendanceFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"></div> <div><label for="accountabilityFile" class="block text-sm font-medium text-gray-700">Accountability File (.csv)</label><p class="text-xs text-gray-500 mb-1">Required columns: `reportproject`, `subcenter`, `accountableemployeeid`.</p><input type="file" id="accountabilityFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"></div> </div> <div class="mt-8 flex justify-end gap-4"><button type="button" id="cancelAttendanceModal" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-green">Generate Sheet</button></div> </form> </div> </div>
+    <div id="salarySheetModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-5xl modal h-full max-h-[90vh] flex flex-col"> <div class="flex-shrink-0"><h2 class="text-2xl font-bold mb-2">Salary Sheet</h2><p id="sheetMonthYear" class="text-gray-500 mb-6"></p></div> <div class="flex-grow overflow-y-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody id="salarySheetBody" class="bg-white divide-y divide-gray-200"></tbody></table></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0"><button type="button" id="closeSheetModal" class="btn btn-secondary">Close</button></div> </div> </div>
+    <div id="viewSheetsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-2xl modal h-full max-h-[90vh] flex flex-col"> <h2 class="text-2xl font-bold mb-6 flex-shrink-0">Past Salary Sheets</h2> <div id="pastSheetsList" class="flex-grow overflow-y-auto space-y-3"></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0"><button type="button" id="closePastSheetsModal" class="btn btn-secondary">Close</button></div> </div> </div>
+    <div id="alertModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal text-center"><h3 id="alertTitle" class="text-xl font-bold mb-4"></h3><p id="alertMessage" class="text-gray-600 mb-6 text-left"></p><button id="alertOkBtn" class="btn btn-primary w-full">OK</button></div> </div>
+    <div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-sm modal text-center"><h3 id="confirmTitle" class="text-xl font-bold mb-4">Confirmation</h3><p id="confirmMessage" class="text-gray-600 mb-6"></p><div class="flex justify-center gap-4"><button id="confirmCancelBtn" class="btn btn-secondary w-1.2">Cancel</button><button id="confirmOkBtn" class="btn btn-danger w-1/2">Confirm</button></div></div> </div>
+    <div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl w-full max-w-md modal flex flex-col max-h-[90vh]"> <div class="p-6 border-b flex-shrink-0"><h2 class="text-2xl font-bold text-gray-900">Transfer Employee</h2></div> <div class="p-6 flex-grow overflow-y-auto"> <form id="transferForm"> <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName"> <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p> <div class="space-y-4"> <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div> <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project<span class="text-red-500">*</span></label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferProjectOffice" class="block text-sm font-medium text-gray-700">New Project Office<span class="text-red-500">*</span></label><select id="transferProjectOffice" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="newSubCenter" class="block text-sm font-medium text-gray-700">New Sub Center<span class="text-red-500">*</span></label><select id="newSubCenter" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferReportProject" class="block text-sm font-medium text-gray-700">New Report Project<span class="text-red-500">*</span></label><select id="transferReportProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferDate" class="block text-sm font-medium text-gray-700">Transfer Date<span class="text-red-500">*</span></label><input type="date" id="transferDate" required class="input"></div> <div><label for="transferReason" class="block text-sm font-medium text-gray-700">Reason for Transfer<span class="text-red-500">*</span></label><textarea id="transferReason" rows="3" required class="input"></textarea></div> </div> <div id="transferError" class="text-red-600 text-sm mt-4 hidden"></div> </form> </div> <div class="p-6 border-t flex justify-end gap-4 flex-shrink-0"> <button type="button" id="cancelTransferModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="transferForm" class="btn btn-primary">Confirm Transfer</button> </div> </div> </div>
 
-  <!-- Confirm Modal -->
-  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="modal-content" style="padding:16px;">
-      <h3 id="confirmTitle">Confirmation</h3>
-      <p id="confirmMessage">Are you sure?</p>
-      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
-        <button id="confirmCancelBtn" class="btn btn-chip chip-neutral">Cancel</button>
-        <button id="confirmOkBtn" class="btn btn-chip chip-brand">Confirm</button>
-      </div>
+    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal">
+            <h2 class="text-2xl font-bold mb-6">Download Reports</h2>
+            <p class="text-gray-500 mb-6 text-sm">Select a report to download as a .csv file.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button id="downloadEmployeeDatabase" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-database mr-2"></i> Employee Database
+                </button>
+                <button id="downloadHoldLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-pause-circle mr-2"></i> Salary Hold Log
+                </button>
+                <button id="downloadSeparationLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-user-minus mr-2"></i> Separation Log
+                </button>
+                <button id="downloadTransferLog" class="btn btn-secondary text-left justify-start w-full">
+                    <i class="fas fa-exchange-alt mr-2"></i> Transfer Log
+                </button>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-4">
+                <button type="button" id="cancelReportModal" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
     </div>
-  </div>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script type="module" src="js/main.js"></script>
 
-  <!-- Report Modal -->
-  <div id="reportModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
-    <div class="modal-content" style="padding:16px;">
-      <h3 id="reportTitle">Download Reports</h3>
-      <p>Select a report to download as a .csv file.</p>
-      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top:12px;">
-        <button id="downloadEmployeeDatabase" class="btn btn-chip chip-brand">Employee Database</button>
-        <button id="downloadHoldLog" class="btn btn-chip chip-neutral">Salary Hold Log</button>
-        <button id="downloadSeparationLog" class="btn btn-chip chip-neutral">Separation Log</button>
-        <button id="downloadTransferLog" class="btn btn-chip chip-neutral">Transfer Log</button>
-      </div>
-      <div style="text-align:right; margin-top:16px;">
-        <button id="cancelReportModal" class="btn btn-chip chip-neutral">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- App entry -->
-  /main.js</script>
 </body>
 </html>
