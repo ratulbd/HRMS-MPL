@@ -38,7 +38,7 @@ async function initializeAppModules() {
       head.appendChild(themeLink);
     }
     // This sets the BROWSER TAB title
-    document.title = 'HR Management System-MPL Telecom';
+    document.title = 'HRMS-MPL Telecom';
   } catch (e) {
     console.warn('Theme injection failed:', e);
   }
@@ -54,14 +54,14 @@ async function initializeAppModules() {
       const barInner = document.createElement('div');
       barInner.className = 'bar-inner';
 
-      // Left: only company logo
+      // --- MODIFICATION: Replaced <img> with <h1> text logo ---
       const left = document.createElement('div');
       left.className = 'bar-left';
-      const logo = document.createElement('img');
-      logo.className = 'logo';
-      logo.alt = 'MPL Telecom';
-      logo.src = '/assets/logo.png'; // Make sure this path is correct
-      left.appendChild(logo);
+      const logoTitle = document.createElement('h1');
+      logoTitle.className = 'logo-title'; // This class is styled in styles.css
+      logoTitle.textContent = 'HRMS-MPL TELECOM';
+      left.appendChild(logoTitle);
+      // --- END MODIFICATION ---
 
       // Right: actions container
       const right = document.createElement('div');
@@ -85,9 +85,6 @@ async function initializeAppModules() {
           const el = document.getElementById(id);
           if (el) {
             el.classList.add('topbar-btn');
-            
-            // --- MODIFICATION: Removed the if-block that added 'topbar-btn--primary' ---
-            
             right.appendChild(el);
           } else {
             console.warn(`Button with ID #${id} not found in HTML.`);
@@ -95,12 +92,9 @@ async function initializeAppModules() {
         });
     }
 
-    // Remove the OLD nav and header from index.html
-    const oldNav = document.querySelector('nav.bg-white.shadow-sm');
-    if (oldNav) oldNav.remove();
-    
-    const oldHeader = document.querySelector('#app > header.mb-6');
-    if (oldHeader) oldHeader.remove();
+    // --- MODIFICATION: Removed the code that deletes the old nav/header ---
+    // (This is no longer needed as they are gone from index.html)
+    // --- END MODIFICATION ---
 
   } catch (e) {
     console.warn('Top bar build failed:', e);
@@ -442,12 +436,11 @@ async function initializeAppModules() {
       );
     }
 
-    // --- MODIFICATION: Replaced `fetchEmployeesFunc` with `fetchAndRenderEmployees` ---
     // Module listeners
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees); // <-- This was the typo
+      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
     if (typeof setupStatusChangeModal === 'function')
       setupStatusChangeModal(fetchAndRenderEmployees);
     if (typeof setupBulkUploadModal === 'function')
@@ -463,7 +456,6 @@ async function initializeAppModules() {
 
     // Initial load
     fetchAndRenderEmployees();
-    // --- END MODIFICATION ---
   }
 
   // --- Run ---

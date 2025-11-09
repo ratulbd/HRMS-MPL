@@ -62,15 +62,19 @@ header.app-bar {
 }
 header.app-bar .bar-inner {
   max-width: 1200px; margin: 0 auto; padding: 12px 20px;
-  display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center;
+  /* === MODIFICATION: Changed grid-template-columns === */
+  display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center;
 }
 .bar-left { display: flex; align-items: center; gap: 10px; }
 
-/* === MODIFICATION: Logo size increased to 72px === */
-header.app-bar img.logo {
-  width: 72px; 
-  height: 72px; 
-  object-fit: contain;
+/* === MODIFICATION: Replaced .logo with .logo-title === */
+.logo-title {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 700;
+  color: var(--brand-700);
+  letter-spacing: -0.5px;
+  margin: 0;
 }
 /* === END MODIFICATION === */
 
@@ -91,7 +95,6 @@ header.app-bar img.logo {
   border-color: rgba(47,107,58,.35);
   background: var(--brand-500); /* Lighter green on hover */
 }
-/* === END MODIFICATION === */
 
 
 /* ===== HERO under top bar ===== */
