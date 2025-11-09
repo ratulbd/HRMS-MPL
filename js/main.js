@@ -35,6 +35,27 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 // --- Main App Logic (only runs if user is logged in and on the correct page) ---
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
+    // --- THEME INJECTION (fonts, stylesheet, title, header text) ---
+    try {
+      const head = document.head || document.getElementsByTagName('head')[0];
+      if (head) {
+        const fontLink = document.createElement('link');
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;600;700&display=swap';
+        head.appendChild(fontLink);
+
+        const themeLink = document.createElement('link');
+        themeLink.rel = 'stylesheet';
+        themeLink.href = '/styles.css';
+        head.appendChild(themeLink);
+      }
+      document.title = 'HR Management System-MPL Telecom';
+      const headerEl = document.querySelector('#appTitle, .app-title, header h1, h1');
+      if (headerEl) headerEl.textContent = 'HR Management System-MPL Telecom';
+    } catch (e) {
+      console.warn('Theme injection failed:', e);
+    }
+    // --- END THEME INJECTION ---
     
     // --- Dynamic Imports ---
     const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
