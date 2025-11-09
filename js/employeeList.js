@@ -61,7 +61,12 @@ function renderEmployeeList(listContainer, employeesToRender) {
                         <p><strong>Joined:</strong> ${formatDateForDisplay(emp.joiningDate)}</p>
                         ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
                     </div>
-                    ${emp.remarks ? `<div class="mt-3 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
+                    
+                    ${(statusText === 'Resigned' || statusText === 'Terminated') && emp.remarks ? 
+                        `<div class="mt-3 text-xs text-yellow-800 bg-yellow-100 p-2 rounded-md"><strong>Separation Remarks:</strong> ${emp.remarks}</div>` : ''}
+                    
+                    ${(statusText === 'Active' || statusText === 'Salary Held') && emp.remarks ? 
+                        `<div class="mt-3 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     ${lastTransferHTML}
                 </div>
                 <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end"> <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button> <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button> ${statusText === 'Active' || statusText === 'Salary Held' ? ` <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> <button class="transfer-btn text-sm font-medium text-purple-600 hover:text-purple-800" data-id="${emp.id}">Transfer</button> <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button> <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button> ` : ''} </div>
