@@ -2,7 +2,6 @@
 
 // --- Authentication Check ---
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
-  // --- User is NOT Logged In ---
   if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
     console.log("User not logged in. Redirecting to login page.");
     window.location.href = '/login.html';
@@ -10,9 +9,7 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
     console.log("User not logged in at root. Redirecting to login page.");
     window.location.href = '/login.html';
   }
-  // If user is on login.html and not logged in, do nothing.
 } else {
-  // --- User IS Logged In ---
   if (window.location.pathname.endsWith('login.html')) {
     console.log("User logged in, redirecting from login to index.");
     window.location.href = '/index.html';
@@ -22,64 +19,146 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
   }
 }
 
-// --- Main App Logic (only runs if user is logged in and on the correct page) ---
+// --- Main App Logic ---
 async function initializeAppModules() {
   console.log("DOM loaded. Initializing app modules...");
 
-  // --- THEME INJECTION (fonts, stylesheet, title) ---
+  // --- THEME INJECTION (fonts + stylesheet + tab title) ---
   try {
     const head = document.head || document.getElementsByTagName('head')[0];
     if (head) {
       const fontLink = document.createElement('link');
       fontLink.rel = 'stylesheet';
-      fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;600;700&display=swap';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;600;700&display=swap';
       head.appendChild(fontLink);
 
       const themeLink = document.createElement('link');
       themeLink.rel = 'stylesheet';
-      themeLink.href = '/styles.css'; // Light brand theme
+      themeLink.href = '/styles.css';
       head.appendChild(themeLink);
     }
-    // Keep page title for browser tab; DO NOT render H1 text in the page
     document.title = 'HR Management System-MPL Telecom';
-
-    // Remove any H1/app-title text headers (as per your request)
-    const redundantHeads = Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
-      .filter(el => (el.textContent || '').toLowerCase().includes('hr management system'));
-    redundantHeads.forEach(el => el.remove());
   } catch (e) {
     console.warn('Theme injection failed:', e);
   }
   // --- END THEME INJECTION ---
 
-  // --- BRAND HEADER (Logo only) + Ripple effect ---
+  // --- TOP BAR (logo left, action buttons right) ---
   try {
-    // Create a minimal app bar with ONLY the logo (no text title)
-    const hasAppBar = document.querySelector('header.app-bar');
-    if (!hasAppBar) {
-      const header = document.createElement('header');
-      header.className = 'app-bar';
-      const inner = document.createElement('div');
-      inner.className = 'bar-inner';
+    let appBar = document.querySelector('header.app-bar');
+    if (!appBar) {
+      appBar = document.createElement('header');
+      appBar.className = 'app-bar';
+
+      const barInner = document.createElement('div');
+      barInner.className = 'bar-inner';
+
+      // Left: only company logo
+      const left = document.createElement('div');
+      left.className = 'bar-left';
 
       const logo = document.createElement('img');
       logo.className = 'logo';
       logo.alt = 'MPL Telecom';
-      // TODO: Update this to the correct path of your logo file
-      logo.src = '/assets/logo.png';
+      logo.src = '/assets/logo.png'; // <-- update if your path differs
 
-      inner.appendChild(logo);
-      header.appendChild(inner);
+      left.appendChild(logo);
 
+      // Right: actions container
+      const right = document.createElement('div');
+      right.className = 'bar-actions';
+
+      barInner.appendChild(left);
+      barInner.appendChild(right);
+      appBar.appendChild(barInner);
+
+      // Insert before #app
       const app = document.querySelector('#app');
       if (app && app.parentNode) {
-        app.parentNode.insertBefore(header, app);
+        app.parentNode.insertBefore(appBar, app);
       } else {
-        document.body.insertBefore(header, document.body.firstChild);
+        document.body.insertBefore(appBar, document.body.firstChild);
       }
+
+      // Move existing action buttons into bar-actions and style them
+      const maybeIds = [
+        'addEmployeeBtn',
+        'bulkUploadBtn',
+        'generateSalarySheetBtn',
+        'pastSalarySheetsBtn',
+        'reportBtn',
+        'logoutBtn'
+      ];
+      maybeIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.add('topbar-btn');
+          // emphasize Add New Employee + Report
+          if (id === 'reportBtn' || id === 'addEmployeeBtn') el.classList.add('topbar-btn--primary');
+          right.appendChild(el);
+        }
+      });
     }
 
-    // Global Ripple effect for all buttons (.btn included)
+    // Remove any big, old H1 headers titled exactly "HR Management System" (to avoid duplicates in top area)
+    const oldHeads = Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
+      .filter(el => (el.textContent || '').trim().toLowerCase() === 'hr management system');
+    oldHeads.forEach(el => el.remove());
+  } catch (e) {
+    console.warn('Top bar build failed:', e);
+  }
+  // --- END TOP BAR ---
+
+  // --- HERO SECTION (headline + subhead) ---
+  try {
+    const heroExists = document.querySelector('.hero');
+    if (!heroExists) {
+      const hero = document.createElement('section');
+      hero.className = 'hero';
+      hero.innerHTML = `
+        <div class="hero-inner">
+          <h1 class="hero-title">HR Management System-MPL Telecom</h1>
+          <div class="hero-subtitle">
+            <span class="eyebrow">Employee Dashboard</span>
+            <p class="lead">View and manage your employee data.</p>
+          </div>
+        </div>
+      `;
+      const app = document.querySelector('#app');
+      if (app) app.parentNode.insertBefore(hero, app);
+    }
+  } catch (e) {
+    console.warn('Hero injection failed:', e);
+  }
+  // --- END HERO ---
+
+  // --- CARD ACTION BUTTONS: compact pills mapper ---
+  try {
+    const classifyButtons = (root = document) => {
+      const btns = root.querySelectorAll('.employee-card button, .employee-card .btn');
+      btns.forEach(b => {
+        const t = (b.textContent || '').toLowerCase().trim();
+        b.classList.add('btn', 'btn-chip'); // compact pill base
+        if (t.includes('terminate')) { b.classList.add('chip-danger'); }
+        else if (t.includes('resign')) { b.classList.add('chip-warning'); }
+        else if (t.includes('hold salary') || t.includes('unhold salary')) { b.classList.add('chip-brand'); }
+        else if (t.includes('transfer')) { b.classList.add('chip-brand'); }
+        else if (t.includes('edit')) { b.classList.add('chip-neutral'); }
+        else if (t.includes('view details')) { b.classList.add('chip-neutral'); }
+      });
+    };
+    classifyButtons();
+    const list = document.querySelector('#employee-list');
+    if (list) {
+      const mo = new MutationObserver(() => classifyButtons(list));
+      mo.observe(list, { childList: true, subtree: true });
+    }
+  } catch (e) {
+    console.warn('Card button mapper failed:', e);
+  }
+
+  // --- Ripple micro-interaction (global) ---
+  try {
     const addRipple = (e) => {
       const target = e.target.closest('button, .btn');
       if (!target) return;
@@ -91,37 +170,12 @@ async function initializeAppModules() {
       ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
       ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
       target.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 650);
+      setTimeout(() => ripple.remove(), 600);
     };
     document.addEventListener('click', addRipple);
   } catch (e) {
-    console.warn('Enhancement injection failed:', e);
+    console.warn('Ripple failed:', e);
   }
-  // --- END BRAND HEADER/RIPPLE ---
-
-  // --- BUTTON THEME MAPPER (inside employee cards) ---
-  try {
-    const classifyButtons = (root = document) => {
-      const btns = root.querySelectorAll('.employee-card button, .employee-card .btn');
-      btns.forEach(b => {
-        const t = (b.textContent || '').toLowerCase();
-        b.classList.add('btn'); // ensure base style
-        if (t.includes('terminate')) { b.classList.add('btn-danger'); }
-        else if (t.includes('resign')) { b.classList.add('btn-warning'); }
-        else if (t.includes('hold salary') || t.includes('unhold salary')) { b.classList.add('btn-brand'); }
-        else if (t.includes('transfer') || t.includes('edit') || t.includes('view details')) { b.classList.add('btn-primary'); }
-      });
-    };
-    classifyButtons();
-    const list = document.querySelector('#employee-list');
-    if (list) {
-      const mo = new MutationObserver(() => classifyButtons(list));
-      mo.observe(list, { childList: true, subtree: true });
-    }
-  } catch (e) {
-    console.warn('Button theme mapper failed:', e);
-  }
-  // --- END BUTTON THEME MAPPER ---
 
   // --- Dynamic Imports ---
   const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
@@ -149,7 +203,6 @@ async function initializeAppModules() {
   };
   let tomSelects = {};
 
-  // --- State Accessor ---
   const getMainLocalEmployees = () => mainLocalEmployees;
 
   // --- Populate Tom Select instances ---
@@ -252,9 +305,7 @@ async function initializeAppModules() {
           project: [], projectOffice: [], reportProject: [], subCenter: []
         };
         if (nameInput) nameInput.value = '';
-        for (const key in tomSelects) {
-          if (tomSelects[key]) tomSelects[key].clear();
-        }
+        for (const key in tomSelects) if (tomSelects[key]) tomSelects[key].clear();
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
     } else {
@@ -369,7 +420,7 @@ async function initializeAppModules() {
     setupFilterListeners();
     setupGlobalListeners();
 
-    // New Report Modal handlers
+    // Report Modal
     const reportModal = $('reportModal');
     if (reportModal) {
       $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
@@ -389,7 +440,7 @@ async function initializeAppModules() {
       );
     }
 
-    // Module-specific listeners
+    // Module listeners
     if (typeof setupEmployeeListEventListeners === 'function')
       setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
     if (typeof setupEmployeeForm === 'function')
@@ -407,7 +458,7 @@ async function initializeAppModules() {
     if (typeof setupTransferModal === 'function')
       setupTransferModal(fetchAndRenderEmployees);
 
-    // Initial data load
+    // Initial load
     fetchAndRenderEmployees();
   }
 
@@ -416,7 +467,7 @@ async function initializeAppModules() {
     initializeApp();
   } catch (err) {
     console.error("Failed to initialize app:", err);
-    const appDiv = $('app'); // Use the imported $ function
+    const appDiv = $('app');
     const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
     if (appDiv) {
       appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
@@ -424,4 +475,3 @@ async function initializeAppModules() {
       document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
     }
   }
-}
