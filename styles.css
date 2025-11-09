@@ -54,20 +54,25 @@ body::before {
 @keyframes bgPulse { from { opacity: .28; transform: scale(1);} to { opacity: .42; transform: scale(1.03);} }
 
 /* ===== TOP BAR (logo left, buttons right) ===== */
+/* === MODIFICATION: Changed sticky to fixed === */
 header.app-bar {
-  position: sticky; top: 0; z-index: 50;
+  position: fixed; /* Was sticky */
+  top: 0;
+  left: 0;       /* Added */
+  width: 100%;   /* Added */
+  z-index: 50;
   backdrop-filter: saturate(140%) blur(10px);
   background: linear-gradient(180deg, rgba(255,255,255,.90), rgba(245,250,245,.90));
   border-bottom: 1px solid rgba(47, 107, 58, .15);
 }
+/* === END MODIFICATION === */
+
 header.app-bar .bar-inner {
   max-width: 1200px; margin: 0 auto; padding: 12px 20px;
-  /* === MODIFICATION: Changed grid-template-columns === */
   display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center;
 }
 .bar-left { display: flex; align-items: center; gap: 10px; }
 
-/* === MODIFICATION: Replaced .logo with .logo-title === */
 .logo-title {
   font-family: 'Outfit', 'Inter', sans-serif;
   font-size: 1.5rem; /* 24px */
@@ -76,7 +81,6 @@ header.app-bar .bar-inner {
   letter-spacing: -0.5px;
   margin: 0;
 }
-/* === END MODIFICATION === */
 
 .bar-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: end; }
 
@@ -98,7 +102,13 @@ header.app-bar .bar-inner {
 
 
 /* ===== HERO under top bar ===== */
-.hero { background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65)); }
+/* === MODIFICATION: Added padding-top === */
+.hero { 
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65)); 
+  padding-top: 80px; /* Added to push content below the fixed bar */
+}
+/* === END MODIFICATION === */
+
 .hero .hero-inner { max-width: 1200px; margin: 0 auto; padding: 18px 20px; }
 .hero .hero-title {
   font-family: 'Outfit', 'Inter', sans-serif; margin: 0 0 6px 0;
