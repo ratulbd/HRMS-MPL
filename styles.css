@@ -68,8 +68,8 @@ header.app-bar .bar-inner {
 
 /* === MODIFICATION: Logo size increased, drop-shadow removed === */
 header.app-bar img.logo {
-  width: 56px; 
-  height: 56px; 
+  width: 90px; 
+  height: 90px; 
   object-fit: contain;
 }
 /* === END MODIFICATION === */
