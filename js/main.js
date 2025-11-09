@@ -4,37 +4,29 @@
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
   // --- User is NOT Logged In ---
   if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
-    // User is on a protected page (like index.html) but not logged in.
     console.log("User not logged in. Redirecting to login page.");
     window.location.href = '/login.html';
   } else if (window.location.pathname.endsWith('/')) {
-    // User is at the root directory but not logged in.
     console.log("User not logged in at root. Redirecting to login page.");
     window.location.href = '/login.html';
   }
   // If user is on login.html and not logged in, do nothing.
 } else {
   // --- User IS Logged In ---
-  // --- THIS IS THE FIX ---
   if (window.location.pathname.endsWith('login.html')) {
-    // User is logged in but still on the login page. Redirect to app.
     console.log("User logged in, redirecting from login to index.");
     window.location.href = '/index.html';
   } else {
-    // User is logged in and on the correct page (index.html or root).
-    // Load the app.
     console.log("User is logged in. Adding DOM listener...");
     document.addEventListener('DOMContentLoaded', initializeAppModules);
   }
-  // --- END OF FIX ---
 }
 
 // --- Main App Logic (only runs if user is logged in and on the correct page) ---
 async function initializeAppModules() {
   console.log("DOM loaded. Initializing app modules...");
 
-  // --- THEME INJECTION (fonts, stylesheet, title, header text) ---
-  // (Kept from your uploaded file, plus minor safety guards)  [1](https://5y6ybn-my.sharepoint.com/personal/ratulbd_5y6ybn_onmicrosoft_com/Documents/Microsoft%20Copilot%20Chat%20Files/main.js)
+  // --- THEME INJECTION (fonts, stylesheet, title) ---
   try {
     const head = document.head || document.getElementsByTagName('head')[0];
     if (head) {
@@ -45,20 +37,24 @@ async function initializeAppModules() {
 
       const themeLink = document.createElement('link');
       themeLink.rel = 'stylesheet';
-      themeLink.href = '/styles.css';
+      themeLink.href = '/styles.css'; // Light brand theme
       head.appendChild(themeLink);
     }
+    // Keep page title for browser tab; DO NOT render H1 text in the page
     document.title = 'HR Management System-MPL Telecom';
-    const headerEl = document.querySelector('#appTitle, .app-title, header h1, h1');
-    if (headerEl) headerEl.textContent = 'HR Management System-MPL Telecom';
+
+    // Remove any H1/app-title text headers (as per your request)
+    const redundantHeads = Array.from(document.querySelectorAll('h1, .app-title, #appTitle'))
+      .filter(el => (el.textContent || '').toLowerCase().includes('hr management system'));
+    redundantHeads.forEach(el => el.remove());
   } catch (e) {
     console.warn('Theme injection failed:', e);
   }
   // --- END THEME INJECTION ---
 
-  // --- ENHANCEMENTS: Brand header (with logo) & Ripple effect ---
+  // --- BRAND HEADER (Logo only) + Ripple effect ---
   try {
-    // If there's no branded app bar, create one (logo + title) just above #app.
+    // Create a minimal app bar with ONLY the logo (no text title)
     const hasAppBar = document.querySelector('header.app-bar');
     if (!hasAppBar) {
       const header = document.createElement('header');
@@ -72,11 +68,7 @@ async function initializeAppModules() {
       // TODO: Update this to the correct path of your logo file
       logo.src = '/assets/logo.png';
 
-      const h1 = document.createElement('h1');
-      h1.textContent = 'HR Management System-MPL Telecom';
-
       inner.appendChild(logo);
-      inner.appendChild(h1);
       header.appendChild(inner);
 
       const app = document.querySelector('#app');
@@ -105,10 +97,9 @@ async function initializeAppModules() {
   } catch (e) {
     console.warn('Enhancement injection failed:', e);
   }
-  // --- END ENHANCEMENTS ---
+  // --- END BRAND HEADER/RIPPLE ---
 
-  // --- BUTTON THEME MAPPER ---
-  // Auto-assign button styles inside employee cards so colors stay consistent
+  // --- BUTTON THEME MAPPER (inside employee cards) ---
   try {
     const classifyButtons = (root = document) => {
       const btns = root.querySelectorAll('.employee-card button, .employee-card .btn');
@@ -118,7 +109,7 @@ async function initializeAppModules() {
         if (t.includes('terminate')) { b.classList.add('btn-danger'); }
         else if (t.includes('resign')) { b.classList.add('btn-warning'); }
         else if (t.includes('hold salary') || t.includes('unhold salary')) { b.classList.add('btn-brand'); }
-        else if (t.includes('transfer') || t.includes('edit')) { b.classList.add('btn-brand'); }
+        else if (t.includes('transfer') || t.includes('edit') || t.includes('view details')) { b.classList.add('btn-primary'); }
       });
     };
     classifyButtons();
@@ -161,7 +152,7 @@ async function initializeAppModules() {
   // --- State Accessor ---
   const getMainLocalEmployees = () => mainLocalEmployees;
 
-  // --- Helper function to populate Tom Select instances ---
+  // --- Populate Tom Select instances ---
   function updateTomSelectFilterOptions(employees) {
     if (!Array.isArray(employees)) employees = [];
     const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
@@ -210,8 +201,9 @@ async function initializeAppModules() {
       customAlert("Error", `Failed to load employee data: ${error.message}`);
       if (countDisplay) countDisplay.textContent = 'Error loading data.';
       const employeeListElement = $('#employee-list');
-      if (employeeListElement)
+      if (employeeListElement) {
         employeeListElement.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+      }
       const initialLoading = $('#initialLoading');
       if (initialLoading) initialLoading.remove();
     }
@@ -348,7 +340,6 @@ async function initializeAppModules() {
 
   // --- Global Listeners ---
   function setupGlobalListeners() {
-    // Report button opens the report modal
     const reportBtn = $('reportBtn');
     if (reportBtn) {
       reportBtn.addEventListener('click', () => openModal('reportModal'));
@@ -383,23 +374,16 @@ async function initializeAppModules() {
     if (reportModal) {
       $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
 
-      // 1. Employee Database
       $('downloadEmployeeDatabase').addEventListener('click', () => {
         handleExportData();
         closeModal('reportModal');
       });
-
-      // 2. Hold Log
       $('downloadHoldLog').addEventListener('click', () =>
         handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
       );
-
-      // 3. Separation Log
       $('downloadSeparationLog').addEventListener('click', () =>
         handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
       );
-
-      // 4. Transfer Log
       $('downloadTransferLog').addEventListener('click', () =>
         handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
       );
@@ -435,10 +419,8 @@ async function initializeAppModules() {
     const appDiv = $('app'); // Use the imported $ function
     const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
     if (appDiv) {
-      // Don't wipe out the whole page, just the app area
       appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
     } else {
-      // Fallback if #app itself isn't found
       document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
     }
   }
