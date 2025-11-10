@@ -1,26 +1,31 @@
 // js/employeeList.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
-import { apiCall } from './apiClient.js';
+// Removed apiCall import, as main.js now handles fetching
 import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
 import { openFileClosingModal } from './fileClosingModal.js';
 
-let localEmployees = []; // Module-level state for the employee list
-
-// Function to update the internal state
-export function setLocalEmployees(employees) {
-    localEmployees = Array.isArray(employees) ? employees : [];
-}
-
-// === MODIFICATION: Re-designed renderEmployeeList function ===
-function renderEmployeeList(listContainer, employeesToRender) {
+// === MODIFICATION: Re-designed renderEmployeeList function for pagination ===
+// It now takes an 'append' flag.
+export function renderEmployeeList(employeesToRender, append = false) {
+    const listContainer = $('employee-list');
     if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
-    listContainer.innerHTML = ''; // Clear previous content
+    
+    // If not appending, clear the list (for new search or page 1)
+    if (!append) {
+        listContainer.innerHTML = '';
+    }
+
+    // Remove any 'no results' or 'loading' message
+    const noResultsEl = listContainer.querySelector('.no-results');
+    if (noResultsEl) noResultsEl.remove();
 
     if (!employeesToRender || employeesToRender.length === 0) {
-        listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
+        if (!append) { // Only show 'no results' if it's a new search
+             listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
+        }
         return;
     }
 
@@ -40,26 +45,20 @@ function renderEmployeeList(listContainer, employeesToRender) {
 
 
             const card = document.createElement('div');
-            // New card style: themed left border, subtle shadow, and hover animation
             card.className = 'employee-card bg-white rounded-lg shadow-sm border-l-4 border-green-700 flex flex-col transition-all duration-300 hover:shadow-xl hover:scale-[1.02]';
-            card.setAttribute('data-employee-row-id', emp.id);
+            card.setAttribute('data-employee-row-id', emp.id); // Still use row ID for actions
 
             // --- Info Tags (replaces big boxes) ---
             let infoTagsHTML = '';
             
-            // Separation Remarks
             if ((statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.remarks) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800" title="Separation Remarks: ${emp.remarks}">Separation: ${emp.remarks.substring(0, 20)}...</span>`;
             }
-            
-            // Last Transfer
             if (emp.lastTransferDate && emp.lastSubcenter) {
                 let displayDate = emp.lastTransferDate;
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
                 infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-green-50 text-green-700" title="Transferred from ${emp.lastSubcenter} (${emp.lastTransferReason || ''})">Transfer: ${displayDate}</span>`;
             }
-
-            // File Closed
             if (statusText === 'Closed' && emp.fileClosingDate) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
@@ -86,13 +85,11 @@ function renderEmployeeList(listContainer, employeesToRender) {
                         </div>
                     </div>
                     
-                    <!-- Info Tags Area -->
                     <div class="flex flex-wrap">
                         ${infoTagsHTML}
                     </div>
                 </div>
                 
-                <!-- Action Buttons Footer -->
                 <div class="border-t border-gray-100 bg-gray-50 px-5 py-3 flex flex-wrap gap-1.5 justify-end rounded-b-lg"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
@@ -112,6 +109,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     ` : ''}
                 </div>
                 `;
+            // Add the new card to the container
             listContainer.appendChild(card);
         });
     } catch (error) {
@@ -122,65 +120,14 @@ function renderEmployeeList(listContainer, employeesToRender) {
 }
 // === END MODIFICATION ===
 
+// === MODIFICATION: This function is no longer needed, main.js will do this ===
+// export function filterAndRenderEmployees(filters, employees) { ... }
+// === END MODIFICATION ===
 
-export function filterAndRenderEmployees(filters, employees) {
-    const listContainer = $('employee-list');
-    const countDisplay = $('filterCountDisplay');
-    const initialLoadingIndicator = $('initialLoading');
+// === MODIFICATION: This function is no longer needed, frontend doesn't hold the list ===
+// export function setLocalEmployees(employees) { ... }
+// === END MODIFICATION ===
 
-    if (initialLoadingIndicator && initialLoadingIndicator.parentNode === listContainer) {
-        listContainer.removeChild(initialLoadingIndicator);
-    }
-
-    if (!Array.isArray(employees)) {
-        console.error("filterAndRender received non-array:", employees);
-        if(countDisplay) countDisplay.textContent = 'Error loading data.';
-        renderEmployeeList(listContainer, []); return;
-    }
-
-    // Define safe filters, defaulting to arrays for multi-select
-     const safeFilters = {
-         name: filters?.name || '', 
-         status: filters?.status || [],
-         designation: filters?.designation || [], 
-         functionalRole: filters?.functionalRole || [],
-         type: filters?.type || [],
-         project: filters?.project || [],
-         projectOffice: filters?.projectOffice || [],
-         reportProject: filters?.reportProject || [],
-         subCenter: filters?.subCenter || []
-     };
-     const nameFilterLower = safeFilters.name.toLowerCase();
-
-    const filtered = employees.filter(emp => {
-        if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
-        
-        // Determine the single effective status for the employee
-        let effectiveStatus = emp.status || 'Active';
-        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) { 
-            effectiveStatus = 'Salary Held'; 
-        }
-
-        // Check each filter
-        const nameMatch = nameFilterLower === '' || emp.name.toLowerCase().includes(nameFilterLower) || emp.employeeId.toLowerCase().includes(nameFilterLower);
-        const statusMatch = safeFilters.status.length === 0 || safeFilters.status.includes(effectiveStatus);
-        const designationMatch = safeFilters.designation.length === 0 || safeFilters.designation.includes(emp.designation);
-        const functionalRoleMatch = safeFilters.functionalRole.length === 0 || safeFilters.functionalRole.includes(emp.functionalRole);
-        const typeMatch = safeFilters.type.length === 0 || safeFilters.type.includes(emp.employeeType);
-        const projectMatch = safeFilters.project.length === 0 || safeFilters.project.includes(emp.project);
-        const projectOfficeMatch = safeFilters.projectOffice.length === 0 || safeFilters.projectOffice.includes(emp.projectOffice);
-        const reportProjectMatch = safeFilters.reportProject.length === 0 || safeFilters.reportProject.includes(emp.reportProject);
-        const subCenterMatch = safeFilters.subCenter.length === 0 || safeFilters.subCenter.includes(emp.subCenter);
-
-        return nameMatch && statusMatch && designationMatch && functionalRoleMatch && typeMatch && projectMatch && projectOfficeMatch && reportProjectMatch && subCenterMatch;
-    });
-
-    if(countDisplay) {
-        countDisplay.textContent = `Showing ${filtered.length} of ${employees.length} employees.`;
-    }
-
-    renderEmployeeList(listContainer, filtered);
-}
 
 // Helper to populate a <datalist>
 function populateDataList(elementId, values) {
@@ -197,31 +144,34 @@ function populateDataList(elementId, values) {
     }
 }
 
+// === MODIFICATION: This now gets data from the API response ===
+// (It is called from main.js)
+export function populateFilterDropdowns(filterData) {
+    if (!filterData) return;
 
-export function populateFilterDropdowns(employees) {
-    if (!Array.isArray(employees)) employees = [];
-
-    // --- Get unique, sorted lists for MODAL datalists ---
-    const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
-    const functionalRoles = [...new Set(employees.map(e => e?.functionalRole).filter(Boolean))].sort();
-    const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
-    const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
-    const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
-    const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
-    const identificationTypes = [...new Set(employees.map(e => e?.identificationType).filter(Boolean))].sort();
-
-    // --- Populate Modal <datalist> Autocompletes ---
-    populateDataList('designation-list', designations);
-    // Note: We need to add a datalist for functionalRole in index.html for this to work
-    // populateDataList('functionalRole-list', functionalRoles); 
-    populateDataList('project-list', projects);
-    populateDataList('projectOffice-list', offices);
-    populateDataList('reportProject-list', reportProjects);
-    populateDataList('subCenter-list', subCenters);
+    const formatAndPopulate = (key, elementId) => {
+        if (filterData[key]) {
+            populateDataList(elementId, filterData[key]);
+        }
+    };
+    
+    formatAndPopulate('designation', 'designation-list');
+    // We still need to add a <datalist id="functionalRole-list"> in index.html for this to work
+    // formatAndPopulate('functionalRole', 'functionalRole-list');
+    formatAndPopulate('project', 'project-list');
+    formatAndPopulate('projectOffice', 'projectOffice-list');
+    formatAndPopulate('reportProject', 'reportProject-list');
+    formatAndPopulate('subCenter', 'subCenter-list');
+    
+    // This one is not from the server, it's static
+    const identificationTypes = ['NID', 'Passport', 'Birth Certificate']; 
     populateDataList('identificationType-list', identificationTypes);
 }
+// === END MODIFICATION ===
+
 
 // Function to set up the main event listener for the list
+// === MODIFICATION: Now needs getEmployeesFunc to fetch *all* data for modals ===
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
      const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
@@ -232,12 +182,22 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const cardElement = target.closest('.employee-card');
         if (!cardElement || !actionButton) return;
 
-        const localId = cardElement.dataset.employeeRowId;
+        const localId = cardElement.dataset.employeeRowId; // This is the Google Sheet Row ID
         if (!localId) { console.error("data-employee-row-id missing."); return; }
 
-        const currentEmployees = getEmployeesFunc();
-        const employee = currentEmployees.find(emp => String(emp.id) === String(localId));
-        if (!employee) { customAlert("Error", "Could not find employee data. Please refresh."); return; }
+        // === CRITICAL CHANGE ===
+        // We no longer have all employees in a list. We must fetch the *full* data
+        // for this *one* employee to open the modal.
+        // We will re-use the `getEmployeesFunc` which *still holds all data*.
+        // A better long-term fix is a new API action `getEmployeeById(id)`.
+        const allEmployees = getEmployeesFunc();
+        const employee = allEmployees.find(emp => String(emp.id) === String(localId));
+        
+        if (!employee) { 
+            customAlert("Error", "Could not find employee data. The list might be out of date. Please refresh."); 
+            return; 
+        }
+        
         const employeeSheetId = employee.employeeId;
         if (!employeeSheetId) { customAlert("Error", "Employee ID missing."); return; }
 
@@ -245,7 +205,8 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         if (actionButton.classList.contains('view-details-btn')) {
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
         } else if (actionButton.classList.contains('edit-btn')) {
-            if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, currentEmployees);
+            // Pass all employees to check for duplicates
+            if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, allEmployees);
         } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
         } else if (actionButton.classList.contains('terminate-btn')) {
@@ -264,3 +225,4 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         }
     });
 }
+// === END MODIFICATION ===

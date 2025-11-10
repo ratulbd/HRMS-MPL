@@ -3,18 +3,27 @@ import { showLoading, hideLoading } from './utils.js';
 
 const API_URL = '/api/proxy'; // Adjust if your proxy endpoint is different
 
-export async function apiCall(action, method = 'GET', body = null) {
+// === MODIFICATION: apiCall now accepts params for GET requests ===
+export async function apiCall(action, method = 'GET', body = null, params = null) {
     showLoading();
     try {
         const options = {
             method: method,
             headers: { 'Content-Type': 'application/json' },
         };
-        if (body) {
+        
+        let url = `${API_URL}?action=${action}`;
+
+        if (method === 'GET' && params) {
+            // Build query string from params object
+            const query = new URLSearchParams(params).toString();
+            url += `&${query}`;
+        }
+
+        if (method === 'POST' && body) {
             options.body = JSON.stringify(body);
         }
 
-        const url = action.includes('?') ? `${API_URL}?${action}` : `${API_URL}?action=${action}`;
         console.log(`API Call: ${method} ${url}`, body ? JSON.stringify(body).substring(0, 100) + '...' : ''); // Log truncated body
 
         const response = await fetch(url, options);
@@ -60,3 +69,4 @@ export async function apiCall(action, method = 'GET', body = null) {
          hideLoading();
     }
 }
+// === END MODIFICATION ===

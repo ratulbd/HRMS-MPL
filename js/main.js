@@ -1,8 +1,6 @@
 // js/main.js
 
 // --- Authentication Check ---
-// This script runs before any module loads.
-// If not logged in, redirect to login.html.
 const isLoggedIn = sessionStorage.getItem('isLoggedIn');
 if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
     console.log("User not logged in. Redirecting to login page.");
@@ -13,34 +11,31 @@ if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
     
-    // --- Dynamic Imports ---
     const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
-    const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
+    
+    // === MODIFICATION: Removed unused imports, added renderEmployeeList ===
+    const { renderEmployeeList, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
+    // === END MODIFICATION ===
+
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
-    
-    // --- MODIFICATION: Fixed the broken imports ---
-    // We are importing 'fileClosingModal.js' (which you have)
     const { setupFileCloseModal } = await import('./fileClosingModal.js'); 
-    // We are *not* importing 'holdChange.js' or 'fileClose.js' (which you don't have)
-    // --- END MODIFICATION ---
-
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
     const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
     const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
-    // --- Global State ---
-    let mainLocalEmployees = [];
+    // === MODIFICATION: New Pagination & Filter State ===
+    let mainLocalEmployees = []; // Still needed for edit/duplicate checks and modal data
+    
+    // Default filter: Hide "Closed" employees, as requested
     let currentFilters = { 
         name: '', 
-        status: [], 
+        status: ['Active', 'Salary Held', 'Resigned', 'Terminated'], 
         designation: [], 
-        // --- ADDITION: Add new filter ---
         functionalRole: [],
-        // --- END ADDITION ---
         type: [], 
         project: [], 
         projectOffice: [], 
@@ -48,87 +43,135 @@ async function initializeAppModules() {
         subCenter: [] 
     };
     let tomSelects = {};
+    
+    // Pagination state
+    let currentPage = 1;
+    let totalPages = 1;
+    let isLoading = false;
+    let hasMorePages = true;
+    let allFiltersLoaded = false; // Flag to stop reloading dropdowns
+    
+    // === END MODIFICATION ===
 
-    // --- State Accessor ---
+    // State Accessor
     const getMainLocalEmployees = () => mainLocalEmployees;
     
     // --- Helper function to populate Tom Select instances ---
-    function updateTomSelectFilterOptions(employees) {
-        if (!Array.isArray(employees)) employees = [];
+    function updateTomSelectFilterOptions(filterData) {
+        if (!filterData) return;
 
-        // Helper to create {value: 'x', text: 'x'} format
         const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
 
-        // Get unique, sorted lists
-        const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
-        // --- ADDITION: Get Functional Roles ---
-        const functionalRoles = [...new Set(employees.map(e => e?.functionalRole).filter(Boolean))].sort();
-        // --- END ADDITION ---
-        const types = [...new Set(employees.map(e => e?.employeeType).filter(Boolean))].sort();
-        const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
-        const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
-        const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
-        const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
-        
-        // --- MODIFICATION: Added 'Closed' status ---
         const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated', 'Closed']);
-        // --- END MODIFICATION ---
 
-        // Update Tom Select instances
         const updateOptions = (instance, newOptions) => {
             if (instance) {
+                const currentVal = instance.getValue(); // Save current selection
                 instance.clearOptions();
                 instance.addOptions(newOptions);
+                instance.setValue(currentVal, true); // Restore selection silently
             }
         };
 
         updateOptions(tomSelects.status, statusOptions);
-        updateOptions(tomSelects.designation, formatOptions(designations));
-        // --- ADDITION: Update new filter ---
-        updateOptions(tomSelects.functionalRole, formatOptions(functionalRoles));
-        // --- END ADDITION ---
-        updateOptions(tomSelects.type, formatOptions(types));
-        updateOptions(tomSelects.project, formatOptions(projects));
-        updateOptions(tomSelects.projectOffice, formatOptions(offices));
-        updateOptions(tomSelects.reportProject, formatOptions(reportProjects));
-        updateOptions(tomSelects.subCenter, formatOptions(subCenters));
+        updateOptions(tomSelects.designation, formatOptions(filterData.designation));
+        updateOptions(tomSelects.functionalRole, formatOptions(filterData.functionalRole));
+        updateOptions(tomSelects.type, formatOptions(filterData.type));
+        updateOptions(tomSelects.project, formatOptions(filterData.project));
+        updateOptions(tomSelects.projectOffice, formatOptions(filterData.projectOffice));
+        updateOptions(tomSelects.reportProject, formatOptions(filterData.reportProject));
+        updateOptions(tomSelects.subCenter, formatOptions(filterData.subCenter));
     }
 
-    // --- Main Fetch Function ---
-    async function fetchAndRenderEmployees() {
+    // === MODIFICATION: Main Fetch Function rebuilt for Pagination ===
+    async function fetchAndRenderEmployees(isLoadMore = false) {
+        if (isLoading) return;
+        isLoading = true;
+        
+        if (isLoadMore && !hasMorePages) {
+            isLoading = false;
+            return; // No more pages to load
+        }
+
         const countDisplay = $('filterCountDisplay');
+        const listContainer = $('employee-list');
+        const initialLoading = $('initialLoading');
+
+        if (isLoadMore) {
+            currentPage++;
+            if (countDisplay) countDisplay.textContent = 'Loading more employees...';
+        } else {
+            currentPage = 1;
+            hasMorePages = true;
+            if (countDisplay) countDisplay.textContent = 'Loading employees...';
+            if (listContainer) listContainer.innerHTML = ''; // Clear for new search
+            if (initialLoading) initialLoading.classList.remove('hidden');
+        }
+
+        // Prepare API parameters
+        const params = {
+            page: currentPage,
+            limit: 30,
+            ...currentFilters
+        };
+        // Convert array filters to comma-separated strings for the API
+        for (const key in params) {
+            if (Array.isArray(params[key])) {
+                params[key] = params[key].join(',');
+            }
+        }
+        
         try {
-             if (countDisplay) countDisplay.textContent = 'Loading employees...';
-            const employees = await apiCall('getEmployees');
+            // Use new 'params' argument in apiCall
+            const response = await apiCall('getEmployees', 'GET', null, params);
             
-            if (Array.isArray(employees)) {
-                employees.sort((a, b) => {
-                    const dateA = new Date(formatDateForInput(a.joiningDate) || '1970-01-01');
-                    const dateB = new Date(formatDateForInput(b.joiningDate) || '1970-01-01');
-                    return dateB - dateA; 
-                });
+            if (initialLoading) initialLoading.remove();
+
+            if (!response || !response.employees) {
+                throw new Error("Invalid API response format.");
             }
 
-            mainLocalEmployees = employees || [];
-            setLocalEmployees(mainLocalEmployees);
-            populateFilterDropdowns(mainLocalEmployees); // This populates modal datalists
-            updateTomSelectFilterOptions(mainLocalEmployees); // This populates dashboard TomSelects
-            filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+            const { employees, totalPages, totalCount, filters } = response;
 
-            const initialLoading = $('#initialLoading');
-            if(initialLoading) initialLoading.remove();
+            // Render the new batch of employees
+            renderEmployeeList(employees, isLoadMore); // 'true' to append
+
+            // Update pagination state
+            hasMorePages = currentPage < totalPages;
+            
+            // Update filter dropdowns *only on the first load*
+            if (!allFiltersLoaded) {
+                populateFilterDropdowns(filters); // For modals
+                updateTomSelectFilterOptions(filters); // For dashboard
+                allFiltersLoaded = true;
+            }
+
+            if (countDisplay) {
+                countDisplay.textContent = `Showing ${listContainer.children.length} of ${totalCount} employees.`;
+            }
+            
+            // --- Background load of ALL employees for modal/edit logic ---
+            // This is the compromise for not having a getEmployeeById API
+            if (currentPage === 1) {
+                apiCall('getEmployees', 'GET', null, { limit: 5000 }) // Fetch all
+                    .then(fullResponse => {
+                        mainLocalEmployees = fullResponse.employees || [];
+                        console.log(`Background fetch complete: ${mainLocalEmployees.length} employees loaded for modals.`);
+                    });
+            }
 
         } catch (error) {
              customAlert("Error", `Failed to load employee data: ${error.message}`);
              if(countDisplay) countDisplay.textContent = 'Error loading data.';
-             const employeeListElement = $('#employee-list');
-             if(employeeListElement) employeeListElement.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
-              const initialLoading = $('#initialLoading');
-              if(initialLoading) initialLoading.remove();
+             if(listContainer) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+             if (initialLoading) initialLoading.remove();
+        } finally {
+            isLoading = false;
         }
     }
+    // === END MODIFICATION ===
 
-    // --- Setup Filter Listeners ---
+    // === MODIFICATION: Setup Filter Listeners ---
     function setupFilterListeners() {
         const tomSelectConfig = {
             plugins: ['remove_button'],
@@ -136,18 +179,21 @@ async function initializeAppModules() {
 
         const nameInput = $('filterName');
         if (nameInput) {
+            // Use debounce to prevent API call on every keystroke
+            let debounceTimer;
             nameInput.addEventListener('input', (e) => {
-                currentFilters.name = e.target.value;
-                filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    currentFilters.name = e.target.value;
+                    fetchAndRenderEmployees(false); // New search
+                }, 300); // 300ms delay
             });
         }
 
         const filterMap = {
             'filterStatus': 'status',
             'filterDesignation': 'designation',
-            // --- ADDITION: Add new filter ---
             'filterFunctionalRole': 'functionalRole',
-            // --- END ADDITION ---
             'filterType': 'type',
             'filterProject': 'project',
             'filterProjectOffice': 'projectOffice',
@@ -161,80 +207,112 @@ async function initializeAppModules() {
                 tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
                 tomSelects[filterKey].on('change', (values) => {
                     currentFilters[filterKey] = values;
-                    filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                    fetchAndRenderEmployees(false); // New search
                 });
             } else {
                 console.warn(`Filter element with ID '${elementId}' not found.`);
             }
         }
+        
+        // Set default filter values in the UI
+        if(tomSelects.status) {
+            tomSelects.status.setValue(currentFilters.status, true); // Set default silently
+        }
 
         const resetBtn = $('resetFiltersBtn');
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
+                // Reset to default (hiding 'Closed')
                 currentFilters = { 
-                    name: '', status: [], designation: [], 
-                    // --- ADDITION: Reset new filter ---
-                    functionalRole: [], 
-                    // --- END ADDITION ---
-                    type: [], 
+                    name: '', 
+                    status: ['Active', 'Salary Held', 'Resigned', 'Terminated'], 
+                    designation: [], functionalRole: [], type: [], 
                     project: [], projectOffice: [], reportProject: [], subCenter: [] 
                 };
                 if (nameInput) nameInput.value = '';
                 for (const key in tomSelects) {
                     if (tomSelects[key]) {
-                        tomSelects[key].clear();
+                        // Reset to default, not just clear
+                        const defaultVal = (key === 'status') ? currentFilters.status : [];
+                        tomSelects[key].setValue(defaultVal, false); // Set default with event
                     }
                 }
-                filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+                // Manually trigger render after all values are set
+                fetchAndRenderEmployees(false);
             });
         } else {
              console.warn("Reset Filters button (#resetFiltersBtn) not found.");
         }
     }
+    // === END MODIFICATION ===
+    
+    // --- MODIFICATION: Infinite Scroll Listener ---
+    function setupInfiniteScroll() {
+        window.addEventListener('scroll', () => {
+            // Check if near bottom, not loading, and has more pages
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 &&
+                !isLoading &&
+                hasMorePages) {
+                console.log("Loading more employees...");
+                fetchAndRenderEmployees(true); // Load more
+            }
+        });
+    }
+    // --- END MODIFICATION ---
 
     // --- MODIFICATION: This function now only handles the *Employee Database* export ---
-    function handleExportData() {
-         if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
-         
-         // --- MODIFICATION: Added new fields ---
-         const headers = [
-            "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
-            "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
-            "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
-            "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
-            "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
-            "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
-            "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
-            "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason",
-            "File Close Date", "File Close Remarks"
-         ];
-         
-         const headerKeys = [
-            "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
-            "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
-            "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
-            "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
-            "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
-            "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
-            "othersAdjustment", "totalDDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
-            "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
-            "fileCloseDate", "fileCloseRemarks"
-         ];
-         // --- END MODIFICATION ---
-         
-         let csvContent = headers.join(',') + '\n';
-         mainLocalEmployees.forEach(emp => {
-            const row = headerKeys.map(key => {
-                 let value = emp[key] ?? '';
-                 if (key === 'salaryHeld') value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
-                 value = String(value).replace(/"/g, '""');
-                if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
-                return value;
+    async function handleExportData() {
+         // This now has to fetch all data, as mainLocalEmployees might be stale
+         try {
+            const fullData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
+            const employeesToExport = fullData.employees;
+            
+            if (!employeesToExport || employeesToExport.length === 0) { 
+                customAlert("No Data", "No employees to export."); 
+                return; 
+            }
+            
+            const headers = [
+                "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
+                "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
+                "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
+                "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
+                "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
+                "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
+                "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
+                "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason",
+                "File Close Date", "File Close Remarks"
+            ];
+            
+            const headerKeys = [
+                "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
+                "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
+                "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
+                "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
+                "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
+                "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
+                "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+                "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
+                "fileClosingDate", "fileClosingRemarks" // Fixed key names
+            ];
+            
+            let csvContent = headers.join(',') + '\n';
+            employeesToExport.forEach(emp => {
+                const row = headerKeys.map(key => {
+                    let value = emp[key] ?? '';
+                    if (key === 'salaryHeld') value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+                    value = String(value).replace(/"/g, '""');
+                    if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
+                    return value;
+                });
+                csvContent += row.join(',') + '\n';
             });
-            csvContent += row.join(',') + '\n';
-         });
-         if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
+            if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
+         } catch (error) {
+             customAlert("Error", `Failed to export data: ${error.message}`);
+         }
     }
+    // --- END MODIFICATION ---
 
     // --- ADDITION: Helper to convert JSON log data to CSV ---
     function jsonToCsv(jsonData) {
@@ -271,11 +349,8 @@ async function initializeAppModules() {
             customAlert("Error", `Failed to download ${logName}: ${error.message}`);
         }
     }
-    // --- END ADDITION ---
 
-     // --- MODIFICATION: Updated setupGlobalListeners ---
      function setupGlobalListeners() {
-         // This button now opens the new report modal
          const reportBtn = $('reportBtn'); 
          if (reportBtn) {
              reportBtn.addEventListener('click', () => openModal('reportModal'));
@@ -291,70 +366,51 @@ async function initializeAppModules() {
              logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
          } else { console.warn("Logout button (#logoutBtn) not found."); }
      }
-     // --- END MODIFICATION ---
 
     // --- Initialize Application ---
     function initializeApp() {
         console.log("Initializing HRMS App (Modular & Authenticated)...");
         setupFilterListeners();
         setupGlobalListeners();
+        setupInfiniteScroll(); // <-- Setup the new scroll listener
         
-        // --- ADDITION: Setup listeners for the new Report Modal ---
         const reportModal = $('reportModal');
         if (reportModal) {
             $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
-            
-            // 1. Employee Database
             $('downloadEmployeeDatabase').addEventListener('click', () => {
-                handleExportData(); // Re-use the existing function
+                handleExportData(); // Use the new async version
                 closeModal('reportModal');
             });
-            
-            // 2. Hold Log
             $('downloadHoldLog').addEventListener('click', () => {
                 handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv');
             });
-            
-            // 3. Separation Log
             $('downloadSeparationLog').addEventListener('click', () => {
                 handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv');
             });
-            
-            // 4. Transfer Log
             $('downloadTransferLog').addEventListener('click', () => {
                 handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv');
             });
-
-            // --- ADDITION: File Close Log ---
-            $('downloadFileCloseLog').addEventListener('click', () => { // Assuming you add this button to index.html
+            $('downloadFileCloseLog').addEventListener('click', () => {
                 handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.csv');
             });
-            // --- END ADDITION ---
         }
-        // --- END ADDITION ---
         
         // Setup module-specific listeners
+        // Note: We pass the *full* list getter to these functions for modal operations
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
-        
-        // --- MODIFICATION: Setup new modals (and removed old broken ones) ---
         if (typeof setupFileCloseModal === 'function') setupFileCloseModal(fetchAndRenderEmployees);
-        // --- END MODIFICATION ---
-
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
-        
-        // --- MODIFICATION: Pass the new button ID to the setup function ---
         if (typeof setupPastSheetsModal === 'function') {
             setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn'); 
         }
-        
         if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
         if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
         
-        // Initial data load
-        fetchAndRenderEmployees();
+        // Initial data load (Page 1)
+        fetchAndRenderEmployees(false);
     }
 
     // --- Run ---
@@ -362,13 +418,11 @@ async function initializeAppModules() {
         initializeApp();
     } catch (err) {
         console.error("Failed to initialize app:", err);
-        const appDiv = $('app'); // Use the imported $ function
+        const appDiv = $('app');
         const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
         if (appDiv) {
-            // Don't wipe out the whole page, just the app area
             appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
         } else {
-            // Fallback if #app itself isn't found
             document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
         }
     }

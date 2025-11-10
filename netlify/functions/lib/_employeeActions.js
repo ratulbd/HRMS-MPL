@@ -5,15 +5,11 @@ const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
-// --- MODIFICATION: Add File Closing Log constants ---
 const FILE_CLOSING_LOG_SHEET_NAME = 'FileClosing_Log';
 const FILE_CLOSING_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Previous Status', 'File Closing Date', 'File Closing Remarks'];
-// --- END MODIFICATION ---
 
 const REJOIN_LOG_HEADERS = ['Timestamp', 'Previous Employee ID', 'Previous Subcenter', 'Separation Date', 'Separation Reason', 'New Employee ID', 'New Subcenter', 'New Joining Date'];
-// --- MODIFICATION: Add Remarks to Hold Log ---
 const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action', 'Remarks'];
-// --- END MODIFICATION ---
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
 const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
@@ -93,8 +89,31 @@ async function getSubCenters(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER
     return getUniqueFieldValues(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, 'subCenter');
 }
 
-async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers) {
-    console.log("Executing getEmployees");
+// === ### PAGINATION MODIFICATION ### ===
+// The main getEmployees function is now rebuilt for pagination
+async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, queryParams) {
+    console.log("Executing getEmployees with pagination. Query:", queryParams);
+    
+    // Parse query parameters
+    const page = parseInt(queryParams.page || '1', 10);
+    const limit = parseInt(queryParams.limit || '30', 10);
+    const offset = (page - 1) * limit;
+
+    // Parse filters
+    const filters = {};
+    if (queryParams.name) filters.name = queryParams.name.toLowerCase();
+    // Status filter can be a comma-separated list
+    if (queryParams.status) filters.status = queryParams.status.split(',');
+    if (queryParams.designation) filters.designation = queryParams.designation.split(',');
+    if (queryParams.functionalRole) filters.functionalRole = queryParams.functionalRole.split(',');
+    if (queryParams.type) filters.type = queryParams.type.split(',');
+    if (queryParams.project) filters.project = queryParams.project.split(',');
+    if (queryParams.projectOffice) filters.projectOffice = queryParams.projectOffice.split(',');
+    if (queryParams.reportProject) filters.reportProject = queryParams.reportProject.split(',');
+    if (queryParams.subCenter) filters.subCenter = queryParams.subCenter.split(',');
+    
+    console.log("Parsed Filters:", filters);
+
     try {
         const headerResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -103,24 +122,37 @@ async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
         const actualHeaders = headerResponse.data.values ? headerResponse.data.values[0] : [];
         if (actualHeaders.length === 0) {
              console.warn(`No headers found in ${EMPLOYEE_SHEET_NAME}. Returning empty list.`);
-             return { statusCode: 200, body: JSON.stringify([]) };
+             return { statusCode: 200, body: JSON.stringify({ employees: [], totalPages: 0, totalCount: 0, filters: {} }) };
         }
         const normalizedHeaders = actualHeaders.map(h => (h || '').trim().toLowerCase().replace(/\(.*\)/g, '').replace(/'/g, '').replace(/\s+/g, ''));
         const reverseMapping = createReverseHeaderMapping(HEADER_MAPPING);
 
         const lastColumnLetter = helpers.getColumnLetter(actualHeaders.length - 1);
         const range = `${EMPLOYEE_SHEET_NAME}!A2:${lastColumnLetter}`;
-        console.log(`Fetching employee data from range: ${range}`);
+        console.log(`Fetching ALL employee data from range: ${range}`);
+        
+        // This is still the one bottleneck: fetching ALL data
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const dataRows = response.data.values;
 
         if (!dataRows || dataRows.length === 0) {
              console.log(`No data rows found in ${EMPLOYEE_SHEET_NAME}.`);
-             return { statusCode: 200, body: JSON.stringify([]) };
+             return { statusCode: 200, body: JSON.stringify({ employees: [], totalPages: 0, totalCount: 0, filters: {} }) };
         }
-        console.log(`Fetched ${dataRows.length} data rows.`);
+        console.log(`Fetched ${dataRows.length} total data rows.`);
 
-        const employees = dataRows.map((row, index) => {
+        // --- 1. Process all employees and get filter options ---
+        const filterOptions = {
+            designation: new Set(),
+            functionalRole: new Set(),
+            type: new Set(),
+            project: new Set(),
+            projectOffice: new Set(),
+            reportProject: new Set(),
+            subCenter: new Set(),
+        };
+
+        const allEmployees = dataRows.map((row, index) => {
             const emp = { id: index + 2 }; // Row number as ID
             actualHeaders.forEach((header, i) => {
                 const normalizedHeader = normalizedHeaders[i];
@@ -138,17 +170,78 @@ async function getEmployees(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
             });
             emp.status = emp.status || 'Active';
             emp.salaryHeld = (emp.salaryHeld === true);
+
+            // Add to filter sets
+            if(emp.designation) filterOptions.designation.add(emp.designation);
+            if(emp.functionalRole) filterOptions.functionalRole.add(emp.functionalRole);
+            if(emp.employeeType) filterOptions.type.add(emp.employeeType);
+            if(emp.project) filterOptions.project.add(emp.project);
+            if(emp.projectOffice) filterOptions.projectOffice.add(emp.projectOffice);
+            if(emp.reportProject) filterOptions.reportProject.add(emp.reportProject);
+            if(emp.subCenter) filterOptions.subCenter.add(emp.subCenter);
+            
             return emp;
         });
 
-        console.log(`Processed ${employees.length} employees dynamically.`);
-        return { statusCode: 200, body: JSON.stringify(employees) };
+        // --- 2. Filter employees on the backend ---
+        const filteredEmployees = allEmployees.filter(emp => {
+            // Calculate effective status
+            let effectiveStatus = emp.status || 'Active';
+            if (effectiveStatus === 'Active' && emp.salaryHeld) { 
+                effectiveStatus = 'Salary Held'; 
+            }
+
+            // Check filters
+            if (filters.name && !(emp.name.toLowerCase().includes(filters.name) || emp.employeeId.toLowerCase().includes(filters.name))) return false;
+            if (filters.status && !filters.status.includes(effectiveStatus)) return false;
+            if (filters.designation && !filters.designation.includes(emp.designation)) return false;
+            if (filters.functionalRole && !filters.functionalRole.includes(emp.functionalRole)) return false;
+            if (filters.type && !filters.type.includes(emp.employeeType)) return false;
+            if (filters.project && !filters.project.includes(emp.project)) return false;
+            if (filters.projectOffice && !filters.projectOffice.includes(emp.projectOffice)) return false;
+            if (filters.reportProject && !filters.reportProject.includes(emp.reportProject)) return false;
+            if (filters.subCenter && !filters.subCenter.includes(emp.subCenter)) return false;
+            
+            return true;
+        });
+
+        // --- 3. Sort (by joiningDate descending) ---
+        filteredEmployees.sort((a, b) => {
+            // Assuming helpers.formatDateForInput exists and works
+            const dateA = new Date(helpers.formatDateForInput(a.joiningDate) || '1970-01-01');
+            const dateB = new Date(helpers.formatDateForInput(b.joiningDate) || '1970-01-01');
+            return dateB - dateA; 
+        });
+
+        // --- 4. Paginate ---
+        const totalCount = filteredEmployees.length;
+        const totalPages = Math.ceil(totalCount / limit);
+        const paginatedEmployees = filteredEmployees.slice(offset, offset + limit);
+
+        // --- 5. Format filter options to send to frontend ---
+        const formattedFilters = {};
+        for (const key in filterOptions) {
+            formattedFilters[key] = [...filterOptions[key]].sort();
+        }
+
+        console.log(`Processed ${allEmployees.length} employees. Filtered to ${totalCount}. Sending page ${page} with ${paginatedEmployees.length} items.`);
+        
+        const responseBody = {
+            employees: paginatedEmployees,
+            totalPages: totalPages,
+            totalCount: totalCount,
+            filters: formattedFilters,
+        };
+
+        return { statusCode: 200, body: JSON.stringify(responseBody) };
 
     } catch (error) {
         console.error("Error inside getEmployees action:", error.stack || error.message);
         return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error fetching employees.', details: error.message })};
     }
 }
+// === ### END PAGINATION MODIFICATION ### ===
+
 
 async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, employeeData) {
      console.log("Executing saveEmployee...");
@@ -166,16 +259,12 @@ async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
          dataToSave.lastTransferDate = dataToSave.lastTransferDate || '';
          dataToSave.lastSubcenter = dataToSave.lastSubcenter || '';
          dataToSave.lastTransferReason = dataToSave.lastTransferReason || '';
-         // --- MODIFICATION: Add defaults for new file closing columns ---
          dataToSave.fileClosingDate = dataToSave.fileClosingDate || '';
          dataToSave.fileClosingRemarks = dataToSave.fileClosingRemarks || '';
-         // --- END MODIFICATION ---
      }
 
-    // --- MODIFICATION: Remove re-join helper data before saving to sheet ---
     delete dataToSave.isRejoin;
     delete dataToSave.rejoinLogData;
-    // --- END MODIFICATION ---
 
     const newRow = actualHeaders.map((header, index) => {
          const normalizedHeader = normalizedHeaders[index];
@@ -231,13 +320,11 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
         
-        // === FIX: Read from 'holdRemarks' instead of 'remarks' ===
         await helpers.logEvent(
             sheets, SPREADSHEET_ID, HOLD_LOG_SHEET_NAME, HOLD_LOG_HEADERS, 
             [employeeId, currentSalary || 'N/A', actionText, updates.holdRemarks || ''], 
             formattedTimestamp, helpers.ensureSheetAndHeaders
         );
-        // === END FIX ===
         
         const tsHeaderName = HEADER_MAPPING.holdTimestamp; const tsColIndex = headerRow.indexOf(tsHeaderName);
         if (tsColIndex !== -1) {
@@ -251,7 +338,6 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     for (const key in updates) {
         if (!updates.hasOwnProperty(key)) continue;
         const headerName = HEADER_MAPPING[key];
-        // === FIX: We check for 'holdRemarks' here and skip it, as it's not mapped ===
         if (!headerName) { console.warn(`No header mapping for ${key}. Skipping.`); continue; }
         const colIndex = headerRow.indexOf(headerName);
         if (colIndex === -1) { console.warn(`Header '${headerName}' not found. Skipping.`); continue; }
@@ -364,7 +450,6 @@ async function transferEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEA
     }
 }
 
-// --- MODIFICATION: Add logRejoin function ---
 async function logRejoin(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, logData) {
     console.log("Executing logRejoin for:", logData?.newEmployeeId);
     try {
@@ -411,16 +496,10 @@ async function logRejoin(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
         return { statusCode: 500, body: JSON.stringify({ error: 'Failed to log re-join event.', details: error.message }) };
     }
 }
-// --- END MODIFICATION ---
 
-// --- MODIFICATION: Add new generic function to get log data ---
-/**
- * Fetches all data from a specified log sheet and returns it as JSON.
- */
 async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
     console.log(`Executing getLogData for sheet: ${sheetName}`);
     try {
-        // 1. Get actual headers (non-normalized)
         const headerResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!1:1`,
@@ -432,9 +511,8 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
              return { statusCode: 200, body: JSON.stringify([]) };
         }
         
-        // 2. Get all data rows
         const lastColumnLetter = helpers.getColumnLetter(actualHeaders.length - 1);
-        const range = `${sheetName}!A2:${lastColumnLetter}`; // Read from row 2 to end
+        const range = `${sheetName}!A2:${lastColumnLetter}`; 
         console.log(`Fetching log data from range: ${range}`);
         
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
@@ -446,11 +524,10 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
         }
         console.log(`Fetched ${dataRows.length} data rows from ${sheetName}.`);
 
-        // 3. Map rows to objects using the actual headers as keys
         const logData = dataRows.map((row) => {
             const entry = {};
             actualHeaders.forEach((header, i) => {
-                entry[header] = row[i] ?? ''; // Use actual header as key
+                entry[header] = row[i] ?? ''; 
             });
             return entry;
         });
@@ -467,9 +544,7 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
         return { statusCode: 500, body: JSON.stringify({ error: `Internal server error fetching ${sheetName} log.`, details: error.message }) };
     }
 }
-// --- END MODIFICATION ---
 
-// --- MODIFICATION: Add closeFile function ---
 async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
     { employeeId, fileClosingDate, fileClosingRemarks }
 ) {
@@ -485,7 +560,6 @@ async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
         const headerRow = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
         if (headerRow.length === 0) throw new Error("Cannot close file: Employee sheet headers not found.");
 
-        // Find required columns
         const statusColIndex = headerRow.indexOf(HEADER_MAPPING.status);
         const closingDateColIndex = headerRow.indexOf(HEADER_MAPPING.fileClosingDate);
         const closingRemarksColIndex = headerRow.indexOf(HEADER_MAPPING.fileClosingRemarks);
@@ -495,12 +569,10 @@ async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
             throw new Error("Required columns (Status, FileClosingDate, FileClosingRemarks) not found in Employee sheet.");
         }
 
-        // Get current status
         const statusColLetter = helpers.getColumnLetter(statusColIndex);
         const readResponse = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}` });
         const previousStatus = readResponse.data.values?.[0]?.[0] || 'N/A';
 
-        // Log the event
         const formattedTimestamp = helpers.formatDateForSheet(new Date());
         await helpers.logEvent(
             sheets, SPREADSHEET_ID, FILE_CLOSING_LOG_SHEET_NAME, FILE_CLOSING_LOG_HEADERS,
@@ -508,13 +580,9 @@ async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
             formattedTimestamp, helpers.ensureSheetAndHeaders
         );
 
-        // Prepare batch update
         const dataToUpdate = [
-            // 1. Update Status to "Closed"
             { range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`, values: [['Closed']] },
-            // 2. Update File Closing Date
             { range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(closingDateColIndex)}${rowIndex}`, values: [[fileClosingDate]] },
-            // 3. Update File Closing Remarks
             { range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(closingRemarksColIndex)}${rowIndex}`, values: [[fileClosingRemarks]] }
         ];
 
@@ -530,7 +598,6 @@ async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
         return { statusCode: 500, body: JSON.stringify({ error: 'An internal server error occurred during file closing.', details: error.message }) };
     }
 }
-// --- END MODIFICATION ---
 
 
 module.exports = {
@@ -544,7 +611,5 @@ module.exports = {
     transferEmployee,
     logRejoin,
     getLogData,
-    // --- MODIFICATION: Export closeFile ---
     closeFile
-    // --- END MODIFICATION ---
 };
