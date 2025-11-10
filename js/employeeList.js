@@ -68,7 +68,6 @@ export function renderEmployeeList(employeesToRender, append = false) {
             }
 
             // --- === MODIFICATION: New Concise Card HTML with Hover Footer === ---
-            // Note the new 'card-content' wrapper
             card.innerHTML = `
                 <div class="card-content p-5 flex-grow">
                     <div class="flex justify-between items-start mb-3">
@@ -97,7 +96,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                 </div>
                 
                 <!-- Action Buttons Footer (Hidden by default, revealed on hover) -->
-                <div class="card-footer px-4 py-3 flex flex-wrap gap-1.5 justify-end"> 
+                <div class="card-footer flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
                     ${statusText !== 'Closed' ? `
@@ -167,16 +166,40 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
      const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
 
-    // === MODIFICATION: Add MouseMove listener for spotlight effect ===
+    // === MODIFICATION: Add MouseMove listener for 3D Tilt & Spotlight ===
     listContainer.addEventListener('mousemove', (e) => {
         const card = e.target.closest('.employee-card');
         if (card) {
             const rect = card.getBoundingClientRect();
+            
+            // Spotlight effect
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             card.style.setProperty('--mouse-x', `${x}px`);
             card.style.setProperty('--mouse-y', `${y}px`);
+            
+            // 3D Tilt effect
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const mouseX = x - centerX;
+            const mouseY = y - centerY;
+            
+            // Adjust tilt intensity (e.g., max 8 degrees)
+            const rotateX = (mouseY / centerY) * -8; // Invert Y for natural tilt
+            const rotateY = (mouseX / centerX) * 8;
+            
+            card.style.setProperty('--rotate-x', `${rotateX}deg`);
+            card.style.setProperty('--rotate-y', `${rotateY}deg`);
         }
+    });
+    
+    // Reset tilt when mouse leaves the card
+    listContainer.addEventListener('mouseleave', (e) => {
+         const card = e.target.closest('.employee-card');
+         if(card) {
+             card.style.setProperty('--rotate-x', `0deg`);
+             card.style.setProperty('--rotate-y', `0deg`);
+         }
     });
     // === END MODIFICATION ===
 

@@ -10,93 +10,155 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; /* bg-gray-50 */ }
+        /* === === === WILD MODIFICATION V2 === === === */
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Subtle gradient background */
+            background-color: #f4f7f6;
+            background-image: linear-gradient(180deg, #f9fafb 0%, #f0f3f2 100%);
+        }
         .font-poppins { font-family: 'Poppins', sans-serif; }
         
-        /* === === === WILD MODIFICATION === === === */
+        /* --- Page Load Animations --- */
+        @keyframes slideInDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideInUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        #app-header {
+            animation: slideInDown 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+        }
+        #dashboard-header {
+            animation: slideInUp 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) 0.2s both;
+        }
         
+        /* --- Navbar Button Animations ("Glass" + Shine) --- */
+        .btn-nav {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.5); /* Glass */
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            color: #166531; /* green-800 */
+            font-weight: 500;
+        }
+        .btn-nav:hover {
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .btn-nav.btn-primary {
+             background: #15803d; color: white;
+             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+         .btn-nav.btn-primary:hover {
+             background: #166531;
+         }
+        /* Shine Effect */
+        .btn-nav::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 75%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transform: skewX(-30deg);
+            transition: left 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .btn-nav:hover::before {
+            left: 150%;
+        }
+
+        /* --- Holographic 3D Card --- */
         #employee-list {
-            perspective: 1200px; /* Enable 3D perspective for cards */
+            perspective: 1500px;
         }
 
         .employee-card {
             position: relative;
             transform-style: preserve-3d;
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            
-            /* --- Glassmorphism --- */
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             background-color: rgba(255, 255, 255, 0.65);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 0.75rem; /* 12px */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            overflow: hidden; /* Important for the footer and border */
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+            overflow: hidden;
+            transform: rotateX(var(--rotate-x, 0)) rotateY(var(--rotate-y, 0));
         }
 
-        /* --- Interactive Mouse-Follow Spotlight --- */
+        /* Holographic Shine */
         .employee-card::before {
             content: '';
             position: absolute;
             left: 0; top: 0; right: 0; bottom: 0;
             border-radius: 0.75rem;
-            /* Positioned at the mouse coords (set by JS) */
             background: radial-gradient(
-                300px circle at var(--mouse-x) var(--mouse-y),
-                rgba(168, 216, 0, 0.2), /* Lime green accent */
-                transparent 80%
+                400px circle at var(--mouse-x) var(--mouse-y),
+                rgba(168, 216, 0, 0.35), /* Lime green accent */
+                transparent 70%
             );
             opacity: 0;
             transition: opacity 0.3s ease-out;
             z-index: 1;
         }
-        
-        /* --- Animated Gradient Border on Hover --- */
+
+        /* Animated Gradient Border */
         .employee-card::after {
             content: '';
             position: absolute;
             left: -50%; top: -50%;
-            width: 200%;
-            height: 200%;
+            width: 200%; height: 200%;
             border-radius: 0.75rem;
             background: conic-gradient(
-                from 0deg,
-                #15803d, /* Dark Green */
-                #a8d800, /* Lime Green */
-                #15803d,
-                rgba(255, 255, 255, 0.5),
-                #15803d
+                from var(--angle),
+                #15803d, #a8d800, #15803d, rgba(255, 255, 255, 0.5), #15803d
             );
             opacity: 0;
             transition: opacity 0.4s ease-out;
-            animation: rotateGradient 6s linear infinite;
-            z-index: -1;
+            animation: rotateGradient 8s linear infinite;
+            z-index: 0;
         }
 
         @keyframes rotateGradient {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+
+        /* Card Parallax Content (Floats in 3D) */
+        .card-content {
+            position: relative;
+            z-index: 3;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
         .employee-card:hover {
-            transform: scale(1.03) translateY(-8px) rotateX(2deg) rotateY(2deg);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            transform: scale(1.04) rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
         }
-        .employee-card:hover::before {
-            opacity: 1; /* Show spotlight */
-        }
-        .employee-card:hover::after {
-            opacity: 0.5; /* Show animated border */
+        .employee-card:hover::before { opacity: 1; }
+        .employee-card:hover::after { opacity: 0.6; }
+        .employee-card:hover .card-content {
+            transform: translateZ(30px); /* 3D float */
         }
 
-        /* Staggered load animation */
+        /* Card Waterfall Animation */
         @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(40px) rotateX(-15deg) scale(0.95); }
+            from { opacity: 0; transform: translateY(30px) rotateX(-20deg) scale(0.9); }
             to { opacity: 1; transform: none; }
         }
         .employee-card {
-            animation: cardFadeIn 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) both;
-            animation-delay: calc(var(--card-index) * 40ms); /* Slower, more graceful stagger */
+            animation: cardFadeIn 0.5s ease-out both;
+            animation-delay: calc(var(--card-index) * 50ms);
         }
 
         /* Hover-to-reveal footer (Slide up) */
@@ -107,21 +169,33 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border-top: 1px solid rgba(255, 255, 255, 0.3);
-            
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             transform: translateY(100%);
             z-index: 2;
+            padding: 0.75rem 1.25rem; /* 12px 20px */
         }
         .employee-card:hover .card-footer {
             transform: translateY(0%);
         }
         
-        /* Ensure card content is above the pseudo-elements */
-        .card-content {
-            position: relative;
-            z-index: 2;
+        /* Staggered Button Reveal */
+        .card-footer .btn-pill {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-
+        .employee-card:hover .card-footer .btn-pill {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Stagger the button animation */
+        .employee-card:hover .btn-pill:nth-child(1) { transition-delay: 0.1s; }
+        .employee-card:hover .btn-pill:nth-child(2) { transition-delay: 0.15s; }
+        .employee-card:hover .btn-pill:nth-child(3) { transition-delay: 0.2s; }
+        .employee-card:hover .btn-pill:nth-child(4) { transition-delay: 0.25s; }
+        .employee-card:hover .btn-pill:nth-child(5) { transition-delay: 0.3s; }
+        .employee-card:hover .btn-pill:nth-child(6) { transition-delay: 0.35s; }
+        
         /* === === === END WILD MODIFICATION === === === */
         
         .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out; }
@@ -175,7 +249,8 @@
 
     <div id="loadingOverlay" class="loading-overlay hidden"><div class="spinner"></div></div>
 
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-40 w-full">
+    <!-- === MODIFICATION: Navbar is now sticky and animated === -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-40 w-full" id="app-header">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
@@ -183,19 +258,22 @@
                     <span class="font-poppins text-xl font-bold text-green-800 ml-3 hidden sm:inline">HR Management System</span>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <button id="addEmployeeBtn" class="btn btn-primary">Add New Employee</button>
-                    <button id="bulkUploadBtn" class="btn btn-primary">Bulk Upload</button>
-                    <button id="uploadAttendanceBtn" class="btn btn-primary">Generate Salary Sheet</button>
-                    <button id="pastSalarySheetsBtn" class="btn btn-primary">Past Salary Sheets</button>
-                    <button id="reportBtn" class="btn btn-primary">Report</button>
-                    <button id="logoutBtn" class="btn btn-logout">Logout</button>
+                    <!-- Updated buttons to "glass" style -->
+                    <button id="addEmployeeBtn" class="btn btn-nav btn-primary"><i class="fas fa-plus mr-2"></i>Add New</button>
+                    <button id="bulkUploadBtn" class="btn btn-nav"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
+                    <button id="uploadAttendanceBtn" class="btn btn-nav"><i class="fas fa-calculator mr-2"></i>Generate Salary</button>
+                    <button id="pastSalarySheetsBtn" class="btn btn-nav"><i class="fas fa-history mr-2"></i>Past Sheets</button>
+                    <button id="reportBtn" class="btn btn-nav"><i class="fas fa-chart-bar mr-2"></i>Report</button>
+                    <button id="logoutBtn" class="btn btn-logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</button>
                 </div>
             </div>
         </div>
     </nav>
+    <!-- === END MODIFICATION === -->
 
     <div id="app" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-6 sm:pt-8 lg:pt-10">
-        <header class="mb-6">
+        <!-- MODIFICATION: Added ID for animation -->
+        <header class="mb-6" id="dashboard-header">
             <h1 class="font-poppins font-bold text-3xl text-gray-800">Employee Dashboard</h1>
             <p class="text-gray-600 mt-1">View and manage your employee data.</p>
         </header>
@@ -383,7 +461,6 @@
              </form>
          </div>
     </div>
-
     <div id="bulkUploadModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal"> <h2 class="font-poppins text-2xl font-semibold mb-2">Bulk Upload Employees</h2> <p class="text-gray-500 mb-6 text-sm">
     Upload a CSV file with employee data. Ensure the following columns have valid data for every row:
     <br>
@@ -391,7 +468,6 @@
     <br>
     Download the template for all headers.
 </p> <form id="bulkUploadForm"> <div class="space-y-4"> <div> <label for="employeeFile" class="block text-sm font-medium text-gray-700">Employee Data File (.csv)</label> <p class="text-xs text-gray-500 mb-2">Download the template to see all required and optional headers.</p> <input type="file" id="employeeFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100"> </div> </div> <div class="mt-8 flex justify-between items-center gap-4"> <button type="button" id="downloadTemplateBtn" class="text-sm font-medium text-green-700 hover:text-green-800">Download Template</button> <div class="flex gap-4"> <button type="button" id="cancelBulkUploadModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="bulkUploadForm" class="btn btn-primary">Upload & Save</button> </div> </div> </form> </div> </div>
-
     <div id="statusChangeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
         <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
             <h2 id="statusChangeTitle" class="font-poppins text-2xl font-semibold mb-6">Update Employee Status</h2>
