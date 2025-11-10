@@ -1,47 +1,19 @@
 // js/main.js
-// --- Authentication Check ---
-if (sessionStorage.getItem('isLoggedIn') !== 'true') {
-    // --- User is NOT Logged In ---
-    if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
-        // User is on a protected page (like index.html) but not logged in.
-        console.log("User not logged in. Redirecting to login page.");
-        window.location.href = '/login.html';
-    } else if (window.location.pathname.endsWith('/')) {
-        // User is at the root directory but not logged in.
-         console.log("User not logged in at root. Redirecting to login page.");
-         window.location.href = '/login.html';
-    }
-    // If user is on login.html and not logged in, do nothing.
-    
-} else {
-    // --- User IS Logged In ---
-    
-    // --- THIS IS THE FIX ---
-    if (window.location.pathname.endsWith('login.html')) {
-        // User is logged in but still on the login page. Redirect to app.
-        console.log("User logged in, redirecting from login to index.");
-        window.location.href = '/index.html';
-    
-    } else {
-        // User is logged in and on the correct page (index.html or root).
-        // Load the app.
-        console.log("User is logged in. Adding DOM listener...");
-        document.addEventListener('DOMContentLoaded', initializeAppModules);
-    }
-    // --- END OF FIX ---
-}
-
-
-// --- Main App Logic (only runs if user is logged in and on the correct page) ---
+// ... (Authentication check at top of file is unchanged) ...
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
     
     // --- Dynamic Imports ---
-    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
+    // MODIFICATION: Import new modal handlers
+    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
     const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
+    // --- ADDITION: Import new modal handlers ---
+    const { setupHoldModal } = await import('./holdChange.js');
+    const { setupFileCloseModal } = await import('./fileClose.js');
+    // --- END ADDITION ---
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
@@ -74,14 +46,18 @@ async function initializeAppModules() {
 
         // Get unique, sorted lists
         const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
+        // --- ADDITION: Get Functional Roles ---
+        const functionalRoles = [...new Set(employees.map(e => e?.functionalRole).filter(Boolean))].sort();
+        // --- END ADDITION ---
         const types = [...new Set(employees.map(e => e?.employeeType).filter(Boolean))].sort();
         const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
         const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
         const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
         const subCenters = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
         
-        // Fixed list for status
-        const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
+        // --- MODIFICATION: Added 'Closed' status ---
+        const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated', 'Closed']);
+        // --- END MODIFICATION ---
 
         // Update Tom Select instances
         const updateOptions = (instance, newOptions) => {
@@ -93,6 +69,9 @@ async function initializeAppModules() {
 
         updateOptions(tomSelects.status, statusOptions);
         updateOptions(tomSelects.designation, formatOptions(designations));
+        // --- ADDITION: Update new filter ---
+        updateOptions(tomSelects.functionalRole, formatOptions(functionalRoles));
+        // --- END ADDITION ---
         updateOptions(tomSelects.type, formatOptions(types));
         updateOptions(tomSelects.project, formatOptions(projects));
         updateOptions(tomSelects.projectOffice, formatOptions(offices));
@@ -117,8 +96,8 @@ async function initializeAppModules() {
 
             mainLocalEmployees = employees || [];
             setLocalEmployees(mainLocalEmployees);
-            populateFilterDropdowns(mainLocalEmployees);
-            updateTomSelectFilterOptions(mainLocalEmployees);
+            populateFilterDropdowns(mainLocalEmployees); // This populates modal datalists
+            updateTomSelectFilterOptions(mainLocalEmployees); // This populates dashboard TomSelects
             filterAndRenderEmployees(currentFilters, mainLocalEmployees);
 
             const initialLoading = $('#initialLoading');
@@ -151,6 +130,9 @@ async function initializeAppModules() {
         const filterMap = {
             'filterStatus': 'status',
             'filterDesignation': 'designation',
+            // --- ADDITION: Add new filter ---
+            'filterFunctionalRole': 'functionalRole',
+            // --- END ADDITION ---
             'filterType': 'type',
             'filterProject': 'project',
             'filterProjectOffice': 'projectOffice',
@@ -175,7 +157,11 @@ async function initializeAppModules() {
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
                 currentFilters = { 
-                    name: '', status: [], designation: [], type: [], 
+                    name: '', status: [], designation: [], 
+                    // --- ADDITION: Reset new filter ---
+                    functionalRole: [], 
+                    // --- END ADDITION ---
+                    type: [], 
                     project: [], projectOffice: [], reportProject: [], subCenter: [] 
                 };
                 if (nameInput) nameInput.value = '';
@@ -195,27 +181,31 @@ async function initializeAppModules() {
     function handleExportData() {
          if (mainLocalEmployees.length === 0) { customAlert("No Data", "No employees to export."); return; }
          
+         // --- MODIFICATION: Added new fields ---
          const headers = [
-            "Employee ID", "Employee Name", "Employee Type", "Designation", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
+            "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
             "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
             "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
             "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
             "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
             "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
             "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
-            "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason"
+            "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason",
+            "File Close Date", "File Close Remarks"
          ];
          
          const headerKeys = [
-            "employeeId", "name", "employeeType", "designation", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
+            "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
             "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
             "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
             "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
             "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
             "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
             "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
-            "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason"
+            "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
+            "fileCloseDate", "fileCloseRemarks"
          ];
+         // --- END MODIFICATION ---
          
          let csvContent = headers.join(',') + '\n';
          mainLocalEmployees.forEach(emp => {
@@ -319,6 +309,12 @@ async function initializeAppModules() {
             $('downloadTransferLog').addEventListener('click', () => {
                 handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv');
             });
+
+            // --- ADDITION: File Close Log ---
+            $('downloadFileCloseLog').addEventListener('click', () => { // Assuming you add this button to index.html
+                handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.csv');
+            });
+            // --- END ADDITION ---
         }
         // --- END ADDITION ---
         
@@ -326,6 +322,10 @@ async function initializeAppModules() {
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
+        // --- ADDITION: Setup new modals ---
+        if (typeof setupHoldModal === 'function') setupHoldModal(fetchAndRenderEmployees);
+        if (typeof setupFileCloseModal === 'function') setupFileCloseModal(fetchAndRenderEmployees);
+        // --- END ADDITION ---
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
         

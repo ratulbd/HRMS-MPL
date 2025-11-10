@@ -26,13 +26,19 @@ const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
-// --- ADDITION: Add Rejoin Log constant from your _employeeActions.js ---
 const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
+// --- MODIFICATION: Add File Closing Log constant ---
+const FILE_CLOSING_LOG_SHEET_NAME = 'FileClosing_Log';
+// --- END MODIFICATION ---
 
 const HEADER_MAPPING = {
     // Basic Info
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
-    designation: 'designation', joiningDate: 'joiningdate',
+    designation: 'designation', 
+    // --- MODIFICATION: Add functionalRole ---
+    functionalRole: 'functionalrole',
+    // --- END MODIFICATION ---
+    joiningDate: 'joiningdate',
     workExperience: 'workexperienceyears', 
     education: 'education',
     // Project Info
@@ -82,7 +88,11 @@ const HEADER_MAPPING = {
     status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
     separationDate: 'separationdate', remarks: 'remarks',
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
-    lastTransferReason: 'lasttransferreason'
+    lastTransferReason: 'lasttransferreason',
+    // --- MODIFICATION: Add file closing fields ---
+    fileClosingDate: 'fileclosingdate',
+    fileClosingRemarks: 'fileclosingremarks'
+    // --- END MODIFICATION ---
 };
 
 
@@ -143,8 +153,9 @@ exports.handler = async (event) => {
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
                 HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
                 SALARY_ARCHIVE_SHEET_NAME,
-                // --- ADDITION: Add Rejoin log to context ---
-                REJOIN_LOG_SHEET_NAME 
+                REJOIN_LOG_SHEET_NAME, 
+                // --- MODIFICATION: Add File Closing log to context ---
+                FILE_CLOSING_LOG_SHEET_NAME
             };
 
             switch (action) {
@@ -186,6 +197,13 @@ exports.handler = async (event) => {
                      // --- MODIFICATION: Pass full context ---
                      else result = await employeeActions.logRejoin(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
+
+                // --- MODIFICATION: Add closeFile action ---
+                case 'closeFile':
+                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                     else result = await employeeActions.closeFile(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
+                     break;
+                // --- END MODIFICATION ---
 
                 // --- MODIFICATION: Add Report Log Endpoints ---
                 case 'getHoldLog':

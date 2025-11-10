@@ -8,7 +8,11 @@ let currentlyEditingEmployeeFullData = null;
 
 // List of MANDATORY field IDs for ADD mode
 const mandatoryFields = [
-    'employeeId', 'name', 'employeeType', 'designation', 'joiningDate',
+    'employeeId', 'name', 'employeeType', 'designation', 
+    // --- MODIFICATION: Add functionalRole ---
+    'functionalRole', 
+    // --- END MODIFICATION ---
+    'joiningDate',
     'project', 'projectOffice', 'reportProject', 'subCenter',
     'personalMobile', 'dob', 'address', 'identification',
     'salary' // Gross Salary
@@ -17,7 +21,11 @@ const mandatoryFields = [
 // List of ALL field IDs present in the employeeForm HTML
 const allFormFields = [
     // Basic
-    'employeeId', 'name', 'employeeType', 'designation', 'joiningDate', 'workExperience', 'education',
+    'employeeId', 'name', 'employeeType', 'designation', 
+    // --- MODIFICATION: Add functionalRole ---
+    'functionalRole', 
+    // --- END MODIFICATION ---
+    'joiningDate', 'workExperience', 'education',
     // Project
     'project', 'projectOffice', 'reportProject', 'subCenter',
     // Personal
@@ -125,7 +133,9 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
 
         const empIdInput = $('employeeId');
         if (empIdInput) { empIdInput.removeAttribute('readonly'); empIdInput.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
-        $('employeeType').value = 'Permanent';
+        // --- MODIFICATION: Default to "Regular" ---
+        $('employeeType').value = 'Regular';
+        // --- END MODIFICATION ---
     }
     
     calculateSalaryTotals();

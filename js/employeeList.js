@@ -5,6 +5,9 @@ import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
+// --- MODIFICATION: Import new modal function ---
+import { openFileClosingModal } from './fileClosingModal.js';
+// --- END MODIFICATION ---
 
 let localEmployees = []; // Module-level state for the employee list
 
@@ -30,10 +33,15 @@ function renderEmployeeList(listContainer, employeesToRender) {
             let statusText = emp.status || 'Active';
             let statusClass = 'status-active';
             const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
+            
             if (statusText === 'Active' && isHeld) { statusText = 'Salary Held'; statusClass = 'status-held'; }
             else if (statusText === 'Resigned') { statusClass = 'status-resigned'; }
             else if (statusText === 'Terminated') { statusClass = 'status-terminated'; }
+            // --- MODIFICATION: Add 'Closed' status ---
+            else if (statusText === 'Closed') { statusClass = 'status-closed'; }
+            // --- END MODIFICATION ---
             else if (statusText !== 'Active') { statusText = 'Terminated'; statusClass = 'status-terminated'; }
+
 
             const card = document.createElement('div');
             card.className = 'employee-card bg-white rounded-lg shadow-md p-6 flex flex-col transition hover:shadow-lg';
@@ -45,6 +53,13 @@ function renderEmployeeList(listContainer, employeesToRender) {
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
                 lastTransferHTML = `<div class="mt-2 text-xs text-purple-700 bg-purple-50 p-2 rounded-md"><strong>Last Transfer:</strong> ${displayDate} from ${emp.lastSubcenter} ${emp.lastTransferReason ? `(${emp.lastTransferReason.substring(0, 30)}${emp.lastTransferReason.length > 30 ? '...' : ''})` : ''}</div>`;
             }
+            
+            // --- MODIFICATION: Added File Closing info display ---
+            let fileClosingHTML = '';
+            if (statusText === 'Closed' && emp.fileClosingDate) {
+                fileClosingHTML = `<div class="mt-2 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>File Closed:</strong> ${formatDateForDisplay(emp.fileClosingDate)}<br><strong>Remarks:</strong> ${emp.fileClosingRemarks || 'N/A'}</div>`;
+            }
+            // --- END MODIFICATION ---
 
             card.innerHTML = `
                 <div class="flex-grow">
@@ -52,14 +67,16 @@ function renderEmployeeList(listContainer, employeesToRender) {
                          <h3 class="text-xl font-bold text-gray-900">${emp.name || 'N/A'}</h3>
                          <div class="text-right flex-shrink-0 ml-4"> <span class="status-badge ${statusClass}">${statusText}</span> ${isHeld && emp.holdTimestamp ? `<p class="text-xs font-medium text-orange-600 pt-1">${emp.holdTimestamp}</p>` : ''} </div>
                     </div>
-                    <p class="text-gray-600">${emp.designation || 'N/A'}</p> <p class="text-sm text-gray-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
+                    <p class="text-gray-600">${emp.designation || 'N/A'}</p>
+                    <p class="text-gray-500">${emp.functionalRole || 'N/A'}</p>
+                    <p class="text-sm text-gray-500 mb-4">ID: ${emp.employeeId || 'N/A'}</p>
                     <div class="text-sm space-y-1">
                         <p><strong>Type:</strong> ${emp.employeeType || 'N/A'}</p>
                         <p><strong>Project:</strong> ${emp.project || 'N/A'}</p>
                         <p><strong>Sub Center:</strong> ${emp.subCenter || 'N/A'}</p>
                         <p><strong>Net Salary:</strong> ৳${Number(emp.netSalaryPayment || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         <p><strong>Joined:</strong> ${formatDateForDisplay(emp.joiningDate)}</p>
-                        ${statusText !== 'Active' && statusText !== 'Salary Held' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
+                        ${statusText !== 'Active' && statusText !== 'Salary Held' && statusText !== 'Closed' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
                     </div>
                     
                     ${(statusText === 'Resigned' || statusText === 'Terminated') && emp.remarks ? 
@@ -68,9 +85,26 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     ${(statusText === 'Active' || statusText === 'Salary Held') && emp.remarks ? 
                         `<div class="mt-3 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     ${lastTransferHTML}
+                    ${fileClosingHTML} </div>
+                <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end"> 
+                    <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button> 
+                    
+                    ${statusText !== 'Closed' ? `
+                        <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button> 
+                    ` : ''}
+
+                    ${statusText === 'Active' || statusText === 'Salary Held' ? ` 
+                        <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> 
+                        <button class="transfer-btn text-sm font-medium text-purple-600 hover:text-purple-800" data-id="${emp.id}">Transfer</button> 
+                        <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button> 
+                        <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button> 
+                    ` : ''} 
+
+                    ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
+                        <button class="close-file-btn text-sm font-medium text-blue-600 hover:text-blue-800" data-id="${emp.id}">Close File</button>
+                    ` : ''}
                 </div>
-                <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end"> <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button> <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button> ${statusText === 'Active' || statusText === 'Salary Held' ? ` <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> <button class="transfer-btn text-sm font-medium text-purple-600 hover:text-purple-800" data-id="${emp.id}">Transfer</button> <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button> <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button> ` : ''} </div>
-            `;
+                `;
             listContainer.appendChild(card);
         });
     } catch (error) {
@@ -188,7 +222,9 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target;
-        const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn');
+        // --- MODIFICATION: Added .close-file-btn ---
+        const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn, .close-file-btn');
+        // --- END MODIFICATION ---
         const cardElement = target.closest('.employee-card');
         if (!cardElement || !actionButton) return;
 
@@ -211,13 +247,20 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         } else if (actionButton.classList.contains('terminate-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
         } else if (actionButton.classList.contains('toggle-hold-btn')) {
+            // --- MODIFICATION: Use statusChangeModal for Hold/Unhold ---
             const isCurrentlyHeld = actionButton.dataset.held === 'true';
-            try {
-                await apiCall('updateStatus', 'POST', { employeeId: employeeSheetId, salaryHeld: !isCurrentlyHeld });
-                if (typeof fetchEmployeesFunc === 'function') fetchEmployeesFunc();
-            } catch (error) { customAlert("Error", `Failed to update salary status: ${error.message}`); }
+            if (typeof openStatusChangeModal === 'function') {
+                openStatusChangeModal(employee, isCurrentlyHeld ? 'Unhold' : 'Hold');
+            }
+            // --- END MODIFICATION ---
         } else if (actionButton.classList.contains('transfer-btn')) {
             if (typeof openTransferModal === 'function') openTransferModal(employee);
+        } else if (actionButton.classList.contains('close-file-btn')) {
+            // --- MODIFICATION: Handle Close File button ---
+            if (typeof openFileClosingModal === 'function') {
+                openFileClosingModal(employee);
+            }
+            // --- END MODIFICATION ---
         }
     });
 }

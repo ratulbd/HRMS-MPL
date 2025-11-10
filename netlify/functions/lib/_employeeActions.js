@@ -4,11 +4,16 @@
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
-// --- MODIFICATION: Add Rejoin Log constants ---
 const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
-const REJOIN_LOG_HEADERS = ['Timestamp', 'Previous Employee ID', 'Previous Subcenter', 'Separation Date', 'Separation Reason', 'New Employee ID', 'New Subcenter', 'New Joining Date'];
+// --- MODIFICATION: Add File Closing Log constants ---
+const FILE_CLOSING_LOG_SHEET_NAME = 'FileClosing_Log';
+const FILE_CLOSING_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Previous Status', 'File Closing Date', 'File Closing Remarks'];
 // --- END MODIFICATION ---
-const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action'];
+
+const REJOIN_LOG_HEADERS = ['Timestamp', 'Previous Employee ID', 'Previous Subcenter', 'Separation Date', 'Separation Reason', 'New Employee ID', 'New Subcenter', 'New Joining Date'];
+// --- MODIFICATION: Add Remarks to Hold Log ---
+const HOLD_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Action', 'Remarks'];
+// --- END MODIFICATION ---
 const SEPARATION_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Gross Salary', 'Separation Date', 'Status', 'Remarks'];
 const TRANSFER_LOG_HEADERS = ['Timestamp', 'Employee ID', 'Employee Name', 'Old Sub Center', 'New Sub Center', 'Reason', 'Transfer Date'];
 
@@ -161,6 +166,10 @@ async function saveEmployee(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
          dataToSave.lastTransferDate = dataToSave.lastTransferDate || '';
          dataToSave.lastSubcenter = dataToSave.lastSubcenter || '';
          dataToSave.lastTransferReason = dataToSave.lastTransferReason || '';
+         // --- MODIFICATION: Add defaults for new file closing columns ---
+         dataToSave.fileClosingDate = dataToSave.fileClosingDate || '';
+         dataToSave.fileClosingRemarks = dataToSave.fileClosingRemarks || '';
+         // --- END MODIFICATION ---
      }
 
     // --- MODIFICATION: Remove re-join helper data before saving to sheet ---
@@ -221,7 +230,13 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     if (updates.hasOwnProperty('salaryHeld')) {
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
-        await helpers.logEvent(sheets, SPREADSHEET_ID, HOLD_LOG_SHEET_NAME, HOLD_LOG_HEADERS, [employeeId, currentSalary || 'N/A', actionText], formattedTimestamp, helpers.ensureSheetAndHeaders);
+        // --- MODIFICATION: Pass remarks to logEvent ---
+        await helpers.logEvent(
+            sheets, SPREADSHEET_ID, HOLD_LOG_SHEET_NAME, HOLD_LOG_HEADERS, 
+            [employeeId, currentSalary || 'N/A', actionText, updates.remarks || ''], 
+            formattedTimestamp, helpers.ensureSheetAndHeaders
+        );
+        // --- END MODIFICATION ---
         const tsHeaderName = HEADER_MAPPING.holdTimestamp; const tsColIndex = headerRow.indexOf(tsHeaderName);
         if (tsColIndex !== -1) {
             dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(tsColIndex)}${rowIndex}`, values: [[isHolding ? formattedTimestamp : '']] });
@@ -451,6 +466,69 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
 }
 // --- END MODIFICATION ---
 
+// --- MODIFICATION: Add closeFile function ---
+async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
+    { employeeId, fileClosingDate, fileClosingRemarks }
+) {
+    console.log(`Executing closeFile for ${employeeId}`);
+    if (!employeeId || !fileClosingDate || !fileClosingRemarks) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields for file closing.' }) };
+    }
+
+    try {
+        const rowIndex = await helpers.findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers.getSheetHeaders, employeeId);
+        if (rowIndex === -1) return { statusCode: 404, body: JSON.stringify({ error: `Employee ${employeeId} not found` }) };
+
+        const headerRow = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
+        if (headerRow.length === 0) throw new Error("Cannot close file: Employee sheet headers not found.");
+
+        // Find required columns
+        const statusColIndex = headerRow.indexOf(HEADER_MAPPING.status);
+        const closingDateColIndex = headerRow.indexOf(HEADER_MAPPING.fileClosingDate);
+        const closingRemarksColIndex = headerRow.indexOf(HEADER_MAPPING.fileClosingRemarks);
+
+        if (statusColIndex === -1 || closingDateColIndex === -1 || closingRemarksColIndex === -1) {
+            console.error("Missing columns for file closing:", { statusColIndex, closingDateColIndex, closingRemarksColIndex });
+            throw new Error("Required columns (Status, FileClosingDate, FileClosingRemarks) not found in Employee sheet.");
+        }
+
+        // Get current status
+        const statusColLetter = helpers.getColumnLetter(statusColIndex);
+        const readResponse = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}` });
+        const previousStatus = readResponse.data.values?.[0]?.[0] || 'N/A';
+
+        // Log the event
+        const formattedTimestamp = helpers.formatDateForSheet(new Date());
+        await helpers.logEvent(
+            sheets, SPREADSHEET_ID, FILE_CLOSING_LOG_SHEET_NAME, FILE_CLOSING_LOG_HEADERS,
+            [employeeId, previousStatus, fileClosingDate, fileClosingRemarks],
+            formattedTimestamp, helpers.ensureSheetAndHeaders
+        );
+
+        // Prepare batch update
+        const dataToUpdate = [
+            // 1. Update Status to "Closed"
+            { range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`, values: [['Closed']] },
+            // 2. Update File Closing Date
+            { range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(closingDateColIndex)}${rowIndex}`, values: [[fileClosingDate]] },
+            // 3. Update File Closing Remarks
+            { range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(closingRemarksColIndex)}${rowIndex}`, values: [[fileClosingRemarks]] }
+        ];
+
+        await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: { valueInputOption: 'USER_ENTERED', data: dataToUpdate }
+        });
+
+        return { statusCode: 200, body: JSON.stringify({ message: 'Employee file closed successfully.' }) };
+
+    } catch (error) {
+        console.error(`Error closing file for employee ${employeeId}:`, error.stack || error.message);
+        return { statusCode: 500, body: JSON.stringify({ error: 'An internal server error occurred during file closing.', details: error.message }) };
+    }
+}
+// --- END MODIFICATION ---
+
 
 module.exports = {
     getEmployees,
@@ -461,9 +539,9 @@ module.exports = {
     getProjectOffices,
     getReportProjects,
     transferEmployee,
-    // --- MODIFICATION: Export logRejoin ---
     logRejoin,
-    // --- MODIFICATION: Export new function ---
-    getLogData
+    getLogData,
+    // --- MODIFICATION: Export closeFile ---
+    closeFile
     // --- END MODIFICATION ---
 };

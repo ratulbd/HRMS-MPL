@@ -17,6 +17,9 @@
         .status-held { background-color: #ffedd5; color: #9a3412; }
         .status-resigned { background-color: #fef9c3; color: #854d0e; }
         .status-terminated { background-color: #fee2e2; color: #991b1b; }
+        /* --- MODIFICATION: Add Closed Status --- */
+        .status-closed { background-color: #e5e7eb; color: #374151; }
+        /* --- END MODIFICATION --- */
         .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #4f46e5; animation: spin 1s ease infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-overlay { position: fixed; inset: 0; background-color: rgba(249, 250, 251, 0.7); display: flex; align-items: center; justify-content: center; z-index: 110; }
@@ -83,7 +86,7 @@
                  <div><label for="filterDesignation" class="block text-sm font-medium text-gray-600">Designation</label><input id="filterDesignation" placeholder="All Designations"></div>
                  <div><label for="filterType" class="block text-sm font-medium text-gray-600">Employee Type</label><input id="filterType" placeholder="All Types"></div>
                  <div><label for="filterProject" class="block text-sm font-medium text-gray-600">Project</label><input id="filterProject" placeholder="All Projects"></div>
-                 <div><label for="filterProjectOffice" class="block text-sm font-medium text-gray-600">Project Office</label><input id="filterProjectOffice" placeholder="All Offices"></div>
+                 <div><label for="projectOffice" class="block text-sm font-medium text-gray-600">Project Office</label><input id="projectOffice" placeholder="All Offices"></div>
                  <div><label for="filterReportProject" class="block text-sm font-medium text-gray-600">Report Project</label><input id="filterReportProject" placeholder="All Report Projects"></div>
                  <div><label for="filterSubCenter" class="block text-sm font-medium text-gray-600">Sub Center</label><input id="filterSubCenter" placeholder="All Sub Centers"></div>
              </div>
@@ -114,14 +117,27 @@
                            <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
                                <div><label for="employeeId" class="block text-sm font-medium text-gray-700">Employee ID<span class="text-red-500">*</span></label><input type="text" id="employeeId" required class="input"></div>
                                <div><label for="name" class="block text-sm font-medium text-gray-700">Employee Name<span class="text-red-500">*</span></label><input type="text" id="name" required class="input"></div>
-                               <div><label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type<span class="text-red-500">*</span></label><select id="employeeType" required class="input-select"><option>Permanent</option><option>Casual</option><option>Contractual</option><option>Temporary</option></select></div>
-                               <div><label for="designation" class="block text-sm font-medium text-gray-700">Designation<span class="text-red-500">*</span></label>
-                                <input type="text" id="designation" required class="input" list="designation-list"><datalist id="designation-list"></datalist>
+                               <div>
+                                   <label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type<span class="text-red-500">*</span></label>
+                                   <select id="employeeType" required class="input-select">
+                                       <option>Regular</option>
+                                       <option>Casual</option>
+                                       <option>Contractual</option>
+                                       <option>Temporary</option>
+                                   </select>
+                               </div>
+                               <div>
+                                   <label for="designation" class="block text-sm font-medium text-gray-700">Designation<span class="text-red-500">*</span></label>
+                                   <input type="text" id="designation" required class="input" list="designation-list"><datalist id="designation-list"></datalist>
+                               </div>
+                               <div>
+                                   <label for="functionalRole" class="block text-sm font-medium text-gray-700">Functional Role<span class="text-red-500">*</span></label>
+                                   <input type="text" id="functionalRole" required class="input">
                                </div>
                                <div><label for="joiningDate" class="block text-sm font-medium text-gray-700">Joining Date<span class="text-red-500">*</span></label><input type="date" id="joiningDate" required class="input"></div>
                                <div><label for="workExperience" class="block text-sm font-medium text-gray-700">Work Experience (Years)</label><input type="number" step="0.5" id="workExperience" class="input"></div>
-                               <div class="md:col-span-2"><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" class="input"></div>
-                           </div>
+                               <div class="md:col-span-1"><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" class="input"></div>
+                               </div>
                        </div>
                        <div>
                             <h3 class="text-lg font-medium text-gray-900 border-b pb-2 mb-4">Project Details</h3>
@@ -152,7 +168,7 @@
                                     <input type="text" id="identificationType" required class="input" list="identificationType-list">
                                     <datalist id="identificationType-list"></datalist>
                                 </div>
-                                <div><label for="identification" class="block text-sm font-medium text-gray-700">Identification (NID/Birth Cert.)<span class="text-red-500">*</span></label><input type="text" id="identification" required class="input"></div>
+                                <div><label for="identification" class="block text-sm font-medium text-gray-700">Identification No.<span class="text-red-500">*</span></label><input type="text" id="identification" required class="input"></div>
                                 <div class="md:col-span-4"><label for="address" class="block text-sm font-medium text-gray-700">Address<span class="text-red-500">*</span></label><input type="text" id="address" required class="input"></div>
                            </div>
                         </div>
@@ -216,7 +232,7 @@
     <div id="bulkUploadModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal"> <h2 class="text-2xl font-bold mb-2">Bulk Upload Employees</h2> <p class="text-gray-500 mb-6 text-sm">
     Upload a CSV file with employee data. Ensure the following columns have valid data for every row:
     <br>
-    <strong>Employee ID</strong>, <strong>Employee Name</strong>, <strong>Employee Type</strong>, <strong>Designation</strong>, <strong>Joining Date</strong>, <strong>Project</strong>, <strong>Project Office</strong>, <strong>Report Project</strong>, <strong>Sub Center</strong>, <strong>Personal Mobile Number</strong>, <strong>Date of Birth</strong>, <strong>Address</strong>, <strong>Identification Type</strong>, <strong>Identification</strong>, <strong>Gross Salary</strong>, <strong>Basic</strong>, <strong>Others</strong>.
+    <strong>Employee ID</strong>, <strong>Employee Name</strong>, <strong>Employee Type</strong>, <strong>Designation</strong>, <strong>Functional Role</strong>, <strong>Joining Date</strong>, <strong>Project</strong>, <strong>Project Office</strong>, <strong>Report Project</strong>, <strong>Sub Center</strong>, <strong>Personal Mobile Number</strong>, <strong>Date of Birth</strong>, <strong>Address</strong>, <strong>Identification Type</strong>, <strong>Identification</strong>, <strong>Gross Salary</strong>, <strong>Basic</strong>, <strong>Others</strong>.
     <br>
     Download the template for all headers.
 </p> <form id="bulkUploadForm"> <div class="space-y-4"> <div> <label for="employeeFile" class="block text-sm font-medium text-gray-700">Employee Data File (.csv)</label> <p class="text-xs text-gray-500 mb-2">Download the template to see all required and optional headers.</p> <input type="file" id="employeeFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"> </div> </div> <div class="mt-8 flex justify-between items-center gap-4"> <button type="button" id="downloadTemplateBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Download Template</button> <div class="flex gap-4"> <button type="button" id="cancelBulkUploadModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="bulkUploadForm" class="btn btn-teal">Upload & Save</button> </div> </div> </form> </div> </div>
@@ -228,7 +244,7 @@
                 <input type="hidden" id="statusChangeEmployeeId">
                 <input type="hidden" id="statusChangeNewStatus">
                 <div class="space-y-4">
-                    <div>
+                    <div id="separationDateContainer">
                         <label for="separationDate" class="block text-sm font-medium text-gray-700">
                             <span id="separationDateLabel">Date</span><span class="text-red-500">*</span>
                         </label>
@@ -277,6 +293,33 @@
             <div class="mt-8 flex justify-end gap-4">
                 <button type="button" id="cancelReportModal" class="btn btn-secondary">Close</button>
             </div>
+        </div>
+    </div>
+
+    <div id="fileClosingModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
+            <h2 id="fileClosingModalTitle" class="text-2xl font-bold mb-6">Close Employee File</h2>
+            <form id="fileClosingForm">
+                <input type="hidden" id="fileClosingEmployeeId">
+                <div class="space-y-4">
+                    <div>
+                        <label for="fileClosingDate" class="block text-sm font-medium text-gray-700">
+                            File Closing Date<span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" id="fileClosingDate" required class="input">
+                    </div>
+                    <div>
+                        <label for="fileClosingRemarks" class="block text-sm font-medium text-gray-700">
+                            File Closing Remarks<span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="fileClosingRemarks" rows="3" class="input" required></textarea>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end gap-4">
+                    <button type="button" id="cancelFileClosingModal" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm File Closing</button>
+                </div>
+            </form>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
