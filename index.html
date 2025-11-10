@@ -171,6 +171,131 @@
   </div>
 </div>
 
+<div id="employeeModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+
+  <div class="modal__panel" style="width: min(1100px, 95vw);" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <form id="employeeForm">
+      <div class="modal__header">
+        <h2 id="modalTitle">Add New Employee</h2>
+        <button type="button" id="cancelEmployeeModal_top" class="btn btn-chip chip-neutral" data-close>Cancel</button>
+      </div>
+
+      <div class="modal__body">
+
+        <input type="hidden" id="employeeDocId" />
+        <input type="hidden" id="originalEmployeeIdHidden" />
+        <input type="hidden" id="employeeStatus" />
+        <input type="hidden" id="employeeSalaryHeld" />
+        <input type="hidden" id="separationDateHidden" />
+        <input type="hidden" id="remarksHidden" />
+        <input type="hidden" id="holdTimestampHidden" />
+        <input type="hidden" id="lastTransferDateHidden" />
+        <input type="hidden" id="lastSubcenterHidden" />
+        <input type="hidden" id="lastTransferReasonHidden" />
+
+        <div class="space-y-6">
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Basic Information</legend>
+
+            <div class="field"><label for="employeeId">Employee ID*</label><input type="text" id="employeeId" /></div>
+            <div class="field"><label for="name">Employee Name*</label><input type="text" id="name" /></div>
+            <div class="field">
+              <label for="employeeType">Employee Type*</label>
+              <select id="employeeType">
+                <option value="Permanent">Permanent</option>
+                <option value="Contractual">Contractual</option>
+                <option value="Intern">Intern</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="field"><label for="designation">Designation*</label><input type="text" id="designation" list="designation-list" /></div>
+            <div class="field"><label for="joiningDate">Joining Date*</label><input type="date" id="joiningDate" /></div>
+            <div class="field"><label for="workExperience">Work Experience (Years)</label><input type="number" step="0.5" id="workExperience" /></div>
+            <div class="field" class="md:col-span-2"><label for="education">Education</label><input type="text" id="education" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Project Information</legend>
+            <div class="field"><label for="project">Project*</label><input type="text" id="project" list="project-list" /></div>
+            <div class="field"><label for="projectOffice">Project Office*</label><input type="text" id="projectOffice" list="projectOffice-list" /></div>
+            <div class="field"><label for="reportProject">Report Project*</label><input type="text" id="reportProject" list="reportProject-list" /></div>
+            <div class="field"><label for="subCenter">Sub Center*</label><input type="text" id="subCenter" list="subCenter-list" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Personal Information</legend>
+            <div class="field"><label for="fatherName">Father's Name</label><input type="text" id="fatherName" /></div>
+            <div class="field"><label for="motherName">Mother's Name</label><input type="text" id="motherName" /></div>
+            <div class="field"><label for="personalMobile">Personal Mobile*</label><input type="text" id="personalMobile" /></div>
+            <div class="field"><label for="dob">Date of Birth*</label><input type="date" id="dob" /></div>
+            <div class="field"><label for="bloodGroup">Blood Group</label><input type="text" id="bloodGroup" /></div>
+            <div class="field" class="md:col-span-3"><label for="address">Address*</label><input type="text" id="address" /></div>
+            <div class="field"><label for="identificationType">ID Type</label><input type="text" id="identificationType" list="identificationType-list" /></div>
+            <div class="field"><label for="identification">Identification (NID/BC)*</label><input type="text" id="identification" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Contact & Nominee</legend>
+            <div class="field"><label for="nomineeName">Nominee's Name</label><input type="text" id="nomineeName" /></div>
+            <div class="field"><label for="nomineeMobile">Nominee's Mobile</label><input type="text" id="nomineeMobile" /></div>
+            <div class="field"><label for="officialMobile">Official Mobile</label><input type="text" id="officialMobile" /></div>
+            <div class="field"><label for="mobileLimit">Mobile Limit</label><input type="number" id="mobileLimit" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Salary - Earnings</legend>
+            <div class="field"><label for="salary">Gross Salary*</label><input type="number" id="salary" class="salary-component-earning" /></div>
+            <div class="field"><label for="basic">Basic</label><input type="number" id="basic" /></div>
+            <div class="field"><label for="others">Others</label><input type="number" id="others" /></div>
+            <div class="field"><label for="motobikeCarMaintenance">Motobike/Car Maint.</label><input type="number" id="motobikeCarMaintenance" class="salary-component-earning" /></div>
+            <div class="field"><label for="laptopRent">Laptop Rent</label><input type="number" id="laptopRent" class="salary-component-earning" /></div>
+            <div class="field"><label for="othersAllowance">Others Allowance</label><input type="number" id="othersAllowance" class="salary-component-earning" /></div>
+            <div class="field"><label for="arrear">Arrear</label><input type="number" id="arrear" class="salary-component-earning" /></div>
+            <div class="field"><label for="foodAllowance">Food Allowance</label><input type="number" id="foodAllowance" class="salary-component-earning" /></div>
+            <div class="field"><label for="stationAllowance">Station Allowance</label><input type="number" id="stationAllowance" class="salary-component-earning" /></div>
+            <div class="field"><label for="hardshipAllowance">Hardship Allowance</label><input type="number" id="hardshipAllowance" class="salary-component-earning" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Salary - Deductions</legend>
+            <div class="field"><label for="gratuity">Gratuity</label><input type="number" id="gratuity" class="salary-component-deduction" /></div>
+            <div class="field"><label for="subsidizedLunch">Subsidized Lunch</label><input type="number" id="subsidizedLunch" class="salary-component-deduction" /></div>
+            <div class="field"><label for="tds">TDS</label><input type="number" id="tds" class="salary-component-deduction" /></div>
+            <div class="field"><label for="motorbikeLoan">Motorbike Loan</label><input type="number" id="motorbikeLoan" class="salary-component-deduction" /></div>
+            <div class="field"><label for="welfareFund">Welfare Fund</label><input type="number" id="welfareFund" class="salary-component-deduction" /></div>
+            <div class="field"><label for="salaryOthersLoan">Salary/Others Loan</label><input type="number" id="salaryOthersLoan" class="salary-component-deduction" /></div>
+            <div class="field"><label for="subsidizedVehicle">Subsidized Vehicle</label><input type="number" id="subsidizedVehicle" class="salary-component-deduction" /></div>
+            <div class="field"><label for="lwp">LWP</label><input type="number" id="lwp" class="salary-component-deduction" /></div>
+            <div class="field"><label for="cpf">CPF</label><input type="number" id="cpf" class="salary-component-deduction" /></div>
+            <div class="field"><label for="othersAdjustment">Others Adjustment</label><input type="number" id="othersAdjustment" /></div>
+          </fieldset>
+
+          <fieldset class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <legend class="text-lg font-semibold col-span-full">Totals & Bank</legend>
+            <div class="field"><label for="grandTotal">Grand Total (Auto)</label><input type="number" id="grandTotal" readonly /></div>
+            <div class="field"><label for="totalDeduction">Total Deduction (Auto)</label><input type="number" id="totalDeduction" readonly /></div>
+            <div class="field"><label for="netSalaryPayment">Net Salary (Auto)</label><input type="number" id="netSalaryPayment" readonly /></div>
+            <div class="field"><label for="bankAccount">Bank Account</label><input type="text" id="bankAccount" /></div>
+          </fieldset>
+
+        </div> </div> <div class="modal__footer">
+      <button type="button" id="cancelEmployeeModal" class="btn btn-chip chip-neutral" data-close>Cancel</button>
+      <button type="submit" id="saveEmployeeBtn" class.="btn btn-chip chip-brand">Save Employee</button>
+    </div>
+    </form>
+  </div>
+</div>
+
+<datalist id="designation-list"></datalist>
+<datalist id="project-list"></datalist>
+<datalist id="projectOffice-list"></datalist>
+<datalist id="reportProject-list"></datalist>
+<datalist id="subCenter-list"></datalist>
+<datalist id="identificationType-list"></datalist>
+
 <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 <script src="js/main.js"></script>
 
