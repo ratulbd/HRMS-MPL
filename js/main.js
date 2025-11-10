@@ -2,35 +2,27 @@
 // --- Authentication Check ---
 if (sessionStorage.getItem('isLoggedIn') !== 'true') {
   if (!window.location.pathname.endsWith('/') && !window.location.pathname.endsWith('login.html')) {
-    console.log("User not logged in. Redirecting to login page.");
     window.location.href = '/login.html';
   } else if (window.location.pathname.endsWith('/')) {
-    console.log("User not logged in at root. Redirecting to login page.");
     window.location.href = '/login.html';
   }
 } else {
   if (window.location.pathname.endsWith('login.html')) {
-    console.log("User logged in, redirecting from login to index.");
     window.location.href = '/index.html';
   } else {
-    console.log("User is logged in. Adding DOM listener...");
     document.addEventListener('DOMContentLoaded', initializeAppModules);
   }
 }
 
 // --- Main App Logic ---
 async function initializeAppModules() {
-  console.log("DOM loaded. Initializing app modules...");
-  // --- MODIFICATION: Theme/Top bar/Hero injection code removed ---
-  // The HTML and CSS are now fully in index.html & styles.css
-
   // --- CARD ACTION BUTTONS: compact pills mapper ---
   try {
     const classifyButtons = (root = document) => {
       const btns = root.querySelectorAll('.employee-card button, .employee-card .btn');
       btns.forEach(b => {
         const t = (b.textContent ?? '').toLowerCase().trim();
-        b.classList.add('btn', 'btn-chip'); // compact pill base
+        b.classList.add('btn', 'btn-chip');
         if (t.includes('terminate')) { b.classList.add('chip-danger'); }
         else if (t.includes('resign')) { b.classList.add('chip-warning'); }
         else if (t.includes('hold salary') || t.includes('unhold salary')) { b.classList.add('chip-brand'); }
@@ -54,8 +46,6 @@ async function initializeAppModules() {
     const addRipple = (e) => {
       const target = e.target.closest('button, .btn');
       if (!target) return;
-      // Prevent ripple on non-themed buttons if needed
-      if(target.classList.contains('btn-secondary') && !target.classList.contains('topbar-btn')) return;
       const rect = target.getBoundingClientRect();
       const ripple = document.createElement('span');
       ripple.className = 'ripple';
@@ -67,21 +57,19 @@ async function initializeAppModules() {
       setTimeout(() => ripple.remove(), 600);
     };
     document.addEventListener('click', addRipple);
-  } catch (e) {
-    console.warn('Ripple failed:', e);
-  }
+  } catch (e) {}
 
   // --- Dynamic Imports ---
   const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
   const { apiCall } = await import('./apiClient.js');
   const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
-  const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
-  const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
+  const { setupEmployeeForm } = await import('./employeeForm.js');
+  const { setupStatusChangeModal } = await import('./statusChange.js');
   const { setupBulkUploadModal } = await import('./bulkUpload.js');
   const { setupSalarySheetModal } = await import('./salarySheet.js');
   const { setupPastSheetsModal } = await import('./pastSheets.js');
-  const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
-  const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
+  const { setupViewDetailsModal } = await import('./viewDetails.js');
+  const { setupTransferModal } = await import('./transferModal.js');
 
   // --- Global State ---
   let mainLocalEmployees = [];
@@ -98,7 +86,7 @@ async function initializeAppModules() {
   let tomSelects = {};
   const getMainLocalEmployees = () => mainLocalEmployees;
 
-  // --- Populate Tom Select instances ---
+  // --- Populate Tom Select instances (guarded) ---
   function updateTomSelectFilterOptions(employees) {
     if (!Array.isArray(employees)) employees = [];
     const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
@@ -109,6 +97,7 @@ async function initializeAppModules() {
     const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
     const subCenters     = [...new Set(employees.map(e => e?.subCenter).filter(Boolean))].sort();
     const statusOptions  = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
+
     const updateOptions = (instance, newOptions) => { if (instance) { instance.clearOptions(); instance.addOptions(newOptions); } };
     updateOptions(tomSelects.status, statusOptions);
     updateOptions(tomSelects.designation, formatOptions(designations));
@@ -153,7 +142,6 @@ async function initializeAppModules() {
 
   // --- Setup Filter Listeners ---
   function setupFilterListeners() {
-    const tomSelectConfig = { plugins: ['remove_button'] };
     const nameInput = $('#filterName');
     if (nameInput) {
       nameInput.addEventListener('input', (e) => {
@@ -161,6 +149,7 @@ async function initializeAppModules() {
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
     }
+
     const filterMap = {
       'filterStatus': 'status',
       'filterDesignation': 'designation',
@@ -170,18 +159,30 @@ async function initializeAppModules() {
       'filterReportProject': 'reportProject',
       'filterSubCenter': 'subCenter'
     };
+
+    const tomSelectConfig = { plugins: ['remove_button'] };
+    const hasTomSelect = typeof TomSelect !== 'undefined';
+
     for (const [elementId, filterKey] of Object.entries(filterMap)) {
       const el = $(elementId);
-      if (el) {
+      if (!el) continue;
+
+      if (hasTomSelect) {
         tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
         tomSelects[filterKey].on('change', (values) => {
           currentFilters[filterKey] = values;
           filterAndRenderEmployees(currentFilters, mainLocalEmployees);
         });
       } else {
-        console.warn(`Filter element with ID '${elementId}' not found.`);
+        // Fallback to native multi-select
+        el.addEventListener('change', () => {
+          const values = Array.from(el.options).filter(o => o.selected).map(o => o.value);
+          currentFilters[filterKey] = values;
+          filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+        });
       }
     }
+
     const resetBtn = $('#resetFiltersBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
@@ -191,10 +192,15 @@ async function initializeAppModules() {
         };
         if (nameInput) nameInput.value = '';
         for (const key in tomSelects) if (tomSelects[key]) tomSelects[key].clear();
+        // Also clear native selects if TomSelect not present
+        if (!hasTomSelect) {
+          for (const id of Object.keys(filterMap)) {
+            const s = $(id);
+            if (s) Array.from(s.options).forEach(o => o.selected = false);
+          }
+        }
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
-    } else {
-      console.warn("Reset Filters button (#resetFiltersBtn) not found.");
     }
   }
 
@@ -239,12 +245,11 @@ async function initializeAppModules() {
 
   // --- Global Listeners ---
   function setupGlobalListeners() {
-    // Buttons are now in the HTML, so we just add listeners
-    $('#reportBtn').addEventListener('click', () => openModalWithLock('reportModal'));
-    $('#alertOkBtn').addEventListener('click', () => closeModalWithLock('alertModal'));
-    $('#confirmCancelBtn').addEventListener('click', handleConfirmCancel);
-    $('#confirmOkBtn').addEventListener('click', handleConfirmAction);
-    $('#logoutBtn').addEventListener('click', () => {
+    $('#reportBtn')?.addEventListener('click', () => openModalWithLock('reportModal'));
+    $('#alertOkBtn')?.addEventListener('click', () => closeModalWithLock('alertModal'));
+    $('#confirmCancelBtn')?.addEventListener('click', handleConfirmCancel);
+    $('#confirmOkBtn')?.addEventListener('click', handleConfirmAction);
+    $('#logoutBtn')?.addEventListener('click', () => {
       sessionStorage.removeItem('isLoggedIn');
       sessionStorage.removeItem('loggedInUser');
       window.location.href = '/login.html';
@@ -262,18 +267,18 @@ async function initializeAppModules() {
     // Report Modal button bindings
     const reportModal = $('#reportModal');
     if (reportModal) {
-      $('#cancelReportModal').addEventListener('click', () => closeModalWithLock('reportModal'));
-      $('#downloadEmployeeDatabase').addEventListener('click', () => {
+      $('#cancelReportModal')?.addEventListener('click', () => closeModalWithLock('reportModal'));
+      $('#downloadEmployeeDatabase')?.addEventListener('click', () => {
         handleExportData();
         closeModalWithLock('reportModal');
       });
-      $('#downloadHoldLog').addEventListener('click', () =>
+      $('#downloadHoldLog')?.addEventListener('click', () =>
         handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
       );
-      $('#downloadSeparationLog').addEventListener('click', () =>
+      $('#downloadSeparationLog')?.addEventListener('click', () =>
         handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
       );
-      $('#downloadTransferLog').addEventListener('click', () =>
+      $('#downloadTransferLog')?.addEventListener('click', () =>
         handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
       );
     }
@@ -321,7 +326,6 @@ async function initializeAppModules() {
 
   // --- Initialize Application ---
   function initializeApp() {
-    console.log("Initializing HRMS App (Modular & Authenticated)...");
     setupFilterListeners();
     setupGlobalListeners();
 
@@ -351,7 +355,6 @@ async function initializeAppModules() {
   try {
     initializeApp();
   } catch (err) {
-    console.error("Failed to initialize app:", err);
     const appDiv = $('app');
     const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
     if (appDiv) {

@@ -5,12 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HRMS-MPL TELECOM</title>
 
-  <!-- Styles -->
-  styles.css
+  <!-- ✅ Use the exact filename you have on disk -->
+  style.css
 
-  <!-- (Optional) TomSelect CSS if not already loaded elsewhere
+  <!-- ✅ TomSelect CDN (so filters render nicely even if you don’t bundle it) -->
   https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css
-  -->
 </head>
 <body>
 
@@ -159,13 +158,13 @@
     </div>
   </div>
 
-  <!-- Transfer Modal (structure fix) -->
+  <!-- Transfer Modal -->
   <div id="transferModal" class="modal" hidden>
     <div class="modal-backdrop" data-close></div>
     <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="transferTitle">
       <div class="modal__header"><h2 id="transferTitle">Transfer Employee</h2></div>
       <div class="modal__body">
-        <!-- Content populated by JS -->
+        <!-- populated by JS -->
         <div class="current-info">
           <label>Current Sub Center</label>
           <input type="text" readonly value="" />
@@ -188,9 +187,7 @@
   </div>
 
   <!-- Scripts -->
-  <!-- (Optional) TomSelect JS if not already loaded elsewhere
   https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js</script>
-  -->
   main.js</script>
 </body>
 </html>

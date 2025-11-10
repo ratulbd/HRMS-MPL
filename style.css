@@ -94,7 +94,7 @@ header.app-bar .bar-inner {
 /* ===== HERO under top bar ===== */
 .hero {
   background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.65));
-  padding-top: 0; /* FIX: header is sticky, hero does not need offset */
+  padding-top: 0; /* header is sticky, hero does not need offset */
 }
 .hero .hero-inner { max-width: 1200px; margin: 0 auto; padding: 12px 20px; }
 .hero .hero-title {
