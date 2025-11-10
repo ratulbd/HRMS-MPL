@@ -6,9 +6,7 @@ const employeeActions = require('./lib/_employeeActions');
 const sheetActions = require('./lib/_sheetActions');
 const authActions = require('./lib/_authActions');
 
-// --- MODIFICATION: Log all loaded functions from sheetActions ---
 console.log("Loaded sheetActions, keys:", Object.keys(sheetActions));
-// --- END MODIFICATION ---
 
 // --- Authorization ---
 const auth = new google.auth.GoogleAuth({
@@ -20,24 +18,20 @@ const sheets = google.sheets({ version: 'v4', auth });
 // --- Constants ---
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1NH4_rlOgOu68QrqQA1IsNw1CwvUecRSdW6PnfcatnZQ';
 const EMPLOYEE_SHEET_NAME = 'Employees';
-const SALARY_SHEET_PREFIX = 'Salary_'; // No longer used for saving, but kept for getSheetData if needed
+const SALARY_SHEET_PREFIX = 'Salary_';
 const USERS_SHEET_NAME = 'Users';
 const TRANSFER_LOG_SHEET_NAME = 'Transfer_Log';
 const HOLD_LOG_SHEET_NAME = 'Hold_Log';
 const SEPARATION_LOG_SHEET_NAME = 'Separation_Log';
 const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
 const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
-// --- MODIFICATION: Add File Closing Log constant ---
 const FILE_CLOSING_LOG_SHEET_NAME = 'FileClosing_Log';
-// --- END MODIFICATION ---
 
 const HEADER_MAPPING = {
     // Basic Info
     employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
     designation: 'designation', 
-    // --- MODIFICATION: Add functionalRole ---
     functionalRole: 'functionalrole',
-    // --- END MODIFICATION ---
     joiningDate: 'joiningdate',
     workExperience: 'workexperienceyears', 
     education: 'education',
@@ -85,20 +79,17 @@ const HEADER_MAPPING = {
     // Bank
     bankAccount: 'bankaccountnumber',
     // Status & History
-    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp', // <-- This was the fix from the previous step
+    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
     separationDate: 'separationdate', remarks: 'remarks',
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason',
-    // --- MODIFICATION: Add file closing fields ---
     fileClosingDate: 'fileclosingdate',
     fileClosingRemarks: 'fileclosingremarks'
-    // --- END MODIFICATION ---
 };
 
 
 // --- Main Handler ---
 exports.handler = async (event) => {
-    // ... (corsHeaders and body parsing remain the same) ...
     const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -108,7 +99,11 @@ exports.handler = async (event) => {
         return { statusCode: 204, headers: corsHeaders, body: '' };
     }
 
-    const { action, sheetId } = event.queryStringParameters || {};
+    // === FIX 1: Capture ALL query params, not just 'action' and 'sheetId' ===
+    const queryParams = event.queryStringParameters || {};
+    const { action, sheetId } = queryParams;
+    // === END FIX 1 ===
+
     let requestBody = {};
 
     console.log(`Handler received event for action: ${action}, method: ${event.httpMethod}`);
@@ -147,14 +142,12 @@ exports.handler = async (event) => {
         if (!['GET', 'POST'].includes(event.httpMethod)) {
              result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
         } else {
-            // Pass necessary constants and modules to the action functions
             const context = {
                 sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
                 HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
                 SALARY_ARCHIVE_SHEET_NAME,
                 REJOIN_LOG_SHEET_NAME, 
-                // --- MODIFICATION: Add File Closing log to context ---
                 FILE_CLOSING_LOG_SHEET_NAME
             };
 
@@ -162,7 +155,9 @@ exports.handler = async (event) => {
                 // --- Employee Actions ---
                 case 'getEmployees':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                    else result = await employeeActions.getEmployees(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers);
+                    // === FIX 2: Pass the queryParams object to the function ===
+                    else result = await employeeActions.getEmployees(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, queryParams);
+                    // === END FIX 2 ===
                     break;
                 case 'saveEmployee':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -194,18 +189,12 @@ exports.handler = async (event) => {
                      break;
                 case 'logRejoin':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                     // --- MODIFICATION: Pass full context ---
                      else result = await employeeActions.logRejoin(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
-
-                // --- MODIFICATION: Add closeFile action ---
                 case 'closeFile':
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                      else result = await employeeActions.closeFile(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
-                // --- END MODIFICATION ---
-
-                // --- MODIFICATION: Add Report Log Endpoints ---
                 case 'getHoldLog':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.HOLD_LOG_SHEET_NAME, context.helpers);
@@ -218,16 +207,10 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.TRANSFER_LOG_SHEET_NAME, context.helpers);
                     break;
-                
-                // === THIS IS THE FIX: Added the 'getFileCloseLog' case ===
                 case 'getFileCloseLog':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.FILE_CLOSING_LOG_SHEET_NAME, context.helpers);
                     break;
-                // === END FIX ===
-                    
-                // --- END MODIFICATION ---
-
                 // --- Sheet Actions ---
                 case 'saveSheet':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -253,7 +236,6 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await sheetActions.getSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers);
                     break;
-
                 // --- Auth Actions ---
                 case 'loginUser':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -263,7 +245,6 @@ exports.handler = async (event) => {
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                      else result = await authActions.changePassword(context.sheets, context.SPREADSHEET_ID, context.USERS_SHEET_NAME, context.helpers, requestBody);
                      break;
-
                 // --- Default ---
                 default:
                     console.warn(`Invalid action received: ${action}`);
