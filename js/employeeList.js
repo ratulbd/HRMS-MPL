@@ -7,7 +7,6 @@ import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
 import { openFileClosingModal } from './fileClosingModal.js';
 
-// === MODIFICATION: Re-designed renderEmployeeList function for pagination ===
 export function renderEmployeeList(employeesToRender, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
@@ -45,11 +44,9 @@ export function renderEmployeeList(employeesToRender, append = false) {
 
 
             const card = document.createElement('div');
-            // === MODIFICATION: New Card Class & Animation Delay ===
             card.className = 'employee-card flex flex-col'; // All other styles are in CSS
             card.setAttribute('data-employee-row-id', emp.id);
             card.style.setProperty('--card-index', startIndex + index);
-            // === END MODIFICATION ===
 
 
             // --- Info Tags (replaces big boxes) ---
@@ -67,7 +64,6 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
-            // --- === MODIFICATION: New Concise Card HTML with Hover Footer === ---
             card.innerHTML = `
                 <div class="card-content p-5 flex-grow">
                     <div class="flex justify-between items-start mb-3">
@@ -95,7 +91,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                     </div>
                 </div>
                 
-                <!-- Action Buttons Footer (Hidden by default, revealed on hover) -->
+                <!-- === FIX: Removed px-4 py-3 classes === -->
                 <div class="card-footer flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
@@ -123,7 +119,6 @@ export function renderEmployeeList(employeesToRender, append = false) {
          customAlert("Render Error", `Failed to display employee list: ${error.message}`);
     }
 }
-// === END MODIFICATION ===
 
 
 // Helper to populate a <datalist>
@@ -166,7 +161,6 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
      const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
 
-    // === MODIFICATION: Add MouseMove listener for 3D Tilt & Spotlight ===
     listContainer.addEventListener('mousemove', (e) => {
         const card = e.target.closest('.employee-card');
         if (card) {
@@ -184,7 +178,6 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
             const mouseX = x - centerX;
             const mouseY = y - centerY;
             
-            // Adjust tilt intensity (e.g., max 8 degrees)
             const rotateX = (mouseY / centerY) * -8; // Invert Y for natural tilt
             const rotateY = (mouseX / centerX) * 8;
             
@@ -193,7 +186,6 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         }
     });
     
-    // Reset tilt when mouse leaves the card
     listContainer.addEventListener('mouseleave', (e) => {
          const card = e.target.closest('.employee-card');
          if(card) {
@@ -201,7 +193,6 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
              card.style.setProperty('--rotate-y', `0deg`);
          }
     });
-    // === END MODIFICATION ===
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target;
