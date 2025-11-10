@@ -52,7 +52,7 @@ async function initializeAppModules() {
     const statusOptions  = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
 
     const updateOptions = (instance, newOptions) => { if (instance) { instance.clearOptions(); instance.addOptions(newOptions); } };
-
+    
     updateOptions(tomSelects.status, statusOptions);
     updateOptions(tomSelects.designation, formatOptions(designations));
     updateOptions(tomSelects.type, formatOptions(types));
@@ -68,9 +68,9 @@ async function initializeAppModules() {
     try {
       if (countDisplay) countDisplay.textContent = 'Loading employees...';
       $('#initialLoading')?.classList?.remove('hidden');
-
+      
       const employees = await apiCall('getEmployees');
-
+      
       if (Array.isArray(employees)) {
         employees.sort((a, b) => {
           const dateA = new Date(formatDateForInput(a.joiningDate) ?? '1970-01-01');
@@ -80,14 +80,14 @@ async function initializeAppModules() {
       }
       mainLocalEmployees = employees ?? [];
       setLocalEmployees(mainLocalEmployees);
-
-      populateFilterDropdowns(mainLocalEmployees);
-      updateTomSelectFilterOptions(mainLocalEmployees);
+      
+      populateFilterDropdowns(mainLocalEmployees); 
+      updateTomSelectFilterOptions(mainLocalEmployees); 
       filterAndRenderEmployees(currentFilters, mainLocalEmployees);
-
+      
       const initialLoading = $('#initialLoading');
       if (initialLoading) initialLoading.style.display = 'none';
-
+      
     } catch (error) {
       console.error("Failed to load employee data:", error);
       customAlert("Error", `Failed to load employee data: ${error.message}`);
@@ -132,7 +132,7 @@ async function initializeAppModules() {
       }
 
       if (hasTomSelect) {
-        if (!tomSelects[filterKey]) {
+        if (!tomSelects[filterKey]) { 
             tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
         }
         tomSelects[filterKey].on('change', (values) => {
@@ -194,7 +194,7 @@ async function initializeAppModules() {
       customAlert("Error", `Failed to download ${logName}: ${error.message}`);
     }
   }
-
+  
   // --- Global Listeners ---
   function setupGlobalListeners() {
     // Top nav buttons
@@ -223,7 +223,7 @@ async function initializeAppModules() {
     $('#closeSheetModal')?.addEventListener('click', () => closeModal('salarySheetModal'));
     $('#closePastSheetsModal')?.addEventListener('click', () => closeModal('viewSheetsModal'));
     $('#cancelTransferModal')?.addEventListener('click', () => closeModal('transferModal'));
-
+    
     // --- THIS IS THE FIX ---
     // Removed the underscore from 'addEventListener_'
     $('#cancelReportModal')?.addEventListener('click', () => closeModal('reportModal'));
