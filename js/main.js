@@ -1,19 +1,31 @@
 // js/main.js
-// ... (Authentication check at top of file is unchanged) ...
+
+// --- Authentication Check ---
+// This script runs before any module loads.
+// If not logged in, redirect to login.html.
+const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
+    console.log("User not logged in. Redirecting to login page.");
+    window.location.href = '/login.html';
+}
+// --- End Authentication Check ---
+
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
     
     // --- Dynamic Imports ---
-    // MODIFICATION: Import new modal handlers
     const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
     const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
-    // --- MODIFICATION: Re-enabled missing file imports ---
-    // const { setupHoldModal } = await import('./holdChange.js'); // This file seems obsolete, statusChange.js handles it
-    const { setupFileCloseModal } = await import('./fileClosingModal.js'); // Fixed typo 'fileClose.js' -> 'fileClosingModal.js'
+    
+    // --- MODIFICATION: Fixed the broken imports ---
+    // We are importing 'fileClosingModal.js' (which you have)
+    const { setupFileCloseModal } = await import('./fileClosingModal.js'); 
+    // We are *not* importing 'holdChange.js' or 'fileClose.js' (which you don't have)
     // --- END MODIFICATION ---
+
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
@@ -26,6 +38,9 @@ async function initializeAppModules() {
         name: '', 
         status: [], 
         designation: [], 
+        // --- ADDITION: Add new filter ---
+        functionalRole: [],
+        // --- END ADDITION ---
         type: [], 
         project: [], 
         projectOffice: [], 
@@ -201,7 +216,7 @@ async function initializeAppModules() {
             "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
             "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
             "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
-            "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+            "othersAdjustment", "totalDDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
             "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
             "fileCloseDate", "fileCloseRemarks"
          ];
@@ -322,10 +337,11 @@ async function initializeAppModules() {
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
-        // --- MODIFICATION: Setup new modals ---
-        // if (typeof setupHoldModal === 'function') setupHoldModal(fetchAndRenderEmployees); // This is handled by statusChange.js now
+        
+        // --- MODIFICATION: Setup new modals (and removed old broken ones) ---
         if (typeof setupFileCloseModal === 'function') setupFileCloseModal(fetchAndRenderEmployees);
         // --- END MODIFICATION ---
+
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
         
@@ -356,4 +372,11 @@ async function initializeAppModules() {
             document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
         }
     }
+}
+
+// --- Run the initialization ---
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAppModules);
+} else {
+    initializeAppModules();
 }
