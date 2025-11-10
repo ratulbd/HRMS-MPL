@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HRMS-MPL TELECOM</title>
-  <!-- Load your local CSS (make sure the file is style.css at root) -->
-  /style.css
+
+  <link rel="stylesheet" href="/style.css" />
+
 </head>
 <body>
 
-<!-- ===== Top App Bar ===== -->
 <header class="app-bar">
   <div class="bar-inner">
     <div class="bar-left">
@@ -27,7 +27,6 @@
   </div>
 </header>
 
-<!-- ===== Hero ===== -->
 <section class="hero">
   <div class="hero-inner">
     <div class="hero-title">Employee Dashboard</div>
@@ -38,10 +37,8 @@
   </div>
 </section>
 
-<!-- ===== App Container ===== -->
 <main id="app">
 
-  <!-- Filters -->
   <section class="filters">
     <h3 class="section-title">Filters</h3>
 
@@ -93,23 +90,17 @@
     </div>
   </section>
 
-  <!-- Employee list -->
   <section id="employee-list" class="employee-list">
     <div id="initialLoading" class="loading">
       Loading employee data...
     </div>
-    <!-- Cards are rendered via JS -->
   </section>
 
-  <!-- Footer -->
   <footer>
     © 2025 Md. Rakibul Islam Ratul — Sr. Manager, Telecom Service, Metal Plus
   </footer>
 </main>
 
-<!-- ===== Modals ===== -->
-
-<!-- Alert Modal -->
 <div id="alertModal" class="modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
@@ -121,7 +112,6 @@
   </div>
 </div>
 
-<!-- Confirm Modal -->
 <div id="confirmModal" class="modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
@@ -134,7 +124,6 @@
   </div>
 </div>
 
-<!-- Report Modal -->
 <div id="reportModal" class="modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
@@ -154,13 +143,11 @@
   </div>
 </div>
 
-<!-- Transfer Modal -->
 <div id="transferModal" class="modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="transferTitle">
     <div class="modal__header"><h2 id="transferTitle">Transfer Employee</h2></div>
     <div class="modal__body">
-      <!-- populated by JS -->
       <div class="current-info">
         <label>Current Sub Center</label>
         <input type="text" readonly value="" />
@@ -182,7 +169,8 @@
   </div>
 </div>
 
-<!-- Scripts -->
-https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js</script>
-/js/main.js</script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="/js/main.js"></script>
+
 </body>
+</html>
