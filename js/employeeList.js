@@ -64,8 +64,9 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
+            // --- === MODIFICATION: Added 'pb-16' (padding-bottom: 4rem) to create space for the footer === ---
             card.innerHTML = `
-                <div class="card-content p-5 flex-grow">
+                <div class="card-content p-5 pb-16 flex-grow">
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
                         <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
@@ -85,13 +86,11 @@ export function renderEmployeeList(employeesToRender, append = false) {
                         </div>
                     </div>
                     
-                    <!-- Info Tags Area -->
                     <div class="flex flex-wrap">
                         ${infoTagsHTML}
                     </div>
                 </div>
                 
-                <!-- === FIX: Removed px-4 py-3 classes === -->
                 <div class="card-footer flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
