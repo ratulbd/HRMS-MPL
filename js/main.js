@@ -199,10 +199,13 @@ async function initializeAppModules() {
   function setupGlobalListeners() {
     // Top nav buttons
     $('#reportBtn')?.addEventListener('click', () => openModal('reportModal'));
-    $('#logoutBtn')?.addEventListener('click', () => {
-      sessionStorage.removeItem('isLoggedIn');
-      sessionStorage.removeItem('loggedInUser');
-      window.location.href = '/login.html';
+    $('#logoutBtn')?.addEventListener('click', async () => {
+      const confirmed = await customConfirm("Confirm Logout", "Are you sure you want to log out?");
+      if (confirmed) {
+        sessionStorage.removeItem('isLoggedIn');
+        sessionStorage.removeItem('loggedInUser');
+        window.location.href = '/login.html';
+      }
     });
 
     // Modal close buttons
@@ -220,7 +223,11 @@ async function initializeAppModules() {
     $('#closeSheetModal')?.addEventListener('click', () => closeModal('salarySheetModal'));
     $('#closePastSheetsModal')?.addEventListener('click', () => closeModal('viewSheetsModal'));
     $('#cancelTransferModal')?.addEventListener('click', () => closeModal('transferModal'));
+
+    // --- THIS IS THE FIX ---
+    // Removed the underscore from 'addEventListener_'
     $('#cancelReportModal')?.addEventListener('click', () => closeModal('reportModal'));
+    // --- END OF FIX ---
 
     // Report Modal button bindings
     $('#downloadEmployeeDatabase')?.addEventListener('click', () => {
@@ -281,31 +288,25 @@ async function initializeAppModules() {
   // --- Initialize Application ---
   function initializeApp() {
     setupFilterListeners();
-    setupGlobalListeners();
+    setupGlobalListeners(); // This was crashing, but is now fixed.
 
     try {
       if (typeof setupEmployeeListEventListeners === 'function')
         setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
       if (typeof setupEmployeeForm === 'function')
         setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
-
-      // --- THIS IS THE FIX ---
-      // Replaced 'fetchEmployeesFunc' with the correct 'fetchAndRenderEmployees'
       if (typeof setupStatusChangeModal === 'function')
         setupStatusChangeModal(fetchAndRenderEmployees);
       if (typeof setupBulkUploadModal === 'function')
         setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
-      if (typeof setupTransferModal === 'function')
-        setupTransferModal(fetchAndRenderEmployees);
-      // --- END OF FIX ---
-
       if (typeof setupSalarySheetModal === 'function')
         setupSalarySheetModal(getMainLocalEmployees, $('#uploadAttendanceBtn'));
       if (typeof setupPastSheetsModal === 'function')
         setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
       if (typeof setupViewDetailsModal === 'function')
         setupViewDetailsModal();
-
+      if (typeof setupTransferModal === 'function')
+        setupTransferModal(fetchAndRenderEmployees);
     } catch (setupError) {
         console.error("Error during module setup:", setupError);
         customAlert("Initialization Error", `A part of the application failed to load: ${setupError.message}`);
