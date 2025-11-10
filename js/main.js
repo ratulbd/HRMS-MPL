@@ -10,83 +10,47 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
   if (window.location.pathname.endsWith('login.html')) {
     window.location.href = '/index.html';
   } else {
+    // We are logged in and on the correct page, wait for DOM to load
     document.addEventListener('DOMContentLoaded', initializeAppModules);
   }
 }
 
 // --- Main App Logic ---
 async function initializeAppModules() {
-  // --- CARD ACTION BUTTONS: compact pills mapper ---
-  try {
-    const classifyButtons = (root = document) => {
-      const btns = root.querySelectorAll('.employee-card button, .employee-card .btn');
-      btns.forEach(b => {
-        const t = (b.textContent ?? '').toLowerCase().trim();
-        b.classList.add('btn', 'btn-chip');
-        if (t.includes('terminate')) { b.classList.add('chip-danger'); }
-        else if (t.includes('resign')) { b.classList.add('chip-warning'); }
-        else if (t.includes('hold salary') || t.includes('unhold salary')) { b.classList.add('chip-brand'); }
-        else if (t.includes('transfer')) { b.classList.add('chip-brand'); }
-        else if (t.includes('edit')) { b.classList.add('chip-neutral'); }
-        else if (t.includes('view details')) { b.classList.add('chip-neutral'); }
-      });
-    };
-    classifyButtons();
-    const list = document.querySelector('#employee-list');
-    if (list) {
-      const mo = new MutationObserver(() => classifyButtons(list));
-      mo.observe(list, { childList: true, subtree: true });
-    }
-  } catch (e) {
-    console.warn('Card button mapper failed:', e);
-  }
+  
+  // --- [REMOVED] ---
+  // The old `classifyButtons` function was removed.
+  // Styling is now handled directly in employeeList.js
+  // --- [REMOVED] ---
 
-  // --- Ripple micro-interaction (global) ---
-  try {
-    const addRipple = (e) => {
-      const target = e.target.closest('button, .btn');
-      if (!target) return;
-      const rect = target.getBoundingClientRect();
-      const ripple = document.createElement('span');
-      ripple.className = 'ripple';
-      const size = Math.max(rect.width, rect.height);
-      ripple.style.width = ripple.style.height = size + 'px';
-      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
-      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
-      target.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
-    };
-    document.addEventListener('click', addRipple);
-  } catch (e) {}
+  // --- [REMOVED] ---
+  // The old `ripple` function was removed.
+  // The new theme's buttons don't need it.
+  // --- [REMOVED] ---
 
   // --- Dynamic Imports ---
-  const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('/js/utils.js');
-  const { apiCall } = await import('/js/apiClient.js');
-  const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('/js/employeeList.js');
-  const { setupEmployeeForm } = await import('/js/employeeForm.js');
-  const { setupStatusChangeModal } = await import('/js/statusChange.js');
-  const { setupBulkUploadModal } = await import('/js/bulkUpload.js');
-  const { setupSalarySheetModal } = await import('/js/salarySheet.js');
-  const { setupPastSheetsModal } = await import('/js/pastSheets.js');
-  const { setupViewDetailsModal } = await import('/js/viewDetails.js');
-  const { setupTransferModal } = await import('/js/transferModal.js');
+  // FIX: Use relative paths (./) for all imports
+  const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
+  const { apiCall } = await import('./apiClient.js');
+  const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
+  const { setupEmployeeForm } = await import('./employeeForm.js');
+  const { setupStatusChangeModal } = await import('./statusChange.js');
+  const { setupBulkUploadModal } = await import('./bulkUpload.js');
+  const { setupSalarySheetModal } = await import('./salarySheet.js');
+  const { setupPastSheetsModal } = await import('./pastSheets.js');
+  const { setupViewDetailsModal } = await import('./viewDetails.js');
+  const { setupTransferModal } = await import('./transferModal.js');
 
   // --- Global State ---
   let mainLocalEmployees = [];
   let currentFilters = {
-    name: '',
-    status: [],
-    designation: [],
-    type: [],
-    project: [],
-    projectOffice: [],
-    reportProject: [],
-    subCenter: []
+    name: '', status: [], designation: [], type: [],
+    project: [], projectOffice: [], reportProject: [], subCenter: []
   };
   let tomSelects = {};
   const getMainLocalEmployees = () => mainLocalEmployees;
 
-  // --- Populate Tom Select instances (guarded) ---
+  // --- Populate Tom Select instances ---
   function updateTomSelectFilterOptions(employees) {
     if (!Array.isArray(employees)) employees = [];
     const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
@@ -99,6 +63,8 @@ async function initializeAppModules() {
     const statusOptions  = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
 
     const updateOptions = (instance, newOptions) => { if (instance) { instance.clearOptions(); instance.addOptions(newOptions); } };
+    
+    // Check if tomSelects instances exist before updating
     updateOptions(tomSelects.status, statusOptions);
     updateOptions(tomSelects.designation, formatOptions(designations));
     updateOptions(tomSelects.type, formatOptions(types));
@@ -113,22 +79,34 @@ async function initializeAppModules() {
     const countDisplay = $('#filterCountDisplay');
     try {
       if (countDisplay) countDisplay.textContent = 'Loading employees...';
+      $('#initialLoading')?.classList?.remove('hidden');
+      
       const employees = await apiCall('getEmployees');
+      
       if (Array.isArray(employees)) {
         employees.sort((a, b) => {
           const dateA = new Date(formatDateForInput(a.joiningDate) ?? '1970-01-01');
           const dateB = new Date(formatDateForInput(b.joiningDate) ?? '1970-01-01');
-          return dateB - dateA;
+          return dateB - dateA; // Sort descending (newest first)
         });
       }
       mainLocalEmployees = employees ?? [];
       setLocalEmployees(mainLocalEmployees);
-      populateFilterDropdowns(mainLocalEmployees);
-      updateTomSelectFilterOptions(mainLocalEmployees);
+      
+      // Populate datalists in the employee modal
+      populateFilterDropdowns(mainLocalEmployees); 
+      
+      // Populate TomSelect filters
+      updateTomSelectFilterOptions(mainLocalEmployees); 
+      
+      // Initial render
       filterAndRenderEmployees(currentFilters, mainLocalEmployees);
+      
       const initialLoading = $('#initialLoading');
-      if (initialLoading) initialLoading.remove();
+      if (initialLoading) initialLoading.style.display = 'none';
+      
     } catch (error) {
+      console.error("Failed to load employee data:", error);
       customAlert("Error", `Failed to load employee data: ${error.message}`);
       if (countDisplay) countDisplay.textContent = 'Error loading data.';
       const employeeListElement = $('#employee-list');
@@ -136,7 +114,7 @@ async function initializeAppModules() {
         employeeListElement.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
       }
       const initialLoading = $('#initialLoading');
-      if (initialLoading) initialLoading.remove();
+      if (initialLoading) initialLoading.style.display = 'none';
     }
   }
 
@@ -165,38 +143,36 @@ async function initializeAppModules() {
 
     for (const [elementId, filterKey] of Object.entries(filterMap)) {
       const el = $(elementId);
-      if (!el) continue;
+      if (!el) {
+        console.warn(`Filter element #${elementId} not found.`);
+        continue;
+      }
 
       if (hasTomSelect) {
-        tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
+        if (!tomSelects[filterKey]) { // Only initialize if not already done
+            tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
+        }
         tomSelects[filterKey].on('change', (values) => {
           currentFilters[filterKey] = values;
           filterAndRenderEmployees(currentFilters, mainLocalEmployees);
         });
       } else {
-        // Fallback to native multi-select
-        el.addEventListener('change', () => {
-          const values = Array.from(el.options).filter(o => o.selected).map(o => o.value);
-          currentFilters[filterKey] = values;
-          filterAndRenderEmployees(currentFilters, mainLocalEmployees);
-        });
+        console.warn("TomSelect is not loaded. Filters will not work correctly.");
       }
     }
 
     const resetBtn = $('#resetFiltersBtn');
-    if (resetBtn) {
+    if (reset.Btn) {
       resetBtn.addEventListener('click', () => {
         currentFilters = {
           name: '', status: [], designation: [], type: [],
           project: [], projectOffice: [], reportProject: [], subCenter: []
         };
         if (nameInput) nameInput.value = '';
-        for (const key in tomSelects) if (tomSelects[key]) tomSelects[key].clear();
-        if (!hasTomSelect) {
-          for (const id of Object.keys(filterMap)) {
-            const s = $(id);
-            if (s) Array.from(s.options).forEach(o => o.selected = false);
-          }
+        for (const key in tomSelects) {
+            if (tomSelects[key]) {
+                tomSelects[key].clear();
+            }
         }
         filterAndRenderEmployees(currentFilters, mainLocalEmployees);
       });
@@ -230,57 +206,54 @@ async function initializeAppModules() {
       }
       const csvContent = jsonToCsv(logData);
       downloadCSV(csvContent, fileName);
-      closeModalWithLock('reportModal');
+      closeModal('reportModal');
     } catch (error) {
       customAlert("Error", `Failed to download ${logName}: ${error.message}`);
     }
   }
-
-  // --- Modal helpers: add body scroll lock while open ---
-  const _openModal = openModal;
-  const _closeModal = closeModal;
-  function openModalWithLock(id)  { document.body.classList.add('modal-open');  _openModal(id); }
-  function closeModalWithLock(id) { _closeModal(id); document.body.classList.remove('modal-open'); }
-
+  
   // --- Global Listeners ---
   function setupGlobalListeners() {
-    document.getElementById('reportBtn')?.addEventListener('click', () => openModalWithLock('reportModal'));
-    document.getElementById('alertOkBtn')?.addEventListener('click', () => closeModalWithLock('alertModal'));
-    document.getElementById('confirmCancelBtn')?.addEventListener('click', handleConfirmCancel);
-    document.getElementById('confirmOkBtn')?.addEventListener('click', handleConfirmAction);
-    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    // Top nav buttons
+    $('#reportBtn')?.addEventListener('click', () => openModal('reportModal'));
+    $('#logoutBtn')?.addEventListener('click', () => {
       sessionStorage.removeItem('isLoggedIn');
       sessionStorage.removeItem('loggedInUser');
       window.location.href = '/login.html';
     });
 
-    // Close modals when clicking backdrop or any [data-close]
-    document.addEventListener('click', (e) => {
-      const closeEl = e.target.closest('[data-close]');
-      if (closeEl) {
-        const modal = closeEl.closest('.modal');
-        if (modal?.id) closeModalWithLock(modal.id);
-      }
-    });
+    // Modal close buttons
+    $('#alertOkBtn')?.addEventListener('click', () => closeModal('alertModal'));
+    $('#confirmCancelBtn')?.addEventListener('click', handleConfirmCancel);
+    $('#confirmOkBtn')?.addEventListener('click', handleConfirmAction);
+
+    // Generic modal close triggers (backdrop, 'x' buttons)
+    // Find all new 'x' buttons
+    $('#cancelEmployeeModal_top')?.addEventListener('click', (e) => { e.preventDefault(); closeModal('employeeModal'); });
+    $('#cancelEmployeeModal')?.addEventListener('click', (e) => { e.preventDefault(); closeModal('employeeModal'); });
+    $('#cancelBulkUploadModal')?.addEventListener('click', () => closeModal('bulkUploadModal'));
+    $('#cancelStatusChangeModal')?.addEventListener('click', () => closeModal('statusChangeModal'));
+    $('#closeViewDetailsModal')?.addEventListener('click', () => closeModal('viewDetailsModal'));
+    $('#cancelAttendanceModal')?.addEventListener('click', () => closeModal('attendanceModal'));
+    $('#closeSheetModal')?.addEventListener('click', () => closeModal('salarySheetModal'));
+    $('#closePastSheetsModal')?.addEventListener('click', () => closeModal('viewSheetsModal'));
+    $('#cancelTransferModal')?.addEventListener('click', () => closeModal('transferModal'));
+    $('#cancelReportModal')?.addEventListener('click', () => closeModal('reportModal'));
 
     // Report Modal button bindings
-    const reportModal = document.getElementById('reportModal');
-    if (reportModal) {
-      document.getElementById('cancelReportModal')?.addEventListener('click', () => closeModalWithLock('reportModal'));
-      document.getElementById('downloadEmployeeDatabase')?.addEventListener('click', () => {
+    $('#downloadEmployeeDatabase')?.addEventListener('click', () => {
         handleExportData();
-        closeModalWithLock('reportModal');
+        closeModal('reportModal');
       });
-      document.getElementById('downloadHoldLog')?.addEventListener('click', () =>
+    $('#downloadHoldLog')?.addEventListener('click', () =>
         handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
       );
-      document.getElementById('downloadSeparationLog')?.addEventListener('click', () =>
+    $('#downloadSeparationLog')?.addEventListener('click', () =>
         handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
       );
-      document.getElementById('downloadTransferLog')?.addEventListener('click', () =>
+    $('#downloadTransferLog')?.addEventListener('click', () =>
         handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
       );
-    }
   }
 
   // --- Export: Employee Database only ---
@@ -289,6 +262,7 @@ async function initializeAppModules() {
       customAlert("No Data", "No employees to export.");
       return;
     }
+    // These headers MUST match your Sheet/JS properties
     const headers = [
       "Employee ID","Employee Name","Employee Type","Designation","Joining Date","Project","Project Office","Report Project","Sub Center",
       "Work Experience (Years)","Education","Father's Name","Mother's Name","Personal Mobile Number","Official Mobile Number",
@@ -329,22 +303,28 @@ async function initializeAppModules() {
     setupGlobalListeners();
 
     // Module listeners
-    if (typeof setupEmployeeListEventListeners === 'function')
-      setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
-    if (typeof setupEmployeeForm === 'function')
-      setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
-    if (typeof setupStatusChangeModal === 'function')
-      setupStatusChangeModal(fetchAndRenderEmployees);
-    if (typeof setupBulkUploadModal === 'function')
-      setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
-    if (typeof setupSalarySheetModal === 'function')
-      setupSalarySheetModal(getMainLocalEmployees);
-    if (typeof setupPastSheetsModal === 'function')
-      setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
-    if (typeof setupViewDetailsModal === 'function')
-      setupViewDetailsModal();
-    if (typeof setupTransferModal === 'function')
-      setupTransferModal(fetchAndRenderEmployees);
+    try {
+      if (typeof setupEmployeeListEventListeners === 'function')
+        setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
+      if (typeof setupEmployeeForm === 'function')
+        setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+      if (typeof setupStatusChangeModal === 'function')
+        setupStatusChangeModal(fetchAndRenderEmployees);
+      if (typeof setupBulkUploadModal === 'function')
+        setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+      // FIX: The button ID for salary sheet is 'uploadAttendanceBtn' in your new index.html
+      if (typeof setupSalarySheetModal === 'function')
+        setupSalarySheetModal(getMainLocalEmployees, $('#uploadAttendanceBtn'));
+      if (typeof setupPastSheetsModal === 'function')
+        setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
+      if (typeof setupViewDetailsModal === 'function')
+        setupViewDetailsModal(); // This file is compatible
+      if (typeof setupTransferModal === 'function')
+        setupTransferModal(fetchAndRenderEmployees);
+    } catch (setupError) {
+        console.error("Error during module setup:", setupError);
+        customAlert("Initialization Error", `A part of the application failed to load: ${setupError.message}`);
+    }
 
     // Initial load
     fetchAndRenderEmployees();
@@ -361,5 +341,6 @@ async function initializeAppModules() {
     } else {
       document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
     }
+    console.error("Fatal Initialization Error:", err);
   }
 }
