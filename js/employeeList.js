@@ -76,10 +76,11 @@ function renderEmployeeList(listContainer, employeesToRender) {
                         <p><strong>Sub Center:</strong> ${emp.subCenter || 'N/A'}</p>
                         <p><strong>Net Salary:</strong> ৳${Number(emp.netSalaryPayment || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         <p><strong>Joined:</strong> ${formatDateForDisplay(emp.joiningDate)}</p>
-                        ${statusText !== 'Active' && statusText !== 'Salary Held' && statusText !== 'Closed' && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
+                        
+                        ${(statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.separationDate ? `<p><strong>Separation Date:</strong> ${formatDateForDisplay(emp.separationDate)}</p>` : ''}
                     </div>
                     
-                    ${(statusText === 'Resigned' || statusText === 'Terminated') && emp.remarks ? 
+                    ${(statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.remarks ? 
                         `<div class="mt-3 text-xs text-yellow-800 bg-yellow-100 p-2 rounded-md"><strong>Separation Remarks:</strong> ${emp.remarks}</div>` : ''}
                     
                     ${(statusText === 'Active' || statusText === 'Salary Held') && emp.remarks ? 

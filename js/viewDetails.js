@@ -28,13 +28,18 @@ export function openViewDetailsModal(employee) {
         return;
     }
 
+    // === FIX: Removed history keys from the excluded list ===
     // List of keys to EXCLUDE from dynamic display
     const excludedKeys = [
         'id', // Internal row ID
         'originalEmployeeId', // Internal edit logic key
         // Explicitly excluded fields (now shown on main card)
-        'status', 'salaryHeld', 'holdTimestamp', 'separationDate',
-        'remarks', 'lastTransferDate', 'lastSubcenter', 'lastTransferReason'
+        'status', 'salaryHeld', 'holdTimestamp'
+        // 'separationDate', // REMOVED - Show in details
+        // 'remarks', // REMOVED - Show in details
+        // 'lastTransferDate', // REMOVED - Show in details
+        // 'lastSubcenter', // REMOVED - Show in details
+        // 'lastTransferReason' // REMOVED - Show in details
     ];
     
     // --- MODIFICATION: List of all keys that should be formatted as currency ---
@@ -64,8 +69,9 @@ export function openViewDetailsModal(employee) {
         let value = employee[key];
         let displayValue = value;
 
+        // === FIX: Added history dates to the date formatting condition ===
         // Apply Specific Formatting
-        if ((key === "joiningDate" || key === "dob") && value) {
+        if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate") && value) {
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                  displayValue = formatDateForDisplay(value);
              } else {
