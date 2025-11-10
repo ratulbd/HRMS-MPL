@@ -8,6 +8,40 @@ const authActions = require('./lib/_authActions');
 
 console.log("Loaded sheetActions, keys:", Object.keys(sheetActions));
 
+// === FIX: Add the missing formatDateForInput function to the helpers object ===
+helpers.formatDateForInput = (dateString) => {
+     if (!dateString || (typeof dateString !== 'string' && typeof dateString !== 'number')) return ''; // Allow numbers (Excel dates)
+     try {
+         let dateObj = null;
+         let dateValueStr = String(dateString); // Work with string version
+
+         if (dateValueStr.includes('/')) {
+             const parts = dateValueStr.split('/');
+             if (parts.length === 3) dateObj = new Date(Date.UTC(parts[2], parts[0] - 1, parts[1]));
+         } else if (!isNaN(dateString) && Number(dateString) > 10000 && Number(dateString) < 60000) { // Check original number
+             const excelEpoch = new Date(1899, 11, 30);
+             dateObj = new Date(excelEpoch.getTime() + Number(dateString) * 24 * 60 * 60 * 1000);
+         } else if (dateValueStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+             dateObj = new Date(dateValueStr + 'T00:00:00Z');
+         } else {
+             dateObj = new Date(dateValueStr); // Fallback
+         }
+
+         if (dateObj && !isNaN(dateObj.getTime())) {
+             const year = dateObj.getUTCFullYear();
+             const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+             const day = String(dateObj.getUTCDate()).padStart(2, '0');
+             return `${year}-${month}-${day}`;
+         }
+         console.warn(`Could not format date for input: ${dateString}`);
+         return '';
+     } catch (e) {
+         console.warn(`Error converting date for input: ${dateString}`, e);
+         return '';
+     }
+}
+// === END FIX ===
+
 // --- Authorization ---
 const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS),
@@ -99,10 +133,8 @@ exports.handler = async (event) => {
         return { statusCode: 204, headers: corsHeaders, body: '' };
     }
 
-    // === FIX 1: Capture ALL query params, not just 'action' and 'sheetId' ===
     const queryParams = event.queryStringParameters || {};
     const { action, sheetId } = queryParams;
-    // === END FIX 1 ===
 
     let requestBody = {};
 
@@ -155,9 +187,7 @@ exports.handler = async (event) => {
                 // --- Employee Actions ---
                 case 'getEmployees':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-                    // === FIX 2: Pass the queryParams object to the function ===
                     else result = await employeeActions.getEmployees(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, queryParams);
-                    // === END FIX 2 ===
                     break;
                 case 'saveEmployee':
                     if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
