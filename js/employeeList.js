@@ -86,11 +86,13 @@ export function renderEmployeeList(employeesToRender, append = false) {
                         </div>
                     </div>
                     
+                    <!-- Info Tags Area -->
                     <div class="flex flex-wrap">
                         ${infoTagsHTML}
                     </div>
                 </div>
                 
+                <!-- Action Buttons Footer (This will now slide up into the 'pb-16' empty space) -->
                 <div class="card-footer flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
