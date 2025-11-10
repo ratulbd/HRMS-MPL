@@ -19,7 +19,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 async function initializeAppModules() {
   
   // --- Dynamic Imports ---
-  // FIX: Use relative paths (./) for all imports
   const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
   const { apiCall } = await import('./apiClient.js');
   const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
@@ -146,11 +145,7 @@ async function initializeAppModules() {
     }
 
     const resetBtn = $('#resetFiltersBtn');
-
-    // --- THIS IS THE FIX ---
-    // Changed 'reset.Btn' to 'resetBtn'
     if (resetBtn) {
-    // --- END OF FIX ---
       resetBtn.addEventListener('click', () => {
         currentFilters = {
           name: '', status: [], designation: [], type: [],
@@ -293,18 +288,24 @@ async function initializeAppModules() {
         setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
       if (typeof setupEmployeeForm === 'function')
         setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+
+      // --- THIS IS THE FIX ---
+      // Replaced 'fetchEmployeesFunc' with the correct 'fetchAndRenderEmployees'
       if (typeof setupStatusChangeModal === 'function')
-        setupStatusChangeModal(fetchEmployeesFunc);
+        setupStatusChangeModal(fetchAndRenderEmployees);
       if (typeof setupBulkUploadModal === 'function')
-        setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
+        setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+      if (typeof setupTransferModal === 'function')
+        setupTransferModal(fetchAndRenderEmployees);
+      // --- END OF FIX ---
+
       if (typeof setupSalarySheetModal === 'function')
         setupSalarySheetModal(getMainLocalEmployees, $('#uploadAttendanceBtn'));
       if (typeof setupPastSheetsModal === 'function')
         setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
       if (typeof setupViewDetailsModal === 'function')
         setupViewDetailsModal();
-      if (typeof setupTransferModal === 'function')
-        setupTransferModal(fetchEmployeesFunc);
+
     } catch (setupError) {
         console.error("Error during module setup:", setupError);
         customAlert("Initialization Error", `A part of the application failed to load: ${setupError.message}`);
