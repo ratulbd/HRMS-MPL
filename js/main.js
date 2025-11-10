@@ -23,104 +23,8 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 async function initializeAppModules() {
   console.log("DOM loaded. Initializing app modules...");
 
-  // --- THEME INJECTION (fonts + stylesheet + tab title) ---
-  try {
-    const head = document.head || document.getElementsByTagName('head')[0];
-    if (head) {
-      const fontLink = document.createElement('link');
-      fontLink.rel = 'stylesheet';
-      fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;600;700&display=swap';
-      head.appendChild(fontLink);
-
-      const themeLink = document.createElement('link');
-      themeLink.rel = 'stylesheet';
-      themeLink.href = '/styles.css'; // This loads your styles.css file
-      head.appendChild(themeLink);
-    }
-    // This sets the BROWSER TAB title
-    document.title = 'HRMS-MPL Telecom';
-  } catch (e) {
-    console.warn('Theme injection failed:', e);
-  }
-  // --- END THEME INJECTION ---
-
-  // --- TOP BAR (logo left, buttons right) ---
-  try {
-    let appBar = document.querySelector('header.app-bar');
-    if (!appBar) {
-      appBar = document.createElement('header');
-      appBar.className = 'app-bar';
-
-      const barInner = document.createElement('div');
-      barInner.className = 'bar-inner';
-
-      // --- MODIFICATION: Replaced <img> with <h1> text logo ---
-      const left = document.createElement('div');
-      left.className = 'bar-left';
-      const logoTitle = document.createElement('h1');
-      logoTitle.className = 'logo-title'; // This class is styled in styles.css
-      logoTitle.textContent = 'HRMS-MPL TELECOM';
-      left.appendChild(logoTitle);
-      // --- END MODIFICATION ---
-
-      // Right: actions container
-      const right = document.createElement('div');
-      right.className = 'bar-actions';
-
-      barInner.appendChild(left);
-      barInner.appendChild(right);
-      appBar.appendChild(barInner);
-
-      // Insert before #app
-      const app = document.querySelector('#app');
-      if (app && app.parentNode) {
-        app.parentNode.insertBefore(appBar, app);
-      } else {
-        document.body.insertBefore(appBar, document.body.firstChild);
-      }
-
-      // Move existing action buttons (by ID) into the right container
-      ['addEmployeeBtn','bulkUploadBtn','uploadAttendanceBtn','pastSalarySheetsBtn','reportBtn','logoutBtn']
-        .forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.classList.add('topbar-btn');
-            right.appendChild(el);
-          } else {
-            console.warn(`Button with ID #${id} not found in HTML.`);
-          }
-        });
-    }
-
-    // --- MODIFICATION: Removed the code that deletes the old nav/header ---
-    // (This is no longer needed as they are gone from index.html)
-    // --- END MODIFICATION ---
-
-  } catch (e) {
-    console.warn('Top bar build failed:', e);
-  }
-  // --- END TOP BAR ---
-
-  // --- HERO SECTION (headline + subhead) ---
-  try {
-    if (!document.querySelector('.hero')) {
-      const hero = document.createElement('section');
-      hero.className = 'hero';
-      hero.innerHTML = `
-        <div class="hero-inner">
-          <div class="hero-subtitle">
-            <span class="eyebrow">Employee Dashboard</span>
-            <p class="lead">View and manage employee data.</p>
-          </div>
-        </div>
-      `;
-      const app = document.querySelector('#app');
-      if (app) app.parentNode.insertBefore(hero, app);
-    }
-  } catch (e) {
-    console.warn('Hero injection failed:', e);
-  }
-  // --- END HERO ---
+  // --- MODIFICATION: REMOVED ALL THEME, TOP BAR, and HERO INJECTION CODE ---
+  // The HTML and CSS are now loaded directly by index.html
 
   // --- CARD ACTION BUTTONS: compact pills mapper ---
   try {
@@ -384,27 +288,16 @@ async function initializeAppModules() {
 
   // --- Global Listeners ---
   function setupGlobalListeners() {
-    const reportBtn = $('reportBtn');
-    if (reportBtn) {
-      reportBtn.addEventListener('click', () => openModal('reportModal'));
-    } else {
-      console.warn("Report button (#reportBtn) not found.");
-    }
-
-    const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
-    const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
-    const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
-
-    const logoutBtn = $('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
+    // Buttons are now in the HTML, so we just add listeners
+    $('reportBtn').addEventListener('click', () => openModal('reportModal'));
+    $('alertOkBtn').addEventListener('click', () => closeModal('alertModal'));
+    $('confirmCancelBtn').addEventListener('click', handleConfirmCancel);
+    $('confirmOkBtn').addEventListener('click', handleConfirmAction);
+    $('logoutBtn').addEventListener('click', () => {
         sessionStorage.removeItem('isLoggedIn');
         sessionStorage.removeItem('loggedInUser');
         window.location.href = '/login.html';
       });
-    } else {
-      console.warn("Logout button (#logoutBtn) not found.");
-    }
   }
 
   // --- Initialize Application ---
