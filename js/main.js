@@ -60,16 +60,16 @@ async function initializeAppModules() {
   } catch (e) {}
 
   // --- Dynamic Imports ---
-  const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
-  const { apiCall } = await import('./apiClient.js');
-  const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
-  const { setupEmployeeForm } = await import('./employeeForm.js');
-  const { setupStatusChangeModal } = await import('./statusChange.js');
-  const { setupBulkUploadModal } = await import('./bulkUpload.js');
-  const { setupSalarySheetModal } = await import('./salarySheet.js');
-  const { setupPastSheetsModal } = await import('./pastSheets.js');
-  const { setupViewDetailsModal } = await import('./viewDetails.js');
-  const { setupTransferModal } = await import('./transferModal.js');
+  const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('/js/utils.js');
+  const { apiCall } = await import('/js/apiClient.js');
+  const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('/js/employeeList.js');
+  const { setupEmployeeForm } = await import('/js/employeeForm.js');
+  const { setupStatusChangeModal } = await import('/js/statusChange.js');
+  const { setupBulkUploadModal } = await import('/js/bulkUpload.js');
+  const { setupSalarySheetModal } = await import('/js/salarySheet.js');
+  const { setupPastSheetsModal } = await import('/js/pastSheets.js');
+  const { setupViewDetailsModal } = await import('/js/viewDetails.js');
+  const { setupTransferModal } = await import('/js/transferModal.js');
 
   // --- Global State ---
   let mainLocalEmployees = [];
@@ -192,7 +192,6 @@ async function initializeAppModules() {
         };
         if (nameInput) nameInput.value = '';
         for (const key in tomSelects) if (tomSelects[key]) tomSelects[key].clear();
-        // Also clear native selects if TomSelect not present
         if (!hasTomSelect) {
           for (const id of Object.keys(filterMap)) {
             const s = $(id);
@@ -245,11 +244,11 @@ async function initializeAppModules() {
 
   // --- Global Listeners ---
   function setupGlobalListeners() {
-    $('#reportBtn')?.addEventListener('click', () => openModalWithLock('reportModal'));
-    $('#alertOkBtn')?.addEventListener('click', () => closeModalWithLock('alertModal'));
-    $('#confirmCancelBtn')?.addEventListener('click', handleConfirmCancel);
-    $('#confirmOkBtn')?.addEventListener('click', handleConfirmAction);
-    $('#logoutBtn')?.addEventListener('click', () => {
+    document.getElementById('reportBtn')?.addEventListener('click', () => openModalWithLock('reportModal'));
+    document.getElementById('alertOkBtn')?.addEventListener('click', () => closeModalWithLock('alertModal'));
+    document.getElementById('confirmCancelBtn')?.addEventListener('click', handleConfirmCancel);
+    document.getElementById('confirmOkBtn')?.addEventListener('click', handleConfirmAction);
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
       sessionStorage.removeItem('isLoggedIn');
       sessionStorage.removeItem('loggedInUser');
       window.location.href = '/login.html';
@@ -265,20 +264,20 @@ async function initializeAppModules() {
     });
 
     // Report Modal button bindings
-    const reportModal = $('#reportModal');
+    const reportModal = document.getElementById('reportModal');
     if (reportModal) {
-      $('#cancelReportModal')?.addEventListener('click', () => closeModalWithLock('reportModal'));
-      $('#downloadEmployeeDatabase')?.addEventListener('click', () => {
+      document.getElementById('cancelReportModal')?.addEventListener('click', () => closeModalWithLock('reportModal'));
+      document.getElementById('downloadEmployeeDatabase')?.addEventListener('click', () => {
         handleExportData();
         closeModalWithLock('reportModal');
       });
-      $('#downloadHoldLog')?.addEventListener('click', () =>
+      document.getElementById('downloadHoldLog')?.addEventListener('click', () =>
         handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv')
       );
-      $('#downloadSeparationLog')?.addEventListener('click', () =>
+      document.getElementById('downloadSeparationLog')?.addEventListener('click', () =>
         handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv')
       );
-      $('#downloadTransferLog')?.addEventListener('click', () =>
+      document.getElementById('downloadTransferLog')?.addEventListener('click', () =>
         handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv')
       );
     }

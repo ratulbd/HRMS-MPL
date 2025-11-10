@@ -4,190 +4,185 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HRMS-MPL TELECOM</title>
-
-  <!-- ✅ Use the exact filename you have on disk -->
-  style.css
-
-  <!-- ✅ TomSelect CDN (so filters render nicely even if you don’t bundle it) -->
-  https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css
+  <!-- Load your local CSS (make sure the file is style.css at root) -->
+  /style.css
 </head>
 <body>
 
-  <!-- ===== Top App Bar ===== -->
-  <header class="app-bar">
-    <div class="bar-inner">
-      <div class="bar-left">
-        <h1 class="logo-title">HRMS‑MPL<br/>TELECOM</h1>
+<!-- ===== Top App Bar ===== -->
+<header class="app-bar">
+  <div class="bar-inner">
+    <div class="bar-left">
+      <h1 class="logo-title">HRMS‑MPL<br/>TELECOM</h1>
+    </div>
+
+    <div class="bar-actions">
+      <button id="addEmployeeBtn"           class="topbar-btn">Add New Employee</button>
+      <button id="bulkUploadBtn"            class="topbar-btn">Bulk Upload</button>
+      <button id="generateSalarySheetBtn"   class="topbar-btn">Generate Salary Sheet</button>
+      <button id="pastSalarySheetsBtn"      class="topbar-btn">Past Salary Sheets</button>
+      <button id="reportBtn"                class="topbar-btn">Report</button>
+      <button id="logoutBtn"                class="topbar-btn">Logout</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-title">Employee Dashboard</div>
+    <div class="hero-subtitle">
+      <span class="eyebrow">Dashboard</span>
+      <p class="lead">View and manage your employee data</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== App Container ===== -->
+<main id="app">
+
+  <!-- Filters -->
+  <section class="filters">
+    <h3 class="section-title">Filters</h3>
+
+    <div class="filters-grid">
+      <div class="filter-item">
+        <label for="filterName">Search by Name/ID</label>
+        <input id="filterName" type="text" placeholder="e.g. Shanto / 7032" />
       </div>
 
-      <div class="bar-actions">
-        <button id="addEmployeeBtn"           class="topbar-btn">Add New Employee</button>
-        <button id="bulkUploadBtn"            class="topbar-btn">Bulk Upload</button>
-        <button id="generateSalarySheetBtn"   class="topbar-btn">Generate Salary Sheet</button>
-        <button id="pastSalarySheetsBtn"      class="topbar-btn">Past Salary Sheets</button>
-        <button id="reportBtn"                class="topbar-btn">Report</button>
-        <button id="logoutBtn"                class="topbar-btn">Logout</button>
+      <div class="filter-item">
+        <label for="filterStatus">Status</label>
+        <select id="filterStatus" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterDesignation">Designation</label>
+        <select id="filterDesignation" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterType">Employee Type</label>
+        <select id="filterType" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterProject">Project</label>
+        <select id="filterProject" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterProjectOffice">Project Office</label>
+        <select id="filterProjectOffice" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterReportProject">Report Project</label>
+        <select id="filterReportProject" multiple></select>
+      </div>
+
+      <div class="filter-item">
+        <label for="filterSubCenter">Sub Center</label>
+        <select id="filterSubCenter" multiple></select>
       </div>
     </div>
-  </header>
 
-  <!-- ===== Hero ===== -->
-  <section class="hero">
-    <div class="hero-inner">
-      <div class="hero-title">Employee Dashboard</div>
-      <div class="hero-subtitle">
-        <span class="eyebrow">Dashboard</span>
-        <p class="lead">View and manage your employee data</p>
-      </div>
+    <div class="filters-actions">
+      <button id="resetFiltersBtn" class="btn btn-chip chip-neutral">Reset Filters</button>
+      <span id="filterCountDisplay" class="filter-count">Loading employees...</span>
     </div>
   </section>
 
-  <!-- ===== App Container ===== -->
-  <main id="app">
+  <!-- Employee list -->
+  <section id="employee-list" class="employee-list">
+    <div id="initialLoading" class="loading">
+      Loading employee data...
+    </div>
+    <!-- Cards are rendered via JS -->
+  </section>
 
-    <!-- Filters -->
-    <section class="filters">
-      <h3 class="section-title">Filters</h3>
+  <!-- Footer -->
+  <footer>
+    © 2025 Md. Rakibul Islam Ratul — Sr. Manager, Telecom Service, Metal Plus
+  </footer>
+</main>
 
-      <div class="filters-grid">
-        <div class="filter-item">
-          <label for="filterName">Search by Name/ID</label>
-          <input id="filterName" type="text" placeholder="e.g. Shanto / 7032" />
-        </div>
+<!-- ===== Modals ===== -->
 
-        <div class="filter-item">
-          <label for="filterStatus">Status</label>
-          <select id="filterStatus" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterDesignation">Designation</label>
-          <select id="filterDesignation" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterType">Employee Type</label>
-          <select id="filterType" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterProject">Project</label>
-          <select id="filterProject" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterProjectOffice">Project Office</label>
-          <select id="filterProjectOffice" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterReportProject">Report Project</label>
-          <select id="filterReportProject" multiple></select>
-        </div>
-
-        <div class="filter-item">
-          <label for="filterSubCenter">Sub Center</label>
-          <select id="filterSubCenter" multiple></select>
-        </div>
-      </div>
-
-      <div class="filters-actions">
-        <button id="resetFiltersBtn" class="btn btn-chip chip-neutral">Reset Filters</button>
-        <span id="filterCountDisplay" class="filter-count">Loading employees...</span>
-      </div>
-    </section>
-
-    <!-- Employee list -->
-    <section id="employee-list" class="employee-list">
-      <div id="initialLoading" class="loading">
-        Loading employee data...
-      </div>
-      <!-- Cards are rendered via JS -->
-    </section>
-
-    <!-- Footer -->
-    <footer>
-      © 2025 Md. Rakibul Islam Ratul — Sr. Manager, Telecom Service, Metal Plus
-    </footer>
-  </main>
-
-  <!-- ===== Modals ===== -->
-
-  <!-- Alert Modal -->
-  <div id="alertModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
-      <div class="modal__header"><h2 id="alertTitle">Alert</h2></div>
-      <div class="modal__body"><p id="alertMessage">—</p></div>
-      <div class="modal__footer">
-        <button id="alertOkBtn" class="btn btn-chip chip-brand">OK</button>
-      </div>
+<!-- Alert Modal -->
+<div id="alertModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
+    <div class="modal__header"><h2 id="alertTitle">Alert</h2></div>
+    <div class="modal__body"><p id="alertMessage">—</p></div>
+    <div class="modal__footer">
+      <button id="alertOkBtn" class="btn btn-chip chip-brand">OK</button>
     </div>
   </div>
+</div>
 
-  <!-- Confirm Modal -->
-  <div id="confirmModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-      <div class="modal__header"><h2 id="confirmTitle">Confirmation</h2></div>
-      <div class="modal__body"><p id="confirmMessage">Are you sure?</p></div>
-      <div class="modal__footer">
-        <button id="confirmCancelBtn" class="btn btn-chip chip-neutral">Cancel</button>
-        <button id="confirmOkBtn" class="btn btn-chip chip-brand">Confirm</button>
-      </div>
+<!-- Confirm Modal -->
+<div id="confirmModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal__header"><h2 id="confirmTitle">Confirmation</h2></div>
+    <div class="modal__body"><p id="confirmMessage">Are you sure?</p></div>
+    <div class="modal__footer">
+      <button id="confirmCancelBtn" class="btn btn-chip chip-neutral">Cancel</button>
+      <button id="confirmOkBtn" class="btn btn-chip chip-brand">Confirm</button>
     </div>
   </div>
+</div>
 
-  <!-- Report Modal -->
-  <div id="reportModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
-      <div class="modal__header"><h2 id="reportTitle">Download Reports</h2></div>
-      <div class="modal__body">
-        <p>Select a report to download as a .csv file.</p>
-        <div class="report-grid">
-          <button id="downloadEmployeeDatabase" class="btn btn-chip chip-brand">Employee Database</button>
-          <button id="downloadHoldLog" class="btn btn-chip chip-warning">Salary Hold Log</button>
-          <button id="downloadSeparationLog" class="btn btn-chip chip-danger">Separation Log</button>
-          <button id="downloadTransferLog" class="btn btn-chip chip-brand">Transfer Log</button>
-        </div>
-      </div>
-      <div class="modal__footer">
-        <button id="cancelReportModal" class="btn btn-chip chip-neutral">Close</button>
+<!-- Report Modal -->
+<div id="reportModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <div class="modal__header"><h2 id="reportTitle">Download Reports</h2></div>
+    <div class="modal__body">
+      <p>Select a report to download as a .csv file.</p>
+      <div class="report-grid">
+        <button id="downloadEmployeeDatabase" class="btn btn-chip chip-brand">Employee Database</button>
+        <button id="downloadHoldLog" class="btn btn-chip chip-warning">Salary Hold Log</button>
+        <button id="downloadSeparationLog" class="btn btn-chip chip-danger">Separation Log</button>
+        <button id="downloadTransferLog" class="btn btn-chip chip-brand">Transfer Log</button>
       </div>
     </div>
-  </div>
-
-  <!-- Transfer Modal -->
-  <div id="transferModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="transferTitle">
-      <div class="modal__header"><h2 id="transferTitle">Transfer Employee</h2></div>
-      <div class="modal__body">
-        <!-- populated by JS -->
-        <div class="current-info">
-          <label>Current Sub Center</label>
-          <input type="text" readonly value="" />
-        </div>
-
-        <div class="transfer-grid">
-          <div class="field"><label>New Project*</label><select id="transferProject"></select></div>
-          <div class="field"><label>New Project Office*</label><select id="transferProjectOffice"></select></div>
-          <div class="field"><label>New Sub Center*</label><select id="transferSubCenter"></select></div>
-          <div class="field"><label>New Report Project*</label><select id="transferReportProject"></select></div>
-          <div class="field"><label>Transfer Date*</label><input id="transferDate" type="date" /></div>
-          <div class="field"><label>Reason for Transfer*</label><textarea id="transferReason" rows="3"></textarea></div>
-        </div>
-      </div>
-      <div class="modal__footer">
-        <button class="btn btn-chip chip-neutral" data-close>Cancel</button>
-        <button id="confirmTransferBtn" class="btn btn-chip chip-brand">Confirm Transfer</button>
-      </div>
+    <div class="modal__footer">
+      <button id="cancelReportModal" class="btn btn-chip chip-neutral">Close</button>
     </div>
   </div>
+</div>
 
-  <!-- Scripts -->
-  https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js</script>
-  main.js</script>
+<!-- Transfer Modal -->
+<div id="transferModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="transferTitle">
+    <div class="modal__header"><h2 id="transferTitle">Transfer Employee</h2></div>
+    <div class="modal__body">
+      <!-- populated by JS -->
+      <div class="current-info">
+        <label>Current Sub Center</label>
+        <input type="text" readonly value="" />
+      </div>
+
+      <div class="transfer-grid">
+        <div class="field"><label>New Project*</label><select id="transferProject"></select></div>
+        <div class="field"><label>New Project Office*</label><select id="transferProjectOffice"></select></div>
+        <div class="field"><label>New Sub Center*</label><select id="transferSubCenter"></select></div>
+        <div class="field"><label>New Report Project*</label><select id="transferReportProject"></select></div>
+        <div class="field"><label>Transfer Date*</label><input id="transferDate" type="date" /></div>
+        <div class="field"><label>Reason for Transfer*</label><textarea id="transferReason" rows="3"></textarea></div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-chip chip-neutral" data-close>Cancel</button>
+      <button id="confirmTransferBtn" class="btn btn-chip chip-brand">Confirm Transfer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js</script>
+/js/main.js</script>
 </body>
-</html>

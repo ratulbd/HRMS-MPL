@@ -49,7 +49,7 @@ body::before {
 
 /* ===== TOP BAR (logo left, buttons right) ===== */
 header.app-bar {
-  position: sticky;           /* FIX: keeps header in normal flow -> no overlap */
+  position: sticky;           /* keeps header in normal flow -> no overlap */
   top: 0;
   z-index: 50;
   backdrop-filter: saturate(140%) blur(10px);
@@ -163,9 +163,7 @@ input::placeholder { color: var(--text-500); }
 .status-terminated{ background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
 /* ===== CARD ACTION BUTTONS (compact pills) ===== */
-/* FIX: scope ripple/overflow ONLY to .btn (not every <button>) */
-.btn { position: relative; overflow: hidden; isolation: isolate; }
-
+.btn { position: relative; overflow: hidden; isolation: isolate; } /* scope to .btn only */
 .btn-chip {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 34px; padding: 6px 12px; border-radius: 999px;
