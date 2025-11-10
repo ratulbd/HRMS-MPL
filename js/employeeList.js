@@ -44,14 +44,15 @@ function renderEmployeeList(listContainer, employeesToRender) {
 
 
             const card = document.createElement('div');
-            card.className = 'employee-card bg-white rounded-lg shadow-md p-6 flex flex-col transition hover:shadow-lg';
+            // === MODIFICATION: Added transition-all and duration-300 ===
+            card.className = 'employee-card bg-white rounded-lg shadow-md p-6 flex flex-col transition-all duration-300 hover:shadow-lg';
             card.setAttribute('data-employee-row-id', emp.id);
 
             let lastTransferHTML = '';
             if (emp.lastTransferDate && emp.lastSubcenter) { // lastSubcenter is 'FROM'
                 let displayDate = emp.lastTransferDate;
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
-                // MODIFICATION: Themed transfer info box
+                // === MODIFICATION: Themed transfer info box ===
                 lastTransferHTML = `<div class="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded-md"><strong>Last Transfer:</strong> ${displayDate} from ${emp.lastSubcenter} ${emp.lastTransferReason ? `(${emp.lastTransferReason.substring(0, 30)}${emp.lastTransferReason.length > 30 ? '...' : ''})` : ''}</div>`;
             }
             
@@ -62,10 +63,11 @@ function renderEmployeeList(listContainer, employeesToRender) {
             }
             // --- END MODIFICATION ---
 
+            // === MODIFICATION: Replaced all buttons with new "pill" styles ===
             card.innerHTML = `
                 <div class="flex-grow">
                     <div class="flex justify-between items-start">
-                         <h3 class="text-xl font-bold text-gray-900">${emp.name || 'N/A'}</h3>
+                         <h3 class="text-lg font-semibold text-green-800">${emp.name || 'N/A'}</h3>
                          <div class="text-right flex-shrink-0 ml-4"> <span class="status-badge ${statusClass}">${statusText}</span> ${isHeld && emp.holdTimestamp ? `<p class="text-xs font-medium text-orange-600 pt-1">${emp.holdTimestamp}</p>` : ''} </div>
                     </div>
                     <p class="text-gray-600">${emp.designation || 'N/A'}</p>
@@ -88,22 +90,22 @@ function renderEmployeeList(listContainer, employeesToRender) {
                         `<div class="mt-3 text-xs text-gray-700 bg-gray-100 p-2 rounded-md"><strong>Remarks:</strong> ${emp.remarks}</div>` : ''}
                     ${lastTransferHTML}
                     ${fileClosingHTML} </div>
-                <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-2 justify-end"> 
-                    <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button> 
+                <div class="border-t border-gray-200 mt-4 pt-4 flex flex-wrap gap-1 justify-end"> 
+                    <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
                     ${statusText !== 'Closed' ? `
-                        <button class="edit-btn text-sm font-medium text-green-700 hover:text-green-900" data-id="${emp.id}">Edit</button> 
+                        <button class="edit-btn btn-pill btn-pill-green" data-id="${emp.id}">Edit</button> 
                     ` : ''}
 
                     ${statusText === 'Active' || statusText === 'Salary Held' ? ` 
-                        <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> 
-                        <button class="transfer-btn text-sm font-medium text-green-600 hover:text-green-800" data-id="${emp.id}">Transfer</button> 
-                        <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button> 
-                        <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button> 
+                        <button class="toggle-hold-btn btn-pill ${isHeld ? 'btn-pill-green' : 'btn-pill-orange'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> 
+                        <button class="transfer-btn btn-pill btn-pill-green" data-id="${emp.id}">Transfer</button> 
+                        <button class="resign-btn btn-pill btn-pill-yellow" data-id="${emp.id}">Resign</button> 
+                        <button class="terminate-btn btn-pill btn-pill-red" data-id="${emp.id}">Terminate</button> 
                     ` : ''} 
 
                     ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
-                        <button class="close-file-btn text-sm font-medium text-gray-600 hover:text-gray-800" data-id="${emp.id}">Close File</button>
+                        <button class="close-file-btn btn-pill btn-pill-gray" data-id="${emp.id}">Close File</button>
                     ` : ''}
                 </div>
                 `;
@@ -206,6 +208,9 @@ export function populateFilterDropdowns(employees) {
 
     // --- Get unique, sorted lists for MODAL datalists ---
     const designations = [...new Set(employees.map(e => e?.designation).filter(Boolean))].sort();
+    // --- ADDITION: Get functional roles for datalist ---
+    const functionalRoles = [...new Set(employees.map(e => e?.functionalRole).filter(Boolean))].sort();
+    // --- END ADDITION ---
     const offices = [...new Set(employees.map(e => e?.projectOffice).filter(Boolean))].sort();
     const projects = [...new Set(employees.map(e => e?.project).filter(Boolean))].sort();
     const reportProjects = [...new Set(employees.map(e => e?.reportProject).filter(Boolean))].sort();
@@ -215,6 +220,11 @@ export function populateFilterDropdowns(employees) {
 
     // --- Populate Modal <datalist> Autocompletes ---
     populateDataList('designation-list', designations);
+    // --- ADDITION: Populate new datalist ---
+    // Note: Your employeeForm.js doesn't have a 'functionalRole-list' datalist, 
+    // but if it did, this would populate it. The filter dropdown will still work.
+    // populateDataList('functionalRole-list', functionalRoles); 
+    // --- END ADDITION ---
     populateDataList('project-list', projects);
     populateDataList('projectOffice-list', offices);
     populateDataList('reportProject-list', reportProjects);
