@@ -230,13 +230,15 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     if (updates.hasOwnProperty('salaryHeld')) {
         const isHolding = (updates.salaryHeld === true || String(updates.salaryHeld).toUpperCase() === 'TRUE');
         const actionText = isHolding ? 'Salary Hold' : 'Salary Unhold';
-        // --- MODIFICATION: Pass remarks to logEvent ---
+        
+        // === FIX: Read from 'holdRemarks' instead of 'remarks' ===
         await helpers.logEvent(
             sheets, SPREADSHEET_ID, HOLD_LOG_SHEET_NAME, HOLD_LOG_HEADERS, 
-            [employeeId, currentSalary || 'N/A', actionText, updates.remarks || ''], 
+            [employeeId, currentSalary || 'N/A', actionText, updates.holdRemarks || ''], 
             formattedTimestamp, helpers.ensureSheetAndHeaders
         );
-        // --- END MODIFICATION ---
+        // === END FIX ===
+        
         const tsHeaderName = HEADER_MAPPING.holdTimestamp; const tsColIndex = headerRow.indexOf(tsHeaderName);
         if (tsColIndex !== -1) {
             dataToUpdate.push({ range: `${EMPLOYEE_SHEET_NAME}!${helpers.getColumnLetter(tsColIndex)}${rowIndex}`, values: [[isHolding ? formattedTimestamp : '']] });
@@ -249,6 +251,7 @@ async function updateStatus(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_
     for (const key in updates) {
         if (!updates.hasOwnProperty(key)) continue;
         const headerName = HEADER_MAPPING[key];
+        // === FIX: We check for 'holdRemarks' here and skip it, as it's not mapped ===
         if (!headerName) { console.warn(`No header mapping for ${key}. Skipping.`); continue; }
         const colIndex = headerRow.indexOf(headerName);
         if (colIndex === -1) { console.warn(`Header '${headerName}' not found. Skipping.`); continue; }

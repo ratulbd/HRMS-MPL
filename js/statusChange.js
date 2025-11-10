@@ -70,9 +70,9 @@ export function setupStatusChangeModal(fetchEmployeesFunc) {
                 return;
             }
 
+            // === FIX: 'remarks' is no longer added by default ===
             let apiPayload = {
                 employeeId: employeeId,
-                remarks: remarks
             };
 
             if (statusOrAction === 'Resigned' || statusOrAction === 'Terminated') {
@@ -82,17 +82,21 @@ export function setupStatusChangeModal(fetchEmployeesFunc) {
                 }
                 apiPayload.status = statusOrAction;
                 apiPayload.separationDate = separationDate;
+                apiPayload.remarks = remarks; // <-- 'remarks' key ONLY for separation
 
             } else if (statusOrAction === 'Hold') {
                 apiPayload.salaryHeld = true;
+                apiPayload.holdRemarks = remarks; // <-- Use 'holdRemarks' key for hold
 
             } else if (statusOrAction === 'Unhold') {
                 apiPayload.salaryHeld = false;
+                apiPayload.holdRemarks = remarks; // <-- Use 'holdRemarks' key for unhold
                 
             } else {
                 customAlert("Error", "Unknown action.");
                 return;
             }
+            // === END FIX ===
 
             try {
                 await apiCall('updateStatus', 'POST', apiPayload);
