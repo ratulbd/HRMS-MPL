@@ -10,10 +10,10 @@ async function initializeAppModules() {
     const { setLocalEmployees, filterAndRenderEmployees, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
-    // --- ADDITION: Import new modal handlers ---
-    const { setupHoldModal } = await import('./holdChange.js');
-    const { setupFileCloseModal } = await import('./fileClose.js');
-    // --- END ADDITION ---
+    // --- MODIFICATION: Re-enabled missing file imports ---
+    // const { setupHoldModal } = await import('./holdChange.js'); // This file seems obsolete, statusChange.js handles it
+    const { setupFileCloseModal } = await import('./fileClosingModal.js'); // Fixed typo 'fileClose.js' -> 'fileClosingModal.js'
+    // --- END MODIFICATION ---
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
@@ -322,10 +322,10 @@ async function initializeAppModules() {
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
-        // --- ADDITION: Setup new modals ---
-        if (typeof setupHoldModal === 'function') setupHoldModal(fetchAndRenderEmployees);
+        // --- MODIFICATION: Setup new modals ---
+        // if (typeof setupHoldModal === 'function') setupHoldModal(fetchAndRenderEmployees); // This is handled by statusChange.js now
         if (typeof setupFileCloseModal === 'function') setupFileCloseModal(fetchAndRenderEmployees);
-        // --- END ADDITION ---
+        // --- END MODIFICATION ---
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
         
