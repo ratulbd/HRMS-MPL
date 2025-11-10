@@ -51,7 +51,8 @@ function renderEmployeeList(listContainer, employeesToRender) {
             if (emp.lastTransferDate && emp.lastSubcenter) { // lastSubcenter is 'FROM'
                 let displayDate = emp.lastTransferDate;
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
-                lastTransferHTML = `<div class="mt-2 text-xs text-purple-700 bg-purple-50 p-2 rounded-md"><strong>Last Transfer:</strong> ${displayDate} from ${emp.lastSubcenter} ${emp.lastTransferReason ? `(${emp.lastTransferReason.substring(0, 30)}${emp.lastTransferReason.length > 30 ? '...' : ''})` : ''}</div>`;
+                // MODIFICATION: Themed transfer info box
+                lastTransferHTML = `<div class="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded-md"><strong>Last Transfer:</strong> ${displayDate} from ${emp.lastSubcenter} ${emp.lastTransferReason ? `(${emp.lastTransferReason.substring(0, 30)}${emp.lastTransferReason.length > 30 ? '...' : ''})` : ''}</div>`;
             }
             
             // --- MODIFICATION: Added File Closing info display ---
@@ -91,18 +92,18 @@ function renderEmployeeList(listContainer, employeesToRender) {
                     <button class="view-details-btn text-sm font-medium text-gray-600 hover:text-gray-900" data-id="${emp.id}">View Details</button> 
                     
                     ${statusText !== 'Closed' ? `
-                        <button class="edit-btn text-sm font-medium text-indigo-600 hover:text-indigo-800" data-id="${emp.id}">Edit</button> 
+                        <button class="edit-btn text-sm font-medium text-green-700 hover:text-green-900" data-id="${emp.id}">Edit</button> 
                     ` : ''}
 
                     ${statusText === 'Active' || statusText === 'Salary Held' ? ` 
                         <button class="toggle-hold-btn text-sm font-medium ${isHeld ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> 
-                        <button class="transfer-btn text-sm font-medium text-purple-600 hover:text-purple-800" data-id="${emp.id}">Transfer</button> 
+                        <button class="transfer-btn text-sm font-medium text-green-600 hover:text-green-800" data-id="${emp.id}">Transfer</button> 
                         <button class="resign-btn text-sm font-medium text-yellow-600 hover:text-yellow-800" data-id="${emp.id}">Resign</button> 
                         <button class="terminate-btn text-sm font-medium text-red-600 hover:text-red-800" data-id="${emp.id}">Terminate</button> 
                     ` : ''} 
 
                     ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
-                        <button class="close-file-btn text-sm font-medium text-blue-600 hover:text-blue-800" data-id="${emp.id}">Close File</button>
+                        <button class="close-file-btn text-sm font-medium text-gray-600 hover:text-gray-800" data-id="${emp.id}">Close File</button>
                     ` : ''}
                 </div>
                 `;
@@ -136,6 +137,9 @@ export function filterAndRenderEmployees(filters, employees) {
          name: filters?.name || '', 
          status: filters?.status || [],
          designation: filters?.designation || [], 
+         // --- ADDITION: Add new filter key ---
+         functionalRole: filters?.functionalRole || [],
+         // --- END ADDITION ---
          type: filters?.type || [],
          project: filters?.project || [],
          projectOffice: filters?.projectOffice || [],
@@ -159,13 +163,17 @@ export function filterAndRenderEmployees(filters, employees) {
         // Array filter logic: empty array means "match all" OR the array includes the employee's value
         const statusMatch = safeFilters.status.length === 0 || safeFilters.status.includes(effectiveStatus);
         const designationMatch = safeFilters.designation.length === 0 || safeFilters.designation.includes(emp.designation);
+        // --- ADDITION: Check new filter ---
+        const functionalRoleMatch = safeFilters.functionalRole.length === 0 || safeFilters.functionalRole.includes(emp.functionalRole);
+        // --- END ADDITION ---
         const typeMatch = safeFilters.type.length === 0 || safeFilters.type.includes(emp.employeeType);
         const projectMatch = safeFilters.project.length === 0 || safeFilters.project.includes(emp.project);
         const projectOfficeMatch = safeFilters.projectOffice.length === 0 || safeFilters.projectOffice.includes(emp.projectOffice);
         const reportProjectMatch = safeFilters.reportProject.length === 0 || safeFilters.reportProject.includes(emp.reportProject);
         const subCenterMatch = safeFilters.subCenter.length === 0 || safeFilters.subCenter.includes(emp.subCenter);
 
-        return nameMatch && statusMatch && designationMatch && typeMatch && projectMatch && projectOfficeMatch && reportProjectMatch && subCenterMatch;
+        // --- MODIFICATION: Add new filter to return ---
+        return nameMatch && statusMatch && designationMatch && functionalRoleMatch && typeMatch && projectMatch && projectOfficeMatch && reportProjectMatch && subCenterMatch;
     });
     // --- END MODIFICATION ---
 
