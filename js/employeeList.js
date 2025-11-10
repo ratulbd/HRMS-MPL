@@ -8,12 +8,10 @@ import { openTransferModal } from './transferModal.js';
 import { openFileClosingModal } from './fileClosingModal.js';
 
 // === MODIFICATION: Re-designed renderEmployeeList function for pagination ===
-// It now takes an 'append' flag.
 export function renderEmployeeList(employeesToRender, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
     
-    // Get the current card count to set the animation delay index
     let startIndex = 0;
     if (append) {
         startIndex = listContainer.children.length;
@@ -21,12 +19,11 @@ export function renderEmployeeList(employeesToRender, append = false) {
         listContainer.innerHTML = ''; // Clear for new search
     }
 
-    // Remove any 'no results' or 'loading' message
     const noResultsEl = listContainer.querySelector('.no-results');
     if (noResultsEl) noResultsEl.remove();
 
     if (!employeesToRender || employeesToRender.length === 0) {
-        if (!append) { // Only show 'no results' if it's a new search
+        if (!append) {
              listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
         }
         return;
@@ -49,9 +46,8 @@ export function renderEmployeeList(employeesToRender, append = false) {
 
             const card = document.createElement('div');
             // === MODIFICATION: New Card Class & Animation Delay ===
-            card.className = 'employee-card bg-white rounded-lg shadow-sm flex flex-col overflow-hidden'; // Overflow-hidden for footer
-            card.setAttribute('data-employee-row-id', emp.id); // Still use row ID for actions
-            // Set the CSS variable for the staggered animation delay
+            card.className = 'employee-card flex flex-col'; // All other styles are in CSS
+            card.setAttribute('data-employee-row-id', emp.id);
             card.style.setProperty('--card-index', startIndex + index);
             // === END MODIFICATION ===
 
@@ -72,8 +68,9 @@ export function renderEmployeeList(employeesToRender, append = false) {
             }
 
             // --- === MODIFICATION: New Concise Card HTML with Hover Footer === ---
+            // Note the new 'card-content' wrapper
             card.innerHTML = `
-                <div class="p-5 flex-grow">
+                <div class="card-content p-5 flex-grow">
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
                         <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
@@ -93,12 +90,14 @@ export function renderEmployeeList(employeesToRender, append = false) {
                         </div>
                     </div>
                     
+                    <!-- Info Tags Area -->
                     <div class="flex flex-wrap">
                         ${infoTagsHTML}
                     </div>
                 </div>
                 
-                <div class="card-footer bg-gray-50 px-5 flex flex-wrap gap-1.5 justify-end"> 
+                <!-- Action Buttons Footer (Hidden by default, revealed on hover) -->
+                <div class="card-footer px-4 py-3 flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
                     ${statusText !== 'Closed' ? `
@@ -117,7 +116,6 @@ export function renderEmployeeList(employeesToRender, append = false) {
                     ` : ''}
                 </div>
                 `;
-            // Add the new card to the container
             listContainer.appendChild(card);
         });
     } catch (error) {
@@ -155,23 +153,32 @@ export function populateFilterDropdowns(filterData) {
     };
     
     formatAndPopulate('designation', 'designation-list');
-    // We still need to add a <datalist id="functionalRole-list"> in index.html for this to work
-    // formatAndPopulate('functionalRole', 'functionalRole-list');
     formatAndPopulate('project', 'project-list');
     formatAndPopulate('projectOffice', 'projectOffice-list');
     formatAndPopulate('reportProject', 'reportProject-list');
     formatAndPopulate('subCenter', 'subCenter-list');
     
-    // This one is not from the server, it's static
     const identificationTypes = ['NID', 'Passport', 'Birth Certificate']; 
     populateDataList('identificationType-list', identificationTypes);
 }
 
 
-// Function to set up the main event listener for the list
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
      const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
+
+    // === MODIFICATION: Add MouseMove listener for spotlight effect ===
+    listContainer.addEventListener('mousemove', (e) => {
+        const card = e.target.closest('.employee-card');
+        if (card) {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        }
+    });
+    // === END MODIFICATION ===
 
     listContainer.addEventListener('click', async (e) => {
         const target = e.target;
@@ -179,10 +186,9 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const cardElement = target.closest('.employee-card');
         if (!cardElement || !actionButton) return;
 
-        const localId = cardElement.dataset.employeeRowId; // This is the Google Sheet Row ID
+        const localId = cardElement.dataset.employeeRowId;
         if (!localId) { console.error("data-employee-row-id missing."); return; }
 
-        // We re-use the `getEmployeesFunc` which *still holds all data*.
         const allEmployees = getEmployeesFunc();
         const employee = allEmployees.find(emp => String(emp.id) === String(localId));
         

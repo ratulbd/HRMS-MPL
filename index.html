@@ -13,68 +13,116 @@
         body { font-family: 'Inter', sans-serif; background-color: #f9fafb; /* bg-gray-50 */ }
         .font-poppins { font-family: 'Poppins', sans-serif; }
         
-        /* === MODIFICATION: Added 3D Perspective & Animations === */
+        /* === === === WILD MODIFICATION === === === */
+        
         #employee-list {
-            perspective: 1000px;
+            perspective: 1200px; /* Enable 3D perspective for cards */
         }
 
         .employee-card {
             position: relative;
             transform-style: preserve-3d;
-            transition: all 0.3s ease-out;
-            border: 1px solid #e5e7eb; /* Subtle border */
-            /* Hide the gradient border initially */
-            background-clip: padding-box; /* Important for border */
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            
+            /* --- Glassmorphism --- */
+            background-color: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            overflow: hidden; /* Important for the footer and border */
         }
+
+        /* --- Interactive Mouse-Follow Spotlight --- */
         .employee-card::before {
             content: '';
             position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 4px;
-            background: linear-gradient(180deg, #a8d800 0%, #15803d 100%); /* Metal gradient */
-            border-radius: 0.5rem 0 0 0.5rem;
-            opacity: 0.7;
-            transition: all 0.3s ease-out;
+            left: 0; top: 0; right: 0; bottom: 0;
+            border-radius: 0.75rem;
+            /* Positioned at the mouse coords (set by JS) */
+            background: radial-gradient(
+                300px circle at var(--mouse-x) var(--mouse-y),
+                rgba(168, 216, 0, 0.2), /* Lime green accent */
+                transparent 80%
+            );
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            z-index: 1;
+        }
+        
+        /* --- Animated Gradient Border on Hover --- */
+        .employee-card::after {
+            content: '';
+            position: absolute;
+            left: -50%; top: -50%;
+            width: 200%;
+            height: 200%;
+            border-radius: 0.75rem;
+            background: conic-gradient(
+                from 0deg,
+                #15803d, /* Dark Green */
+                #a8d800, /* Lime Green */
+                #15803d,
+                rgba(255, 255, 255, 0.5),
+                #15803d
+            );
+            opacity: 0;
+            transition: opacity 0.4s ease-out;
+            animation: rotateGradient 6s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotateGradient {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .employee-card:hover {
-            /* The 3D tilt effect */
-            transform: perspective(1000px) rotateX(1.5deg) rotateY(-2.5deg) scale3d(1.02, 1.02, 1.02) translateY(-6px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            transform: scale(1.03) translateY(-8px) rotateX(2deg) rotateY(2deg);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
         .employee-card:hover::before {
-            opacity: 1;
-            box-shadow: 0 0 15px -3px #a8d800; /* Glow effect */
+            opacity: 1; /* Show spotlight */
+        }
+        .employee-card:hover::after {
+            opacity: 0.5; /* Show animated border */
         }
 
         /* Staggered load animation */
         @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(20px) rotateX(-10deg); }
-            to { opacity: 1; transform: translateY(0) rotateX(0deg); }
+            from { opacity: 0; transform: translateY(40px) rotateX(-15deg) scale(0.95); }
+            to { opacity: 1; transform: none; }
         }
         .employee-card {
-            animation: cardFadeIn 0.5s ease-out both;
-            /* Delay is set dynamically in JS */
-            animation-delay: calc(var(--card-index) * 35ms);
+            animation: cardFadeIn 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+            animation-delay: calc(var(--card-index) * 40ms); /* Slower, more graceful stagger */
         }
 
-        /* Hover-to-reveal footer */
+        /* Hover-to-reveal footer (Slide up) */
         .card-footer {
-            transition: all 0.3s ease-out;
-            opacity: 0;
-            max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            overflow: hidden;
-            border-top: 1px solid #f3f4f6; /* bg-gray-100 */
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform: translateY(100%);
+            z-index: 2;
         }
         .employee-card:hover .card-footer {
-            opacity: 1;
-            max-height: 100px; /* Allows space for buttons to appear */
-            padding-top: 0.75rem; /* 12px */
-            padding-bottom: 0.75rem; /* 12px */
+            transform: translateY(0%);
         }
-        /* === END MODIFICATION === */
+        
+        /* Ensure card content is above the pseudo-elements */
+        .card-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* === === === END WILD MODIFICATION === === === */
         
         .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out; }
         .modal { transition: opacity 0.3s ease, transform 0.3s ease; animation: scaleUp 0.2s ease-out; }
@@ -209,6 +257,7 @@
         <footer class="text-center text-xs text-gray-400 mt-12 border-t pt-4">&copy; 2025 Md. Rakibul Islam Ratul <br> Sr. Manager, Telecom Service, Metal</footer>
     </div>
 
+    <!-- (All modal HTML remains the same) -->
     <div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
          <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl modal max-h-[90vh] flex flex-col transform scale-100" id="employeeModalContent">
             <div class="flex justify-between items-center p-6 border-b flex-shrink-0">
