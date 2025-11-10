@@ -61,12 +61,22 @@ function calculateSalaryTotals() {
     ];
     const grandTotal = earnings.reduce((sum, val) => sum + val, 0);
 
+    // === FIX: 'gratuity' REMOVED, 'othersAdjustment' ADDED ===
     // Sum Deductions
     const deductions = [
-        getNumericValue('gratuity'), getNumericValue('subsidizedLunch'), getNumericValue('tds'),
-        getNumericValue('motorbikeLoan'), getNumericValue('welfareFund'), getNumericValue('salaryOthersLoan'),
-        getNumericValue('subsidizedVehicle'), getNumericValue('lwp'), getNumericValue('cpf')
+        // getNumericValue('gratuity'), // REMOVED as requested
+        getNumericValue('subsidizedLunch'), 
+        getNumericValue('tds'),
+        getNumericValue('motorbikeLoan'), 
+        getNumericValue('welfareFund'), 
+        getNumericValue('salaryOthersLoan'),
+        getNumericValue('subsidizedVehicle'), 
+        getNumericValue('lwp'), 
+        getNumericValue('cpf'),
+        getNumericValue('othersAdjustment') // ADDED
     ];
+    // === END FIX ===
+    
     const totalDeduction = deductions.reduce((sum, val) => sum + val, 0);
 
     // Calculate Net
