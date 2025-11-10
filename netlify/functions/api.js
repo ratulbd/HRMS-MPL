@@ -85,7 +85,7 @@ const HEADER_MAPPING = {
     // Bank
     bankAccount: 'bankaccountnumber',
     // Status & History
-    status: 'Status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
+    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
     separationDate: 'separationdate', remarks: 'remarks',
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason',
