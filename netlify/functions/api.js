@@ -85,7 +85,7 @@ const HEADER_MAPPING = {
     // Bank
     bankAccount: 'bankaccountnumber',
     // Status & History
-    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
+    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp', // <-- This was the fix from the previous step
     separationDate: 'separationdate', remarks: 'remarks',
     lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason',
@@ -218,6 +218,14 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.TRANSFER_LOG_SHEET_NAME, context.helpers);
                     break;
+                
+                // === THIS IS THE FIX: Added the 'getFileCloseLog' case ===
+                case 'getFileCloseLog':
+                    if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+                    else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.FILE_CLOSING_LOG_SHEET_NAME, context.helpers);
+                    break;
+                // === END FIX ===
+                    
                 // --- END MODIFICATION ---
 
                 // --- Sheet Actions ---
