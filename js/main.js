@@ -18,16 +18,6 @@ if (sessionStorage.getItem('isLoggedIn') !== 'true') {
 // --- Main App Logic ---
 async function initializeAppModules() {
   
-  // --- [REMOVED] ---
-  // The old `classifyButtons` function was removed.
-  // Styling is now handled directly in employeeList.js
-  // --- [REMOVED] ---
-
-  // --- [REMOVED] ---
-  // The old `ripple` function was removed.
-  // The new theme's buttons don't need it.
-  // --- [REMOVED] ---
-
   // --- Dynamic Imports ---
   // FIX: Use relative paths (./) for all imports
   const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput } = await import('./utils.js');
@@ -63,8 +53,7 @@ async function initializeAppModules() {
     const statusOptions  = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated']);
 
     const updateOptions = (instance, newOptions) => { if (instance) { instance.clearOptions(); instance.addOptions(newOptions); } };
-    
-    // Check if tomSelects instances exist before updating
+
     updateOptions(tomSelects.status, statusOptions);
     updateOptions(tomSelects.designation, formatOptions(designations));
     updateOptions(tomSelects.type, formatOptions(types));
@@ -80,9 +69,9 @@ async function initializeAppModules() {
     try {
       if (countDisplay) countDisplay.textContent = 'Loading employees...';
       $('#initialLoading')?.classList?.remove('hidden');
-      
+
       const employees = await apiCall('getEmployees');
-      
+
       if (Array.isArray(employees)) {
         employees.sort((a, b) => {
           const dateA = new Date(formatDateForInput(a.joiningDate) ?? '1970-01-01');
@@ -92,19 +81,14 @@ async function initializeAppModules() {
       }
       mainLocalEmployees = employees ?? [];
       setLocalEmployees(mainLocalEmployees);
-      
-      // Populate datalists in the employee modal
-      populateFilterDropdowns(mainLocalEmployees); 
-      
-      // Populate TomSelect filters
-      updateTomSelectFilterOptions(mainLocalEmployees); 
-      
-      // Initial render
+
+      populateFilterDropdowns(mainLocalEmployees);
+      updateTomSelectFilterOptions(mainLocalEmployees);
       filterAndRenderEmployees(currentFilters, mainLocalEmployees);
-      
+
       const initialLoading = $('#initialLoading');
       if (initialLoading) initialLoading.style.display = 'none';
-      
+
     } catch (error) {
       console.error("Failed to load employee data:", error);
       customAlert("Error", `Failed to load employee data: ${error.message}`);
@@ -149,7 +133,7 @@ async function initializeAppModules() {
       }
 
       if (hasTomSelect) {
-        if (!tomSelects[filterKey]) { // Only initialize if not already done
+        if (!tomSelects[filterKey]) {
             tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
         }
         tomSelects[filterKey].on('change', (values) => {
@@ -162,7 +146,11 @@ async function initializeAppModules() {
     }
 
     const resetBtn = $('#resetFiltersBtn');
-    if (reset.Btn) {
+
+    // --- THIS IS THE FIX ---
+    // Changed 'reset.Btn' to 'resetBtn'
+    if (resetBtn) {
+    // --- END OF FIX ---
       resetBtn.addEventListener('click', () => {
         currentFilters = {
           name: '', status: [], designation: [], type: [],
@@ -211,7 +199,7 @@ async function initializeAppModules() {
       customAlert("Error", `Failed to download ${logName}: ${error.message}`);
     }
   }
-  
+
   // --- Global Listeners ---
   function setupGlobalListeners() {
     // Top nav buttons
@@ -228,7 +216,6 @@ async function initializeAppModules() {
     $('#confirmOkBtn')?.addEventListener('click', handleConfirmAction);
 
     // Generic modal close triggers (backdrop, 'x' buttons)
-    // Find all new 'x' buttons
     $('#cancelEmployeeModal_top')?.addEventListener('click', (e) => { e.preventDefault(); closeModal('employeeModal'); });
     $('#cancelEmployeeModal')?.addEventListener('click', (e) => { e.preventDefault(); closeModal('employeeModal'); });
     $('#cancelBulkUploadModal')?.addEventListener('click', () => closeModal('bulkUploadModal'));
@@ -262,7 +249,6 @@ async function initializeAppModules() {
       customAlert("No Data", "No employees to export.");
       return;
     }
-    // These headers MUST match your Sheet/JS properties
     const headers = [
       "Employee ID","Employee Name","Employee Type","Designation","Joining Date","Project","Project Office","Report Project","Sub Center",
       "Work Experience (Years)","Education","Father's Name","Mother's Name","Personal Mobile Number","Official Mobile Number",
@@ -302,25 +288,23 @@ async function initializeAppModules() {
     setupFilterListeners();
     setupGlobalListeners();
 
-    // Module listeners
     try {
       if (typeof setupEmployeeListEventListeners === 'function')
         setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
       if (typeof setupEmployeeForm === 'function')
         setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
       if (typeof setupStatusChangeModal === 'function')
-        setupStatusChangeModal(fetchAndRenderEmployees);
+        setupStatusChangeModal(fetchEmployeesFunc);
       if (typeof setupBulkUploadModal === 'function')
-        setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
-      // FIX: The button ID for salary sheet is 'uploadAttendanceBtn' in your new index.html
+        setupBulkUploadModal(fetchEmployeesFunc, getMainLocalEmployees);
       if (typeof setupSalarySheetModal === 'function')
         setupSalarySheetModal(getMainLocalEmployees, $('#uploadAttendanceBtn'));
       if (typeof setupPastSheetsModal === 'function')
         setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
       if (typeof setupViewDetailsModal === 'function')
-        setupViewDetailsModal(); // This file is compatible
+        setupViewDetailsModal();
       if (typeof setupTransferModal === 'function')
-        setupTransferModal(fetchAndRenderEmployees);
+        setupTransferModal(fetchEmployeesFunc);
     } catch (setupError) {
         console.error("Error during module setup:", setupError);
         customAlert("Initialization Error", `A part of the application failed to load: ${setupError.message}`);
