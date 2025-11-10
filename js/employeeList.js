@@ -112,7 +112,7 @@ function renderEmployeeList(listContainer, employeesToRender) {
 }
 
 // ---
-// The rest of this file is unchanged as it's compatible.
+// The rest of this file is unchanged
 // ---
 
 export function filterAndRenderEmployees(filters, employees) {
@@ -131,9 +131,9 @@ export function filterAndRenderEmployees(filters, employees) {
     }
 
      const safeFilters = {
-         name: filters?.name || '', 
+         name: filters?.name || '',
          status: filters?.status || [],
-         designation: filters?.designation || [], 
+         designation: filters?.designation || [],
          type: filters?.type || [],
          project: filters?.project || [],
          projectOffice: filters?.projectOffice || [],
@@ -144,10 +144,10 @@ export function filterAndRenderEmployees(filters, employees) {
 
     const filtered = employees.filter(emp => {
         if (!emp || typeof emp.name !== 'string' || typeof emp.employeeId !== 'string') return false;
-        
+
         let effectiveStatus = emp.status || 'Active';
-        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) { 
-            effectiveStatus = 'Salary Held'; 
+        if (effectiveStatus === 'Active' && (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE')) {
+            effectiveStatus = 'Salary Held';
         }
 
         const nameMatch = nameFilterLower === '' || emp.name.toLowerCase().includes(nameFilterLower) || emp.employeeId.toLowerCase().includes(nameFilterLower);
@@ -179,8 +179,6 @@ function populateDataList(elementId, values) {
             datalist.appendChild(option);
         });
     } else {
-        // This is a warning, not an error, because the datalists are in the modal,
-        // which might not be what this function is populating.
         // console.warn(`Datalist element with ID '${elementId}' not found.`);
     }
 }
@@ -232,7 +230,10 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
         } else if (actionButton.classList.contains('terminate-btn')) {
-            if (typeof openStatusChangeModal === 'function') openStatusChangeModal(.employee, 'Terminated');
+            // --- THIS IS THE FIX ---
+            // Removed the extra '.' before 'employee'
+            if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
+            // --- END OF FIX ---
         } else if (actionButton.classList.contains('toggle-hold-btn')) {
             const isCurrentlyHeld = actionButton.dataset.held === 'true';
             try {
