@@ -13,9 +13,12 @@ export function renderEmployeeList(employeesToRender, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
     
-    // If not appending, clear the list (for new search or page 1)
-    if (!append) {
-        listContainer.innerHTML = '';
+    // Get the current card count to set the animation delay index
+    let startIndex = 0;
+    if (append) {
+        startIndex = listContainer.children.length;
+    } else {
+        listContainer.innerHTML = ''; // Clear for new search
     }
 
     // Remove any 'no results' or 'loading' message
@@ -45,8 +48,13 @@ export function renderEmployeeList(employeesToRender, append = false) {
 
 
             const card = document.createElement('div');
-            card.className = 'employee-card bg-white rounded-lg shadow-sm border-l-4 border-green-700 flex flex-col transition-all duration-300 hover:shadow-xl hover:scale-[1.02]';
+            // === MODIFICATION: New Card Class & Animation Delay ===
+            card.className = 'employee-card bg-white rounded-lg shadow-sm flex flex-col overflow-hidden'; // Overflow-hidden for footer
             card.setAttribute('data-employee-row-id', emp.id); // Still use row ID for actions
+            // Set the CSS variable for the staggered animation delay
+            card.style.setProperty('--card-index', startIndex + index);
+            // === END MODIFICATION ===
+
 
             // --- Info Tags (replaces big boxes) ---
             let infoTagsHTML = '';
@@ -63,7 +71,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
-            // --- New Concise Card HTML ---
+            // --- === MODIFICATION: New Concise Card HTML with Hover Footer === ---
             card.innerHTML = `
                 <div class="p-5 flex-grow">
                     <div class="flex justify-between items-start mb-3">
@@ -90,7 +98,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                     </div>
                 </div>
                 
-                <div class="border-t border-gray-100 bg-gray-50 px-5 py-3 flex flex-wrap gap-1.5 justify-end rounded-b-lg"> 
+                <div class="card-footer bg-gray-50 px-5 flex flex-wrap gap-1.5 justify-end"> 
                     <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
                     
                     ${statusText !== 'Closed' ? `
@@ -120,14 +128,6 @@ export function renderEmployeeList(employeesToRender, append = false) {
 }
 // === END MODIFICATION ===
 
-// === MODIFICATION: This function is no longer needed, main.js will do this ===
-// export function filterAndRenderEmployees(filters, employees) { ... }
-// === END MODIFICATION ===
-
-// === MODIFICATION: This function is no longer needed, frontend doesn't hold the list ===
-// export function setLocalEmployees(employees) { ... }
-// === END MODIFICATION ===
-
 
 // Helper to populate a <datalist>
 function populateDataList(elementId, values) {
@@ -144,8 +144,7 @@ function populateDataList(elementId, values) {
     }
 }
 
-// === MODIFICATION: This now gets data from the API response ===
-// (It is called from main.js)
+// (This function is called from main.js)
 export function populateFilterDropdowns(filterData) {
     if (!filterData) return;
 
@@ -167,11 +166,9 @@ export function populateFilterDropdowns(filterData) {
     const identificationTypes = ['NID', 'Passport', 'Birth Certificate']; 
     populateDataList('identificationType-list', identificationTypes);
 }
-// === END MODIFICATION ===
 
 
 // Function to set up the main event listener for the list
-// === MODIFICATION: Now needs getEmployeesFunc to fetch *all* data for modals ===
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
      const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
@@ -185,11 +182,7 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const localId = cardElement.dataset.employeeRowId; // This is the Google Sheet Row ID
         if (!localId) { console.error("data-employee-row-id missing."); return; }
 
-        // === CRITICAL CHANGE ===
-        // We no longer have all employees in a list. We must fetch the *full* data
-        // for this *one* employee to open the modal.
-        // We will re-use the `getEmployeesFunc` which *still holds all data*.
-        // A better long-term fix is a new API action `getEmployeeById(id)`.
+        // We re-use the `getEmployeesFunc` which *still holds all data*.
         const allEmployees = getEmployeesFunc();
         const employee = allEmployees.find(emp => String(emp.id) === String(localId));
         
@@ -205,7 +198,6 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         if (actionButton.classList.contains('view-details-btn')) {
             if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
         } else if (actionButton.classList.contains('edit-btn')) {
-            // Pass all employees to check for duplicates
             if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, allEmployees);
         } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
@@ -225,4 +217,3 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         }
     });
 }
-// === END MODIFICATION ===
