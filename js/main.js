@@ -224,7 +224,7 @@ async function initializeAppModules() {
     $('#closePastSheetsModal')?.addEventListener('click', () => closeModal('viewSheetsModal'));
     $('#cancelTransferModal')?.addEventListener('click', () => closeModal('transferModal'));
     
-    // --- THIS IS THE FIX ---
+    // --- THIS WAS THE FIX ---
     // Removed the underscore from 'addEventListener_'
     $('#cancelReportModal')?.addEventListener('click', () => closeModal('reportModal'));
     // --- END OF FIX ---

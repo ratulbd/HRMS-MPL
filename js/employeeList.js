@@ -230,7 +230,7 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         } else if (actionButton.classList.contains('resign-btn')) {
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
         } else if (actionButton.classList.contains('terminate-btn')) {
-            // --- THIS IS THE FIX ---
+            // --- THIS WAS THE FIX ---
             // Removed the extra '.' before 'employee'
             if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
             // --- END OF FIX ---
