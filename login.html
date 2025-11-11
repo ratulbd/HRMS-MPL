@@ -9,19 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* === === === WILD MODIFICATION V3 (FIXED) === === === */
+        /* === === === WILD MODIFICATION V4 (The "Stunning" Fix) === === === */
         
         body { 
             font-family: 'Inter', sans-serif;
-            /* === New Animated Background === */
-            background: linear-gradient(-45deg, #f9fafb, #f0f3f2, #e6f0ed, #f9fafb);
-            background-size: 400% 400%;
-            animation: gradientBG 20s ease infinite;
-        }
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            /* New animated, blurred background image */
+            background-color: #f0f3f2;
+            background-image: linear-gradient(rgba(240, 243, 242, 0.8), rgba(240, 243, 242, 0.8)), url('https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Creates the parallax effect */
+            overflow: hidden; /* Prevents scrollbars */
         }
         
         .font-poppins { font-family: 'Poppins', sans-serif; }
@@ -29,26 +27,35 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         @keyframes slideInUp {
-            from { transform: translateY(50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from { transform: translateY(50px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
         }
         @keyframes rotateGradient {
             from { --angle: 0deg; }
             to { --angle: 360deg; }
         }
 
+        /* This wrapper enables the 3D perspective */
+        .login-card-wrapper {
+            perspective: 1500px;
+        }
+
         .login-card {
             position: relative;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transform-style: preserve-3d; /* This is key for 3D children */
+            transition: all 0.2s ease-out;
             
             /* --- Light Glassmorphism --- */
-            background-color: rgba(255, 255, 255, 0.65);
+            background-color: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 0.75rem; /* 12px */
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            
+            /* Apply the 3D tilt from JS */
+            transform: rotateX(var(--rotate-x, 0)) rotateY(var(--rotate-y, 0));
             animation: slideInUp 0.7s cubic-bezier(0.25, 0.8, 0.25, 1) both;
         }
         
@@ -59,16 +66,15 @@
             left: 0; top: 0; right: 0; bottom: 0;
             border-radius: 0.75rem;
             background: radial-gradient(
-                400px circle at var(--mouse-x) var(--mouse-y),
+                500px circle at var(--mouse-x) var(--mouse-y),
                 rgba(168, 216, 0, 0.25), /* Lime green accent */
                 transparent 70%
             );
             opacity: 0;
-            transition: opacity 0.3s ease-out;
+            transition: opacity 0.2s ease-out;
+            /* === BUG FIX: z-index 1 (behind content), pointer-events none === */
             z-index: 1;
-            /* === === === CLICK FIX === === === */
-            pointer-events: none; /* This makes the spotlight "invisible" to clicks */
-            /* === === === END FIX === === === */
+            pointer-events: none; 
         }
         
         /* Animated Gradient Border */
@@ -85,23 +91,28 @@
             opacity: 0;
             transition: opacity 0.4s ease-out;
             animation: rotateGradient 8s linear infinite;
-            z-index: -1;
+            z-index: 0; /* Behind everything */
         }
 
-        /* Removed buggy 3D tilt, replaced with simple "float" */
         .login-card:hover {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
-            transform: translateY(-5px);
         }
-        .login-card:hover::before { opacity: 1; }
-        .login-card:hover::after { opacity: 0.6; }
+        .login-card:hover::before { opacity: 1; } /* Show spotlight */
+        .login-card:hover::after { opacity: 0.6; } /* Show border */
         
-        /* Content is now on top */
-        .card-content {
+        /* Card Content (Floats in 3D) */
+        .card-header, .card-body, .card-footer {
+            transform-style: preserve-3d;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative;
+            /* === BUG FIX: z-index 2 (on top of spotlight) === */
             z-index: 2;
         }
-        
+        /* The "Holographic" Parallax Effect */
+        .login-card:hover .card-header { transform: translateZ(40px); }
+        .login-card:hover .card-body { transform: translateZ(20px); }
+        .login-card:hover .card-footer { transform: translateZ(10px); }
+
         /* --- Standard Input (from index.html) --- */
         /* This fixes the invisible password bug */
         .input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
@@ -124,76 +135,86 @@
 
         .password-container { position: relative; }
         .toggle-password { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #9ca3af; margin-top: 0.125rem; }
+        
+        /* === BUG FIX: Readable footer text === */
+        .footer-text {
+            color: #4b5563; /* gray-600 */
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5); /* Subtle white shadow */
+        }
         /* === === === END MODIFICATION === === === */
     </style>
 </head>
 <body class="bg-gray-50 flex items-center justify-center min-h-screen">
 
-    <div class="login-card w-full max-w-sm p-8" id="login-card">
-        
-        <div class="card-content">
-            <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-6">
-            <h1 class="font-poppins text-2xl font-bold text-center text-green-900 mb-6">HRMS - MPL TELECOM</h1>
-
-            <form id="loginForm" class="space-y-4">
-                <div>
-                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                    <input type="text" id="username" name="username" required class="input">
-                </div>
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <div class="password-container mt-1">
-                        <input type="password" id="password" name="password" required class="input pr-10">
-                        <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                            <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
-                        </span>
-                    </div>
-                </div>
-                <div id="loginError" class="text-red-600 text-sm mt-2 hidden"></div>
-                <button type="submit" id="loginSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                    <span id="loginSubmitText">Login</span>
-                    <div id="loginSpinner" class="spinner ml-2 hidden"></div>
-                </button>
-                <p class="text-xs text-gray-500 text-center mt-4">
-                    Forgot password? Please contact the system administrator.
-                </p>
-            </form>
-
-            <div id="changePasswordSection" class="mt-6 pt-6 border-t border-gray-200 hidden">
-                <h2 class="font-poppins text-xl font-semibold text-center text-green-800 mb-4">Change Required</h2>
-                <p class="text-sm text-gray-600 mb-4 text-center">Please set a new password.</p>
-                <form id="changePasswordForm" class="space-y-4">
-                    <input type="hidden" id="changeUsername">
-                    <div>
-                        <label for="newPassword" class="block text-sm font-medium text-gray-700">New Password</label>
-                        <div class="password-container mt-1">
-                            <input type="password" id="newPassword" required class="input pr-10">
-                            <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
-                                <i class="fa-regular fa-eye" id="toggleIconNew"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
-                        <div class="password-container mt-1">
-                            <input type="password" id="confirmPassword" required class="input pr-10">
-                            <span class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
-                                <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div id="changePasswordError" class="text-red-600 text-sm mt-2 hidden"></div>
-                    <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                        <span id="changeSubmitText">Set New Password</span>
-                        <div id="changeSpinner" class="spinner ml-2 hidden"></div>
-                    </button>
-                </form>
+    <div class="login-card-wrapper">
+        <div class="login-card w-full max-w-sm p-8" id="login-card">
+            
+            <div class="card-header">
+                <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-6">
+                <h1 class="font-poppins text-2xl font-bold text-center text-green-900 mb-6">HRMS - MPL TELECOM</h1>
             </div>
 
-            <footer class="text-center text-xs text-gray-400 mt-8 border-t border-gray-200 pt-4">
+            <div class="card-body">
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="username" name="username" required class="input">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <div class="password-container mt-1">
+                            <input type="password" id="password" name="password" required class="input pr-10">
+                            <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
+                                <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="loginError" class="text-red-600 text-sm mt-2 hidden"></div>
+                    <button type="submit" id="loginSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
+                        <span id="loginSubmitText">Login</span>
+                        <div id="loginSpinner" class="spinner ml-2 hidden"></div>
+                    </button>
+                    <p class="text-xs text-gray-500 text-center mt-4 footer-text">
+                        Forgot password? Please contact the system administrator.
+                    </p>
+                </form>
+
+                <div id="changePasswordSection" class="mt-6 pt-6 border-t border-gray-200 hidden">
+                    <h2 class="font-poppins text-xl font-semibold text-center text-green-800 mb-4">Change Required</h2>
+                    <p class="text-sm text-gray-600 mb-4 text-center">Please set a new password.</p>
+                    <form id="changePasswordForm" class="space-y-4">
+                        <input type="hidden" id="changeUsername">
+                        <div>
+                            <label for="newPassword" class="block text-sm font-medium text-gray-700">New Password</label>
+                            <div class="password-container mt-1">
+                                <input type="password" id="newPassword" required class="input pr-10">
+                                <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
+                                    <i class="fa-regular fa-eye" id="toggleIconNew"></i>
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                            <div class="password-container mt-1">
+                                <input type="password" id="confirmPassword" required class="input pr-10">
+                                <span class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
+                                    <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
+                                </span>
+                            </div>
+                        </div>
+                        <div id="changePasswordError" class="text-red-600 text-sm mt-2 hidden"></div>
+                        <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
+                            <span id="changeSubmitText">Set New Password</span>
+                            <div id="changeSpinner" class="spinner ml-2 hidden"></div>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card-footer text-center text-xs text-gray-400 mt-8 border-t border-gray-200 pt-4 footer-text">
                 &copy; 2025 Md. Rakibul Islam Ratul <br>
                 Sr. Manager, Telecom Service, Metal
-            </footer>
+            </div>
         </div>
     </div>
 
@@ -216,7 +237,7 @@
         }
     </script>
     <script type="module">
-        // === MODIFICATION: Add Tilt & Shine JS ===
+        // === MODIFICATION: Add 3D Tilt & Shine JS ===
         const card = document.getElementById('login-card');
         card.addEventListener('mousemove', (e) => {
             const rect = card.getBoundingClientRect();
@@ -227,11 +248,22 @@
             card.style.setProperty('--mouse-x', `${x}px`);
             card.style.setProperty('--mouse-y', `${y}px`);
             
-            // 3D Tilt (Removed - simplified to CSS hover)
+            // 3D Tilt
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const mouseX = x - centerX;
+            const mouseY = y - centerY;
+            
+            const rotateX = (mouseY / centerY) * -5; // Max 5deg tilt
+            const rotateY = (mouseX / centerX) * 5;
+            
+            card.style.setProperty('--rotate-x', `${rotateX}deg`);
+            card.style.setProperty('--rotate-y', `${rotateY}deg`);
         });
         
         card.addEventListener('mouseleave', () => {
-             // No longer needed
+             card.style.setProperty('--rotate-x', `0deg`);
+             card.style.setProperty('--rotate-y', `0deg`);
         });
         // === END MODIFICATION ===
 
