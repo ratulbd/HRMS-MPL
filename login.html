@@ -6,75 +6,213 @@
     <title>HRMS Login</title>
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+            font-family: 'Inter', sans-serif;
+            /* === WILD MODIFICATION: Animated Gradient Background === */
+            background: linear-gradient(-45deg, #0b1a13, #153d2a, #0b1a13, #166531);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* === END MODIFICATION === */
+
+        .font-poppins { font-family: 'Poppins', sans-serif; }
         .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 24px; height: 24px; border-radius: 50%; border-left-color: #fff; animation: spin 1s ease infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* --- MODIFICATION: Themed Inputs & Buttons --- */
-        .input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
-        .input:focus { border-color: #166531; --tw-ring-color: #166531; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
-        .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.375rem; transition: all 150ms; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 0.875rem; line-height: 1.25rem; cursor: pointer; }
-        .btn-primary { background-color: #15803d; color: white; } .btn-primary:hover { background-color: #166531; } /* green-700 / green-800 */
-        .btn-secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; } .btn-secondary:hover { background-color: #f9fafb; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        /* --- END MODIFICATION --- */
+        /* === WILD MODIFICATION: Glass Card, 3D Tilt, Animations === */
+        @keyframes slideInUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes rotateGradient {
+            from { --angle: 0deg; }
+            to { --angle: 360deg; }
+        }
+
+        .login-card {
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            transform: rotateX(var(--rotate-x, 0)) rotateY(var(--rotate-y, 0));
+            animation: slideInUp 0.7s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+        }
         
+        /* Holographic Shine */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; right: 0; bottom: 0;
+            border-radius: 0.75rem;
+            background: radial-gradient(
+                400px circle at var(--mouse-x) var(--mouse-y),
+                rgba(168, 216, 0, 0.25), /* Lime green accent */
+                transparent 70%
+            );
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            z-index: 1;
+        }
+        
+        /* Animated Gradient Border */
+        .login-card::after {
+            content: '';
+            position: absolute;
+            left: -50%; top: -50%;
+            width: 200%; height: 200%;
+            border-radius: 0.75rem;
+            background: conic-gradient(
+                from var(--angle),
+                #15803d, #a8d800, #15803d, rgba(255, 255, 255, 0.5), #15803d
+            );
+            opacity: 0;
+            transition: opacity 0.4s ease-out;
+            animation: rotateGradient 8s linear infinite;
+            z-index: -1;
+        }
+
+        .login-card:hover {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05) rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+        }
+        .login-card:hover::before { opacity: 1; }
+        .login-card:hover::after { opacity: 0.6; }
+        
+        /* Card Parallax Content */
+        .card-header, .card-body, .card-footer {
+            transform-style: preserve-3d;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            z-index: 2;
+        }
+        .login-card:hover .card-header { transform: translateZ(40px); }
+        .login-card:hover .card-body { transform: translateZ(20px); }
+        .login-card:hover .card-footer { transform: translateZ(10px); }
+
+        /* Glass Inputs */
+        .input-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        .input-glass::placeholder {
+            color: #d1d5db; /* gray-300 */
+        }
+        .input-glass:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #a8d800; /* Lime green */
+            --tw-ring-color: #a8d800;
+            color: white;
+        }
+        
+        /* Button & Shine */
+        .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.375rem; transition: all 150ms; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 0.875rem; line-height: 1.25rem; cursor: pointer; position: relative; overflow: hidden; }
+        .btn-primary { background-color: #15803d; color: white; } .btn-primary:hover { background-color: #166531; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 75%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: skewX(-30deg);
+            transition: left 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .btn:hover::before { left: 150%; }
+
         .password-container { position: relative; }
-        .toggle-password { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #6b7280; margin-top: 0.125rem; /* Adjust if needed */ }
+        .toggle-password { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #d1d5db; margin-top: 0.125rem; }
+        /* === === === END WILD MODIFICATION === === === */
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen">
 
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+    <div class="login-card w-full max-w-sm p-8" id="login-card">
         
-        <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-6">
-        <h1 class="text-2xl font-bold text-center text-green-800 mb-6">HRMS Login</h1>
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                <input type="text" id="username" name="username" required class="input">
-            </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                <div class="password-container mt-1">
-                    <input type="password" id="password" name="password" required class="input pr-10">
-                    <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                        <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
-                    </span>
-                </div>
-            </div>
-            <div id="loginError" class="text-red-600 text-sm mt-2 hidden"></div>
-            <button type="submit" id="loginSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                <span id="loginSubmitText">Login</span>
-                <div id="loginSpinner" class="spinner ml-2 hidden"></div>
-            </button>
-            <p class="text-xs text-gray-500 text-center mt-4">
-                Forgot password? Please contact the system administrator.
-            </p>
-        </form>
-
-        <div id="changePasswordSection" class="mt-6 pt-6 border-t hidden">
-             <h2 class="text-xl font-semibold text-center text-green-700 mb-4">Change Required</h2>
-             <p class="text-sm text-gray-600 mb-4 text-center">Please set a new password.</p>
-             <form id="changePasswordForm" class="space-y-4">
-                 <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                     <span id="changeSubmitText">Set New Password</span>
-                     <div id="changeSpinner" class="spinner ml-2 hidden"></div>
-                 </button>
-             </form>
+        <div class="card-header">
+            <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-6">
+            <h1 class="font-poppins text-2xl font-bold text-center text-white mb-6">HRMS - MPL TELECOM</h1>
         </div>
 
-        <footer class="text-center text-xs text-gray-400 mt-8 border-t pt-4">
+        <div class="card-body">
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-200">Username</label>
+                    <input type="text" id="username" name="username" required class="input input-glass">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-200">Password</label>
+                    <div class="password-container mt-1">
+                        <input type="password" id="password" name="password" required class="input input-glass pr-10">
+                        <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
+                            <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
+                        </span>
+                    </div>
+                </div>
+                <div id="loginError" class="text-red-400 text-sm mt-2 hidden"></div>
+                <button type="submit" id="loginSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
+                    <span id="loginSubmitText">Login</span>
+                    <div id="loginSpinner" class="spinner ml-2 hidden"></div>
+                </button>
+                <p class="text-xs text-gray-400 text-center mt-4">
+                    Forgot password? Please contact the system administrator.
+                </p>
+            </form>
+
+            <div id="changePasswordSection" class="mt-6 pt-6 border-t border-gray-500 hidden">
+                <h2 class="font-poppins text-xl font-semibold text-center text-white mb-4">Change Required</h2>
+                <p class="text-sm text-gray-300 mb-4 text-center">Please set a new password.</p>
+                <form id="changePasswordForm" class="space-y-4">
+                     <input type="hidden" id="changeUsername">
+                     <div>
+                         <label for="newPassword" class="block text-sm font-medium text-gray-200">New Password</label>
+                         <div class="password-container mt-1">
+                             <input type="password" id="newPassword" required class="input input-glass pr-10">
+                             <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
+                                <i class="fa-regular fa-eye" id="toggleIconNew"></i>
+                            </span>
+                         </div>
+                     </div>
+                     <div>
+                         <label for="confirmPassword" class="block text-sm font-medium text-gray-200">Confirm Password</label>
+                         <div class="password-container mt-1">
+                             <input type="password" id="confirmPassword" required class="input input-glass pr-10">
+                             <span class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
+                                <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
+                            </span>
+                         </div>
+                     </div>
+                     <div id="changePasswordError" class="text-red-400 text-sm mt-2 hidden"></div>
+                     <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
+                        <span id="changeSubmitText">Set New Password</span>
+                        <div id="changeSpinner" class="spinner ml-2 hidden"></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card-footer text-center text-xs text-gray-400 mt-8 border-t border-gray-500 pt-4">
             &copy; 2025 Md. Rakibul Islam Ratul <br>
             Sr. Manager, Telecom Service, Metal
-        </footer>
+        </div>
     </div>
 
     <script>
-        // Password Toggle Script (No change)
+        // Password Toggle Script
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
             const icon = document.getElementById(iconId);
@@ -92,7 +230,37 @@
         }
     </script>
     <script type="module">
-        // ... (all of the login/change password JS logic) ...
+        // === MODIFICATION: Add 3D Tilt & Shine JS ===
+        const card = document.getElementById('login-card');
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            
+            // Spotlight
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+            
+            // 3D Tilt
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const mouseX = x - centerX;
+            const mouseY = y - centerY;
+            
+            const rotateX = (mouseY / centerY) * -5; // Max 5deg tilt
+            const rotateY = (mouseX / centerX) * 5;
+            
+            card.style.setProperty('--rotate-x', `${rotateX}deg`);
+            card.style.setProperty('--rotate-y', `${rotateY}deg`);
+        });
+        
+        card.addEventListener('mouseleave', () => {
+             card.style.setProperty('--rotate-x', `0deg`);
+             card.style.setProperty('--rotate-y', `0deg`);
+        });
+        // === END MODIFICATION ===
+
+        // --- Original Login/Change Password Logic ---
         async function apiCallLogin(action, body) {
             const loginBtn = $('loginSubmitBtn');
             const changeBtn = $('changeSubmitBtn');
@@ -111,7 +279,7 @@
             if (btnText) btnText.classList.add('hidden');
 
             try {
-                const response = await fetch('/api/proxy?action=' + action, { // Ensure correct API endpoint
+                const response = await fetch('/api/proxy?action=' + action, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
@@ -150,24 +318,21 @@
             const username = $('username').value;
             const password = $('password').value;
 
-            // --- ADDED LOGGING LINE ---
             console.log('Frontend: Attempting login with:', { username, password });
-            // --- END LOGGING ---
 
             try {
-                // Pass the data as an object
                 const loginData = { username, password };
                 const result = await apiCallLogin('loginUser', loginData);
 
                 if (result.success) {
                     if (result.changePasswordRequired) {
-                        $('changeUsername').value = username;
+                        $('changeUsername').value = username; // Set hidden username
                         changePasswordSection.classList.remove('hidden');
                         loginForm.classList.add('hidden');
                     } else {
                         sessionStorage.setItem('isLoggedIn', 'true');
                         sessionStorage.setItem('loggedInUser', username);
-                        window.location.href = '/index.html'; // Redirect to main app
+                        window.location.href = '/index.html';
                     }
                 }
             } catch (error) {
@@ -182,12 +347,12 @@
 
         changePasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            changePasswordError.classList.add('hidden');
+            if(changePasswordError) changePasswordError.classList.add('hidden');
 
             const username = $('changeUsername').value;
             const newPassword = $('newPassword').value;
             const confirmPassword = $('confirmPassword').value;
-            const oldPassword = 'Metal@#357'; // Send default as oldPassword
+            const oldPassword = 'Metal@#357'; 
 
             if (newPassword !== confirmPassword) {
                 changePasswordError.textContent = 'New passwords do not match.';
@@ -200,10 +365,7 @@
                  return;
             }
 
-            // --- ADD LOGGING LINE ---
             console.log('Frontend: Attempting password change for:', username);
-            // --- END LOGGING ---
-
 
             try {
                  const changeData = { username, oldPassword, newPassword };
@@ -211,7 +373,7 @@
                 if (result.success) {
                     sessionStorage.setItem('isLoggedIn', 'true');
                     sessionStorage.setItem('loggedInUser', username);
-                    window.location.href = '/index.html'; // Redirect to main app
+                    window.location.href = '/index.html';
                 }
             } catch (error) {
                  console.error('Password change failed:', error);
