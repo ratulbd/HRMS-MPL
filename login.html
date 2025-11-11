@@ -1,353 +1,345 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HRMS - MPL TELECOM | Login</title>
-  <style>
-    :root{
-      /* New color palette */
-      --brand: #4f46e5; /* indigo-600 */
-      --brand-2: #3730a3; /* indigo-800 */
-      --text: #0f172a;  /* slate-900 */
-      --muted: #334155; /* slate-700 */
-      --white: #ffffff;
-      --error: #b91c1c;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRMS - MPL TELECOM | Login</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔵</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif;
+            /* New gradient background from image */
+            background: linear-gradient(135deg, #FF8A8A 0%, #FFB5B5 50%, #FFD6D6 100%);
+        }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 24px; height: 24px; border-radius: 50%; border-left-color: #fff; animation: spin 1s ease infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* --- MODIFICATION: Themed Inputs & Buttons from Image --- */
+        
+        /* Using Tailwind's 'theme' to extend colors */
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-primary': '#6366F1', /* A nice indigo/purple */
+                        'brand-primary-hover': '#4F46E5',
+                        'brand-card': 'rgba(255, 245, 247, 0.9)', /* Light pink, slightly transparent */
+                    }
+                }
+            }
+        }
 
-      /* Glass/Aurora theme variables */
-      --card-bg: rgba(255, 255, 255, 0.65);
-      --card-border: rgba(255, 255, 255, 0.4);
-      --input-bg: rgba(255, 255, 255, 0.5);
-      --input-border: rgba(51, 65, 85, 0.2);
-    }
-
-    /* Keyframes for the animated gradient background */
-    @keyframes gradient-flow {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    /* Page background with animated gradient */
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-      color: var(--text);
-      min-height: 100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      
-      /* The Aurora Gradient */
-      background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-      background-size: 400% 400%;
-      animation: gradient-flow 15s ease infinite;
-    }
-
-    /* Removed body::before overlay */
-
-    .card{
-      width: min(720px, 92vw);
-      /* --- Glassmorphism Effect --- */
-      background: var(--card-bg);
-      backdrop-filter: blur(18px) saturate(150%);
-      -webkit-backdrop-filter: blur(18px) saturate(150%);
-      border: 1px solid var(--card-border);
-      /* --------------------------- */
-      border-radius: 24px; /* Softer corners */
-      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
-      overflow: hidden;
-      display: grid;
-      grid-template-columns: 1fr;
-    }
-
-    .header{
-      padding: 20px 24px;
-      border-bottom: 1px solid rgba(0,0,0,0.1); /* More subtle border */
-      display:flex;
-      align-items:center;
-      gap: 16px;
-    }
-
-    .logo-circle{
-      width:42px; height:42px; border-radius:50%;
-      /* New brand gradient */
-      background: radial-gradient(circle at 30% 30%, #818cf8 0%, #4f46e5 70%);
-      border:1px solid rgba(255,255,255,0.5);
-      flex-shrink:0;
-    }
-
-    .title-wrap{
-      display:flex; flex-direction:column;
-      line-height:1.2;
-    }
-
-    .title{
-      font-size: 18px; font-weight: 700;
-    }
-    .subtitle{
-      font-size: 12px; color: var(--muted);
-    }
-
-    .content{
-      padding: 24px;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-    }
-
-    /* Panels are now more subtle */
-    .panel{
-      border:1px solid rgba(0,0,0,0.05);
-      background: rgba(255,255,255, 0.2); /* Slight inner glass effect */
-      border-radius:12px;
-      padding: 20px;
-    }
-    .panel h2{
-      margin:0 0 12px; font-size:16px;
-    }
-
-    .field{
-      margin-bottom: 14px;
-    }
-    .label{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .input-wrap{
-      position:relative;
-    }
-
-    /* Updated input styles for glass theme */
-    input[type="text"], input[type="password"]{
-      width:100%;
-      padding: 10px 12px;
-      border:1px solid var(--input-border);
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color .15s ease, box-shadow .15s ease;
-      background: var(--input-bg);
-      color: var(--text);
-    }
-    input[type="text"]::placeholder, 
-    input[type="password"]::placeholder {
-      color: var(--muted);
-      opacity: 0.8;
-    }
-    input[type="text"]:focus, input[type="password"]:focus{
-      border-color: var(--brand);
-      background: var(--white);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-    }
-
-    /* Eye icon button */
-    .toggle-view{
-      position:absolute;
-      right:8px; top:50%;
-      transform: translateY(-50%);
-      display:flex; align-items:center; justify-content:center;
-      width: 34px; height: 34px;
-      border-radius: 8px;
-      border: 1px solid var(--input-border);
-      background: rgba(255, 255, 255, 0.4);
-      cursor: pointer; /* clickable */
-      color: var(--muted);
-      transition: background .15s ease, border-color .15s ease;
-    }
-    .toggle-view:hover{
-      background:var(--white);
-      border-color:var(--brand);
-      color: var(--brand);
-    }
-
-    /* Buttons */
-    .btn{
-      display:inline-flex; align-items:center; justify-content:center;
-      gap:8px;
-      padding:10px 14px;
-      border-radius:8px;
-      text-decoration:none;
-      border:1px solid transparent;
-      cursor:pointer; /* clickable */
-      user-select:none;
-      transition: transform .02s ease, box-shadow .15s ease, background .15s ease;
-      font-weight:600; font-size:14px;
-    }
-    .btn:active{ transform: scale(0.98); }
-    .btn-primary{
-      background: var(--brand); color: #fff;
-      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
-    }
-    .btn-primary:hover{ background: var(--brand-2); }
-    
-    /* Secondary button now also has a glass feel */
-    .btn-secondary{
-      background: rgba(255, 255, 255, 0.3);
-      color: var(--text);
-      border-color: var(--input-border);
-    }
-    .btn-secondary:hover{ 
-      background: rgba(255, 255, 255, 0.7); 
-      border-color: var(--brand);
-    }
-
-    .meta{
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 8px;
-    }
-
-    .footer{
-      padding: 14px 24px;
-      border-top: 1px solid rgba(0,0,0,0.1);
-      font-size: 12px;
-      color: var(--muted);
-      display:flex; justify-content:space-between; align-items:center;
-    }
-
-    @media (max-width: 820px){
-      .content{ grid-template-columns: 1fr; }
-      body { align-items: flex-start; padding-top: 4vh; }
-    }
-  </style>
+        .input { 
+            padding: 0.75rem 0.75rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 0.5rem; /* 8px rounded */
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); 
+            outline: none; 
+            margin-top: 0.25rem; 
+            display: block; 
+            width: 100%; 
+            font-size: 0.875rem; 
+            line-height: 1.25rem; 
+            background-color: #fff;
+        }
+        .input:focus { 
+            border-color: #6366F1; /* Purple focus */
+            --tw-ring-color: #6366F1; 
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); 
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); 
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), 0 1px 2px 0 rgba(0,0,0,0.05); 
+        }
+        
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; 
+            font-weight: 600; /* Bolder text */
+            padding: 0.625rem 1.25rem; /* 10px 20px */
+            border-radius: 0.5rem; /* 8px rounded */
+            transition: all 150ms; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            font-size: 0.875rem; line-height: 1.25rem; 
+            cursor: pointer; border: 1px solid transparent;
+        }
+        .btn-primary { 
+            background-color: #6366F1; color: white; /* Purple button */
+        } 
+        .btn-primary:hover { background-color: #4F46E5; }
+        
+        /* Secondary "Forgot Password" button */
+        .btn-secondary { 
+            background-color: transparent; 
+            color: #4F46E5; /* Purple text */
+            font-weight: 600;
+            box-shadow: none;
+            padding-left: 0.5rem; padding-right: 0.5rem;
+        } 
+        .btn-secondary:hover { background-color: rgba(239, 238, 255, 0.8); } /* Light purple hover */
+        
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        /* --- END MODIFICATION --- */
+        
+        /* Password eye icon container */
+        .password-container { position: relative; }
+        .toggle-password { 
+            position: absolute; 
+            right: 0.5rem; /* 8px */
+            top: 50%; 
+            transform: translateY(-50%); 
+            cursor: pointer; 
+            color: #6b7280; 
+            margin-top: 0.125rem; /* Aligns with input mt-1 */
+            width: 2.25rem; /* 36px */
+            height: 2.25rem; /* 36px */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem; /* 6px */
+        }
+        .toggle-password:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
 </head>
-<body>
-  <div class="card" role="main" aria-label="HRMS Login">
-    <div class="header">
-      <div class="logo-circle" aria-hidden="true"></div>
-      <div class="title-wrap">
-        <div class="title">HRMS - MPL TELECOM</div>
-        <div class="subtitle">Secure Sign-in</div>
-      </div>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-brand-card p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md">
+        
+        <div class="flex items-center gap-4 mb-6">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 shadow-md flex-shrink-0" aria-hidden="true"></div>
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">HRMS - MPL TELECOM</h1>
+                <p class="text-sm text-gray-600">Secure Sign-in</p>
+            </div>
+        </div>
+
+        <form id="loginForm" class="space-y-4">
+            <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Login</h2>
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" id="username" name="username" required class="input" placeholder="Enter your username">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                <div class="password-container mt-1">
+                    <input type="password" id="password" name="password" required class="input pr-10" placeholder="Enter your password">
+                    <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
+                        <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
+                    </span>
+                </div>
+            </div>
+            
+            <div id="loginError" class="text-red-600 text-sm mt-2 hidden font-medium"></div>
+            
+            <div class="flex items-center gap-4 pt-2">
+                <button type="submit" id="loginSubmitBtn" class="btn btn-primary flex items-center justify-center">
+                    <span id="loginSubmitText">Login</span>
+                    <div id="loginSpinner" class="spinner ml-2 hidden"></div>
+                </button>
+                <button type="button" class="btn btn-secondary">
+                    Forgot Password
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 pt-1">
+                Forgot password? Please contact the system administrator.
+            </p>
+        </form>
+
+        <div id="changePasswordSection" class="hidden">
+             <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Change Required</h2>
+             <p class="text-sm text-gray-600 my-4">Please set a new password.</p>
+             
+             <form id="changePasswordForm" class="space-y-4">
+                 
+                 <input type="hidden" id="changeUsername">
+
+                 <div>
+                    <label for="newPassword" class="block text-sm font-medium text-gray-700">New Password</label>
+                    <div class="password-container mt-1">
+                        <input type="password" id="newPassword" name="newPassword" required class="input pr-10" placeholder="Enter new password">
+                        <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
+                            <i class="fa-regular fa-eye" id="toggleIconNew"></i>
+                        </span>
+                    </div>
+                 </div>
+
+                 <div>
+                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                    <div class="password-container mt-1">
+                        <input type="password" id="confirmPassword" name="confirmPassword" required class="input pr-10" placeholder="Confirm new password">
+                        <span class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
+                            <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
+                        </span>
+                    </div>
+                 </div>
+
+                 <div id="changePasswordError" class="text-red-600 text-sm mt-2 hidden font-medium"></div>
+
+                 <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center pt-2">
+                     <span id="changeSubmitText">Set New Password</span>
+                     <div id="changeSpinner" class="spinner ml-2 hidden"></div>
+                 </button>
+             </form>
+        </div>
+
+        <footer class="text-center text-xs text-gray-500 mt-8 border-t pt-4">
+            &copy; 2025 Md. Rakibul Islam Ratul <br>
+            Sr. Manager, Telecom Service, Metal
+        </footer>
     </div>
 
-    <div class="content">
-      <section class="panel" aria-labelledby="login-title">
-        <h2 id="login-title">Login</h2>
+    <script>
+        // Password Toggle Script (Unchanged, now works for all 3 fields)
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input && icon) {
+                if (input.type === "password") {
+                    input.type = "text";
+                    icon.classList.remove("fa-eye");
+                    icon.classList.add("fa-eye-slash");
+                } else {
+                    input.type = "password";
+                    icon.classList.remove("fa-eye-slash");
+                    icon.classList.add("fa-eye");
+                }
+            }
+        }
+    </script>
+    
+    <script type="module">
+        // ... (all of the login/change password JS logic) ...
+        async function apiCallLogin(action, body) {
+            const loginBtn = $('loginSubmitBtn');
+            const changeBtn = $('changeSubmitBtn');
+            const loginSpinner = $('loginSpinner');
+            const changeSpinner = $('changeSpinner');
+            const loginText = $('loginSubmitText');
+            const changeText = $('changeSubmitText');
 
-        <div class="field">
-          <label class="label" for="username">Username</label>
-          <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" />
-        </div>
+            const isLoginAction = action === 'loginUser';
+            const submitBtn = isLoginAction ? loginBtn : changeBtn;
+            const spinner = isLoginAction ? loginSpinner : changeSpinner;
+            const btnText = isLoginAction ? loginText : changeText;
 
-        <div class="field">
-          <label class="label" for="password">Password</label>
-          <div class="input-wrap">
-            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" />
-            <button id="togglePassword" type="button" class="toggle-view" aria-label="Show or hide password" title="Show/Hide">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+            if (submitBtn) submitBtn.disabled = true;
+            if (spinner) spinner.classList.remove('hidden');
+            if (btnText) btnText.classList.add('hidden');
 
-        <div class="field">
-          <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
-          <button id="forgotBtn" class="btn btn-secondary" type="button">Forgot Password</button>
-          <p class="meta">Forgot password? Please contact the system administrator.</p>
-        </div>
-      </section>
+            try {
+                const response = await fetch('/api/proxy?action=' + action, { // Ensure correct API endpoint
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const responseText = await response.text();
 
-      <section class="panel" aria-labelledby="change-title">
-        <h2 id="change-title">Change Required</h2>
-        <p class="meta">Please set a new password.</p>
+                if (!response.ok) {
+                    let errorMsg = `Error: ${response.status}`;
+                    try {
+                        const errData = JSON.parse(responseText);
+                        errorMsg = errData.error || errData.message || errorMsg;
+                    } catch (e) { /* Ignore */ }
+                    throw new Error(errorMsg);
+                }
+                if (!responseText) return { success: true };
+                return JSON.parse(responseText);
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+                if (spinner) spinner.classList.add('hidden');
+                if (btnText) btnText.classList.remove('hidden');
+            }
+        }
 
-        <div class="field">
-          <label class="label" for="newPassword">New Password</label>
-          <div class="input-wrap">
-            <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" placeholder="Enter new password" />
-            <button id="toggleNewPassword" type="button" class="toggle-view" aria-label="Show or hide new password" title="Show/Hide">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+        const $ = (id) => document.getElementById(id);
+        const loginForm = $('loginForm');
+        const loginError = $('loginError');
+        const changePasswordSection = $('changePasswordSection');
+        const changePasswordForm = $('changePasswordForm');
+        
+        // Correctly finding the error div I added
+        const changePasswordError = $('changePasswordError'); 
 
-        <div class="field">
-          <label class="label" for="confirmPassword">Confirm Password</label>
-          <div class="input-wrap">
-            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirm new password" />
-            <button id="toggleConfirmPassword" type="button" class="toggle-view" aria-label="Show or hide confirm password" title="Show/Hide">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
-                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.classList.add('hidden');
+            changePasswordSection.classList.add('hidden');
 
-        <div class="field">
-          <button id="setPasswordBtn" class="btn btn-primary" type="button">Set New Password</button>
-        </div>
-      </section>
-    </div>
+            const username = $('username').value;
+            const password = $('password').value;
 
-    <div class="footer">
-      <div>© 2025 Md. Rakibul Islam Ratul</div>
-      <div>Sr. Manager, Telecom Service, Metal</div>
-    </div>
-  </div>
+            // --- ADDED LOGGING LINE ---
+            console.log('Frontend: Attempting login with:', { username, password });
+            // --- END LOGGING ---
 
-  <script>
-    // Prevent overlay/covers from eating clicks: already handled via CSS pointer-events: none
+            try {
+                // Pass the data as an object
+                const loginData = { username, password };
+                const result = await apiCallLogin('loginUser', loginData);
 
-    // Password visibility toggles
-    function toggleVisibility(inputId, buttonId){
-      const input = document.getElementById(inputId);
-      const btn = document.getElementById(buttonId);
-      if (!input || !btn) return;
+                if (result.success) {
+                    if (result.changePasswordRequired) {
+                        // This is the logic you described:
+                        $('changeUsername').value = username; // Pass username
+                        changePasswordSection.classList.remove('hidden'); // Show change pass form
+                        loginForm.classList.add('hidden'); // Hide login form
+                    } else {
+                        sessionStorage.setItem('isLoggedIn', 'true');
+                        sessionStorage.setItem('loggedInUser', username);
+                        window.location.href = '/index.html'; // Redirect to main app
+                    }
+                }
+            } catch (error) {
+                 console.error('Login failed:', error);
+                 loginError.textContent = error.message || 'Login failed. Please try again.';
+                 if (error.message.includes('User not found') || error.message.includes('Incorrect password')) {
+                     loginError.textContent += ' Forgot password? Contact administrator.';
+                 }
+                 loginError.classList.remove('hidden');
+            }
+        });
 
-      btn.addEventListener('click', () => {
-        const isPassword = input.type === 'password';
-        input.type = isPassword ? 'text' : 'password';
-        btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
-      });
-    }
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            changePasswordError.classList.add('hidden');
 
-    toggleVisibility('password', 'togglePassword');
-    toggleVisibility('newPassword', 'toggleNewPassword');
-    toggleVisibility('confirmPassword', 'toggleConfirmPassword');
+            const username = $('changeUsername').value;
+            const newPassword = $('newPassword').value;
+            const confirmPassword = $('confirmPassword').value;
+            const oldPassword = 'Metal@#357'; // Send default as oldPassword
 
-    // Click handlers (hook these up to your real auth endpoints)
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-      if (!username || !password){
-        alert('Please enter username and password.');
-        return;
-      }
-      // TODO: Replace with real request (fetch/XHR)
-      console.log('Login attempt:', { username, password });
-      alert('Login clicked. Connect this to your backend.');
-    });
+            if (newPassword !== confirmPassword) {
+                changePasswordError.textContent = 'New passwords do not match.';
+                changePasswordError.classList.remove('hidden');
+                return;
+            }
+            if (newPassword.length < 6) {
+                 changePasswordError.textContent = 'Password must be at least 6 characters.';
+                 changePasswordError.classList.remove('hidden');
+                 return;
+            }
 
-    document.getElementById('forgotBtn').addEventListener('click', () => {
-      // Route to support, or open mailto:
-      window.location.href = 'mailto:admin@example.com?subject=Password%20Reset%20Request';
-    });
+            // --- ADD LOGGING LINE ---
+            console.log('Frontend: Attempting password change for:', username);
+            // --- END LOGGING ---
 
-    document.getElementById('setPasswordBtn').addEventListener('click', () => {
-      const newPwd = document.getElementById('newPassword').value;
-      const confirmPwd = document.getElementById('confirmPassword').value;
-      if (!newPwd || !confirmPwd){
-        alert('Please fill in both password fields.');
-        return;
-      }
-      if (newPwd !== confirmPwd){
-        alert('New password and confirmation do not match.');
-        return;
-      }
-      // TODO: Replace with real request (fetch/XHR)
-      console.log('Set new password:', { newPwd });
-      alert('Set New Password clicked. Connect this to your backend.');
-    });
-  </script>
+
+            try {
+                 const changeData = { username, oldPassword, newPassword };
+                const result = await apiCallLogin('changePassword', changeData);
+                if (result.success) {
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('loggedInUser', username);
+                    window.location.href = '/index.html'; // Redirect to main app
+                }
+            } catch (error) {
+                 console.error('Password change failed:', error);
+                 changePasswordError.textContent = error.message || 'Failed to change password.';
+                 changePasswordError.classList.remove('hidden');
+            }
+        });
+    </script>
 </body>
 </html>
