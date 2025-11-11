@@ -1,393 +1,326 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRMS Login</title>
-    <link rel="icon" href="/assets/logo.png" type="image/png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* === === === WILD MODIFICATION V4 (The "Stunning" Fix) === === === */
-        
-        body { 
-            font-family: 'Inter', sans-serif;
-            /* New animated, blurred background image */
-            background-color: #f0f3f2;
-            background-image: linear-gradient(rgba(240, 243, 242, 0.8), rgba(240, 243, 242, 0.8)), url('https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed; /* Creates the parallax effect */
-            overflow: hidden; /* Prevents scrollbars */
-        }
-        
-        .font-poppins { font-family: 'Poppins', sans-serif; }
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 24px; height: 24px; border-radius: 50%; border-left-color: #fff; animation: spin 1s ease infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        @keyframes slideInUp {
-            from { transform: translateY(50px) scale(0.95); opacity: 0; }
-            to { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes rotateGradient {
-            from { --angle: 0deg; }
-            to { --angle: 360deg; }
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HRMS - MPL TELECOM | Login</title>
+  <style>
+    :root{
+      --bg1: rgba(240, 243, 242, 0.8);
+      --bg2: rgba(240, 243, 242, 0.8);
+      --brand: #0f766e; /* teal-700 */
+      --brand-2: #115e59;
+      --text: #0f172a;  /* slate-900 */
+      --muted: #334155; /* slate-700 */
+      --white: #ffffff;
+      --error: #b91c1c;
+    }
 
-        /* This wrapper enables the 3D perspective */
-        .login-card-wrapper {
-            perspective: 1500px;
-        }
+    /* Page background with gradient + image */
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      min-height: 100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background-image:
+        linear-gradient(var(--bg1), var(--bg2)),
+        url('/assets/logo.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
 
-        .login-card {
-            position: relative;
-            transform-style: preserve-3d; /* This is key for 3D children */
-            transition: all 0.2s ease-out;
-            
-            /* --- Light Glassmorphism --- */
-            background-color: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 0.75rem; /* 12px */
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            
-            /* Apply the 3D tilt from JS */
-            transform: rotateX(var(--rotate-x, 0)) rotateY(var(--rotate-y, 0));
-            animation: slideInUp 0.7s cubic-bezier(0.25, 0.8, 0.25, 1) both;
-        }
-        
-        /* Holographic Shine (Spotlight) */
-        .login-card::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; right: 0; bottom: 0;
-            border-radius: 0.75rem;
-            background: radial-gradient(
-                500px circle at var(--mouse-x) var(--mouse-y),
-                rgba(168, 216, 0, 0.25), /* Lime green accent */
-                transparent 70%
-            );
-            opacity: 0;
-            transition: opacity 0.2s ease-out;
-            /* === BUG FIX: z-index 1 (behind content), pointer-events none === */
-            z-index: 1;
-            pointer-events: none; 
-        }
-        
-        /* Animated Gradient Border */
-        .login-card::after {
-            content: '';
-            position: absolute;
-            left: -50%; top: -50%;
-            width: 200%; height: 200%;
-            border-radius: 0.75rem;
-            background: conic-gradient(
-                from var(--angle),
-                #15803d, #a8d800, #15803d, rgba(255, 255, 255, 0.5), #15803d
-            );
-            opacity: 0;
-            transition: opacity 0.4s ease-out;
-            animation: rotateGradient 8s linear infinite;
-            z-index: 0; /* Behind everything */
-        }
+    /* Optional decorative overlay that does not block clicks */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.35));
+      pointer-events:none; /* prevents overlay from blocking buttons */
+    }
 
-        .login-card:hover {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
-        }
-        .login-card:hover::before { opacity: 1; } /* Show spotlight */
-        .login-card:hover::after { opacity: 0.6; } /* Show border */
-        
-        /* Card Content (Floats in 3D) */
-        .card-header, .card-body, .card-footer {
-            transform-style: preserve-3d;
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-            /* === BUG FIX: z-index 2 (on top of spotlight) === */
-            z-index: 2;
-        }
-        /* The "Holographic" Parallax Effect */
-        .login-card:hover .card-header { transform: translateZ(40px); }
-        .login-card:hover .card-body { transform: translateZ(20px); }
-        .login-card:hover .card-footer { transform: translateZ(10px); }
+    .card{
+      width: min(720px, 92vw);
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.15);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
 
-        /* --- Standard Input (from index.html) --- */
-        /* This fixes the invisible password bug */
-        .input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
-        .input:focus { border-color: #166531; --tw-ring-color: #166531; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
-        
-        /* Button & Shine */
-        .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.375rem; transition: all 150ms; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 0.875rem; line-height: 1.25rem; cursor: pointer; position: relative; overflow: hidden; }
-        .btn-primary { background-color: #15803d; color: white; } .btn-primary:hover { background-color: #166531; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%; width: 75%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transform: skewX(-30deg);
-            transition: left 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .btn:hover::before { left: 150%; }
+    .header{
+      padding: 20px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display:flex;
+      align-items:center;
+      gap: 16px;
+    }
 
-        .password-container { position: relative; }
-        .toggle-password { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #9ca3af; margin-top: 0.125rem; }
-        
-        /* === BUG FIX: Readable footer text === */
-        .footer-text {
-            color: #4b5563; /* gray-600 */
-            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5); /* Subtle white shadow */
-        }
-        /* === === === END MODIFICATION === === === */
-    </style>
+    .logo-circle{
+      width:42px; height:42px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #34d399 0%, #0f766e 70%);
+      border:1px solid rgba(0,0,0,0.08);
+      flex-shrink:0;
+    }
+
+    .title-wrap{
+      display:flex; flex-direction:column;
+      line-height:1.2;
+    }
+
+    .title{
+      font-size: 18px; font-weight: 700;
+    }
+    .subtitle{
+      font-size: 12px; color: var(--muted);
+    }
+
+    .content{
+      padding: 24px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    /* Left: Login form */
+    .panel{
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      padding: 20px;
+    }
+    .panel h2{
+      margin:0 0 12px; font-size:16px;
+    }
+
+    .field{
+      margin-bottom: 14px;
+    }
+    .label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .input-wrap{
+      position:relative;
+    }
+    input[type="text"], input[type="password"]{
+      width:100%;
+      padding: 10px 12px;
+      border:1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s ease;
+      background: #fff;
+    }
+    input[type="text"]:focus, input[type="password"]:focus{
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+
+    /* Eye icon button */
+    .toggle-view{
+      position:absolute;
+      right:8px; top:50%;
+      transform: translateY(-50%);
+      display:flex; align-items:center; justify-content:center;
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      cursor: pointer; /* clickable */
+      color: #0f172a;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .toggle-view:hover{
+      background:#eef2ff;
+      border-color:#94a3b8;
+    }
+
+    /* Buttons */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:8px;
+      text-decoration:none;
+      border:1px solid transparent;
+      cursor:pointer; /* clickable */
+      user-select:none;
+      transition: transform .02s ease, box-shadow .15s ease, background .15s ease;
+      font-weight:600; font-size:14px;
+    }
+    .btn:active{ transform: scale(0.98); }
+    .btn-primary{
+      background: var(--brand); color: #fff;
+      box-shadow: 0 4px 10px rgba(15,118,110,0.25);
+    }
+    .btn-primary:hover{ background: var(--brand-2); }
+    .btn-secondary{
+      background:#f8fafc; color:#0f172a; border-color:#cbd5e1;
+    }
+    .btn-secondary:hover{ background:#eef2ff; border-color:#94a3b8; }
+
+    .meta{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .footer{
+      padding: 14px 24px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: var(--muted);
+      display:flex; justify-content:space-between; align-items:center;
+    }
+
+    @media (max-width: 820px){
+      .content{ grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
-<body class="bg-gray-50 flex items-center justify-center min-h-screen">
-
-    <div class="login-card-wrapper">
-        <div class="login-card w-full max-w-sm p-8" id="login-card">
-            
-            <div class="card-header">
-                <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-6">
-                <h1 class="font-poppins text-2xl font-bold text-center text-green-900 mb-6">HRMS - MPL TELECOM</h1>
-            </div>
-
-            <div class="card-body">
-                <form id="loginForm" class="space-y-4">
-                    <div>
-                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                        <input type="text" id="username" name="username" required class="input">
-                    </div>
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                        <div class="password-container mt-1">
-                            <input type="password" id="password" name="password" required class="input pr-10">
-                            <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                                <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
-                            </span>
-                        </div>
-                    </div>
-                    <div id="loginError" class="text-red-600 text-sm mt-2 hidden"></div>
-                    <button type="submit" id="loginSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                        <span id="loginSubmitText">Login</span>
-                        <div id="loginSpinner" class="spinner ml-2 hidden"></div>
-                    </button>
-                    <p class="text-xs text-gray-500 text-center mt-4 footer-text">
-                        Forgot password? Please contact the system administrator.
-                    </p>
-                </form>
-
-                <div id="changePasswordSection" class="mt-6 pt-6 border-t border-gray-200 hidden">
-                    <h2 class="font-poppins text-xl font-semibold text-center text-green-800 mb-4">Change Required</h2>
-                    <p class="text-sm text-gray-600 mb-4 text-center">Please set a new password.</p>
-                    <form id="changePasswordForm" class="space-y-4">
-                        <input type="hidden" id="changeUsername">
-                        <div>
-                            <label for="newPassword" class="block text-sm font-medium text-gray-700">New Password</label>
-                            <div class="password-container mt-1">
-                                <input type="password" id="newPassword" required class="input pr-10">
-                                <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
-                                    <i class="fa-regular fa-eye" id="toggleIconNew"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
-                            <div class="password-container mt-1">
-                                <input type="password" id="confirmPassword" required class="input pr-10">
-                                <span class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
-                                    <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <div id="changePasswordError" class="text-red-600 text-sm mt-2 hidden"></div>
-                        <button type="submit" id="changeSubmitBtn" class="btn btn-primary w-full flex items-center justify-center">
-                            <span id="changeSubmitText">Set New Password</span>
-                            <div id="changeSpinner" class="spinner ml-2 hidden"></div>
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card-footer text-center text-xs text-gray-400 mt-8 border-t border-gray-200 pt-4 footer-text">
-                &copy; 2025 Md. Rakibul Islam Ratul <br>
-                Sr. Manager, Telecom Service, Metal
-            </div>
-        </div>
+<body>
+  <div class="card" role="main" aria-label="HRMS Login">
+    <div class="header">
+      <div class="logo-circle" aria-hidden="true"></div>
+      <div class="title-wrap">
+        <div class="title">HRMS - MPL TELECOM</div>
+        <div class="subtitle">Secure Sign-in</div>
+      </div>
     </div>
 
-    <script>
-        // Password Toggle Script
-        function togglePasswordVisibility(inputId, iconId) {
-            const input = document.getElementById(inputId);
-            const icon = document.getElementById(iconId);
-            if (input && icon) {
-                if (input.type === "password") {
-                    input.type = "text";
-                    icon.classList.remove("fa-eye");
-                    icon.classList.add("fa-eye-slash");
-                } else {
-                    input.type = "password";
-                    icon.classList.remove("fa-eye-slash");
-                    icon.classList.add("fa-eye");
-                }
-            }
-        }
-    </script>
-    <script type="module">
-        // === MODIFICATION: Add 3D Tilt & Shine JS ===
-        const card = document.getElementById('login-card');
-        card.addEventListener('mousemove', (e) => {
-            const rect = card.getBoundingClientRect();
-            
-            // Spotlight
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            card.style.setProperty('--mouse-x', `${x}px`);
-            card.style.setProperty('--mouse-y', `${y}px`);
-            
-            // 3D Tilt
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            const mouseX = x - centerX;
-            const mouseY = y - centerY;
-            
-            const rotateX = (mouseY / centerY) * -5; // Max 5deg tilt
-            const rotateY = (mouseX / centerX) * 5;
-            
-            card.style.setProperty('--rotate-x', `${rotateX}deg`);
-            card.style.setProperty('--rotate-y', `${rotateY}deg`);
-        });
-        
-        card.addEventListener('mouseleave', () => {
-             card.style.setProperty('--rotate-x', `0deg`);
-             card.style.setProperty('--rotate-y', `0deg`);
-        });
-        // === END MODIFICATION ===
+    <div class="content">
+      <!-- Login Panel -->
+      <section class="panel" aria-labelledby="login-title">
+        <h2 id="login-title">Login</h2>
 
-        // --- Original Login/Change Password Logic ---
-        async function apiCallLogin(action, body) {
-            const loginBtn = $('loginSubmitBtn');
-            const changeBtn = $('changeSubmitBtn');
-            const loginSpinner = $('loginSpinner');
-            const changeSpinner = $('changeSpinner');
-            const loginText = $('loginSubmitText');
-            const changeText = $('changeSubmitText');
+        <div class="field">
+          <label class="label" for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" />
+        </div>
 
-            const isLoginAction = action === 'loginUser';
-            const submitBtn = isLoginAction ? loginBtn : changeBtn;
-            const spinner = isLoginAction ? loginSpinner : changeSpinner;
-            const btnText = isLoginAction ? loginText : changeText;
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <div class="input-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" />
+            <button id="togglePassword" type="button" class="toggle-view" aria-label="Show or hide password" title="Show/Hide">
+              <!-- Simple eye icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
 
-            if (submitBtn) submitBtn.disabled = true;
-            if (spinner) spinner.classList.remove('hidden');
-            if (btnText) btnText.classList.add('hidden');
+        <div class="field">
+          <button id="loginBtn" class="btn btn-primary" type="button">Login</button>
+          <button id="forgotBtn" class="btn btn-secondary" type="button">Forgot Password</button>
+          <p class="meta">Forgot password? Please contact the system administrator.</p>
+        </div>
+      </section>
 
-            try {
-                const response = await fetch('/api/proxy?action=' + action, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                const responseText = await response.text();
+      <!-- Change Password Panel -->
+      <section class="panel" aria-labelledby="change-title">
+        <h2 id="change-title">Change Required</h2>
+        <p class="meta">Please set a new password.</p>
 
-                if (!response.ok) {
-                    let errorMsg = `Error: ${response.status}`;
-                    try {
-                        const errData = JSON.parse(responseText);
-                        errorMsg = errData.error || errData.message || errorMsg;
-                    } catch (e) { /* Ignore */ }
-                    throw new Error(errorMsg);
-                }
-                if (!responseText) return { success: true };
-                return JSON.parse(responseText);
-            } finally {
-                if (submitBtn) submitBtn.disabled = false;
-                if (spinner) spinner.classList.add('hidden');
-                if (btnText) btnText.classList.remove('hidden');
-            }
-        }
+        <div class="field">
+          <label class="label" for="newPassword">New Password</label>
+          <div class="input-wrap">
+            <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" placeholder="Enter new password" />
+            <button id="toggleNewPassword" type="button" class="toggle-view" aria-label="Show or hide new password" title="Show/Hide">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
 
-        const $ = (id) => document.getElementById(id);
-        const loginForm = $('loginForm');
-        const loginError = $('loginError');
-        const changePasswordSection = $('changePasswordSection');
-        const changePasswordForm = $('changePasswordForm');
-        const changePasswordError = $('changePasswordError');
+        <div class="field">
+          <label class="label" for="confirmPassword">Confirm Password</label>
+          <div class="input-wrap">
+            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirm new password" />
+            <button id="toggleConfirmPassword" type="button" class="toggle-view" aria-label="Show or hide confirm password" title="Show/Hide">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5C7 5 3.27 8.11 2 12c1.27 3.89 5 7 10 7s8.73-3.11 10-7c-1.27-3.89-5-7-10-7Z" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
 
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            loginError.classList.add('hidden');
-            changePasswordSection.classList.add('hidden');
+        <div class="field">
+          <button id="setPasswordBtn" class="btn btn-primary" type="button">Set New Password</button>
+        </div>
+      </section>
+    </div>
 
-            const username = $('username').value;
-            const password = $('password').value;
+    <div class="footer">
+      <div>© 2025 Md. Rakibul Islam Ratul</div>
+      <div>Sr. Manager, Telecom Service, Metal</div>
+    </div>
+  </div>
 
-            console.log('Frontend: Attempting login with:', { username, password });
+  <script>
+    // Prevent overlay/covers from eating clicks: already handled via CSS pointer-events: none
 
-            try {
-                const loginData = { username, password };
-                const result = await apiCallLogin('loginUser', loginData);
+    // Password visibility toggles
+    function toggleVisibility(inputId, buttonId){
+      const input = document.getElementById(inputId);
+      const btn = document.getElementById(buttonId);
+      if (!input || !btn) return;
 
-                if (result.success) {
-                    if (result.changePasswordRequired) {
-                        $('changeUsername').value = username; // Set hidden username
-                        changePasswordSection.classList.remove('hidden');
-                        loginForm.classList.add('hidden');
-                    } else {
-                        sessionStorage.setItem('isLoggedIn', 'true');
-                        sessionStorage.setItem('loggedInUser', username);
-                        window.location.href = '/index.html';
-                    }
-                }
-            } catch (error) {
-                 console.error('Login failed:', error);
-                 loginError.textContent = error.message || 'Login failed. Please try again.';
-                 if (error.message.includes('User not found') || error.message.includes('Incorrect password')) {
-                     loginError.textContent += ' Forgot password? Contact administrator.';
-                 }
-                 loginError.classList.remove('hidden');
-            }
-        });
+      btn.addEventListener('click', () => {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+      });
+    }
 
-        changePasswordForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if(changePasswordError) changePasswordError.classList.add('hidden');
+    toggleVisibility('password', 'togglePassword');
+    toggleVisibility('newPassword', 'toggleNewPassword');
+    toggleVisibility('confirmPassword', 'toggleConfirmPassword');
 
-            const username = $('changeUsername').value;
-            const newPassword = $('newPassword').value;
-            const confirmPassword = $('confirmPassword').value;
-            const oldPassword = 'Metal@#357'; 
+    // Click handlers (hook these up to your real auth endpoints)
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      if (!username || !password){
+        alert('Please enter username and password.');
+        return;
+      }
+      // TODO: Replace with real request (fetch/XHR)
+      console.log('Login attempt:', { username, password });
+      alert('Login clicked. Connect this to your backend.');
+    });
 
-            if (newPassword !== confirmPassword) {
-                changePasswordError.textContent = 'New passwords do not match.';
-                changePasswordError.classList.remove('hidden');
-                return;
-            }
-            if (newPassword.length < 6) {
-                 changePasswordError.textContent = 'Password must be at least 6 characters.';
-                 changePasswordError.classList.remove('hidden');
-                 return;
-            }
+    document.getElementById('forgotBtn').addEventListener('click', () => {
+      // Route to support, or open mailto:
+      window.location.href = 'mailto:admin@example.com?subject=Password%20Reset%20Request';
+    });
 
-            console.log('Frontend: Attempting password change for:', username);
-
-            try {
-                 const changeData = { username, oldPassword, newPassword };
-                const result = await apiCallLogin('changePassword', changeData);
-                if (result.success) {
-                    sessionStorage.setItem('isLoggedIn', 'true');
-                    sessionStorage.setItem('loggedInUser', username);
-                    window.location.href = '/index.html';
-                }
-            } catch (error) {
-                 console.error('Password change failed:', error);
-                 changePasswordError.textContent = error.message || 'Failed to change password.';
-                 changePasswordError.classList.remove('hidden');
-            }
-        });
-    </script>
+    document.getElementById('setPasswordBtn').addEventListener('click', () => {
+      const newPwd = document.getElementById('newPassword').value;
+      const confirmPwd = document.getElementById('confirmPassword').value;
+      if (!newPwd || !confirmPwd){
+        alert('Please fill in both password fields.');
+        return;
+      }
+      if (newPwd !== confirmPwd){
+        alert('New password and confirmation do not match.');
+        return;
+      }
+      // TODO: Replace with real request (fetch/XHR)
+      console.log('Set new password:', { newPwd });
+      alert('Set New Password clicked. Connect this to your backend.');
+    });
+  </script>
 </body>
-</html>
