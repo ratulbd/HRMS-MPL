@@ -150,7 +150,7 @@ export function downloadCSV(content, fileName) {
     }
 }
 
-// --- *** NEW XLSX Download Helper *** ---
+// --- *** MODIFIED XLSX Download Helper *** ---
 /**
  * Creates and downloads an XLSX file from an array of objects using ExcelJS.
  * @param {Array<Object>} jsonData Array of data objects.
@@ -164,10 +164,13 @@ export async function downloadXLSX(jsonData, fileName, sheetName = 'Sheet1') {
         return;
     }
     
-    if (!jsonData || jsonData.length === 0) {
+    // --- MODIFICATION: Stronger check for valid data ---
+    // This handles [], [null], [undefined], or [{}] (empty object)
+    if (!jsonData || jsonData.length === 0 || !jsonData[0] || Object.keys(jsonData[0]).length === 0) {
         customAlert("No Data", "There is no data to export.");
         return;
     }
+    // --- END MODIFICATION ---
 
     showLoading();
     try {
@@ -183,6 +186,9 @@ export async function downloadXLSX(jsonData, fileName, sheetName = 'Sheet1') {
 
         // Get rows
         const rows = jsonData.map(item => {
+            // --- MODIFICATION: Handle null/undefined items in array ---
+            if (!item) return headers.map(() => ''); // Return empty row
+            // --- END MODIFICATION ---
             return headers.map(header => item[header]);
         });
 
@@ -202,13 +208,17 @@ export async function downloadXLSX(jsonData, fileName, sheetName = 'Sheet1') {
         // Auto-fit columns for readability
         worksheet.columns.forEach(column => {
             let maxLang = 0;
-            // The column.header is the first cell, check it
-            maxLang = column.header.length + 2; // Start with header length
+            
+            // --- MODIFICATION: Add safe check for column.header ---
+            // This prevents the exact error "Cannot read... 'length'"
+            maxLang = column.header ? String(column.header).length + 2 : 10;
+            // --- END MODIFICATION ---
 
             // Iterate over all cells in the column to find max length
             column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
                  // Skip header row
                 if (rowNumber > 1) { 
+                    // .value can be null/undefined, String() handles this
                     const colWidth = cell.value ? String(cell.value).length : 10;
                     if (colWidth > maxLang) {
                         maxLang = colWidth;
