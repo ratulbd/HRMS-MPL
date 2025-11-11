@@ -40,7 +40,7 @@
                 <div class="password-container mt-1">
                     <input type="password" id="password" name="password" required class="input pr-10">
                     <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                        <i class="fa-regular fa="fa-eye" id="toggleIconLogin"></i>
+                        <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
                     </span>
                 </div>
             </div>
@@ -202,8 +202,7 @@
             }
         });
 
-        // --- MODIFICATION HERE ---
-        // Change password form logic (Updated)
+        // Change password form logic (unchanged)
         changePasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if(changePasswordError) changePasswordError.classList.add('hidden');
@@ -235,10 +234,8 @@
                 const result = await apiCallLogin('changePassword', changeData);
                 
                 if (result.success) {
-                    // --- CHANGED THIS BLOCK ---
                     alert("Password changed successfully. Please log in with your new password.");
                     window.location.href = '/login.html'; // Redirect to login page
-                    // --- END OF CHANGE ---
                 }
             } catch (error) {
                  console.error('Password change failed:', error);
