@@ -40,7 +40,7 @@
                 <div class="password-container mt-1">
                     <input type="password" id="password" name="password" required class="input pr-10">
                     <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                        <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
+                        <i class="fa-regular fa="fa-eye" id="toggleIconLogin"></i>
                     </span>
                 </div>
             </div>
@@ -89,6 +89,7 @@
                  </button>
              </form>
         </div>
+
         <footer class="text-center text-xs text-gray-400 mt-8 border-t pt-4">
             &copy; 2025 Md. Rakibul Islam Ratul <br>
             Sr. Manager, Telecom Service, Metal
@@ -96,7 +97,7 @@
     </div>
 
     <script>
-        // Password Toggle Script (Works for all 3 fields now)
+        // Password Toggle Script
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
             const icon = document.getElementById(iconId);
@@ -114,8 +115,7 @@
         }
     </script>
     <script type="module">
-        // --- This JS logic is unchanged, but will now work correctly ---
-        
+        // API Call function (unchanged)
         async function apiCallLogin(action, body) {
             const loginBtn = $('loginSubmitBtn');
             const changeBtn = $('changeSubmitBtn');
@@ -158,15 +158,15 @@
             }
         }
 
+        // Element selection (unchanged)
         const $ = (id) => document.getElementById(id);
         const loginForm = $('loginForm');
         const loginError = $('loginError');
         const changePasswordSection = $('changePasswordSection');
         const changePasswordForm = $('changePasswordForm');
-        
-        // This element now exists
         const changePasswordError = $('changePasswordError'); 
 
+        // Login form logic (unchanged)
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             loginError.classList.add('hidden');
@@ -183,7 +183,6 @@
 
                 if (result.success) {
                     if (result.changePasswordRequired) {
-                        // This element now exists
                         $('changeUsername').value = username; 
                         changePasswordSection.classList.remove('hidden');
                         loginForm.classList.add('hidden');
@@ -203,15 +202,16 @@
             }
         });
 
+        // --- MODIFICATION HERE ---
+        // Change password form logic (Updated)
         changePasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if(changePasswordError) changePasswordError.classList.add('hidden'); // Check if it exists
+            if(changePasswordError) changePasswordError.classList.add('hidden');
 
-            // These elements now exist
             const username = $('changeUsername').value;
             const newPassword = $('newPassword').value;
             const confirmPassword = $('confirmPassword').value;
-            const oldPassword = 'Metal@#357'; // Send default as oldPassword
+            const oldPassword = 'Metal@#357'; 
 
             if (newPassword !== confirmPassword) {
                 if(changePasswordError) {
@@ -233,10 +233,12 @@
             try {
                  const changeData = { username, oldPassword, newPassword };
                 const result = await apiCallLogin('changePassword', changeData);
+                
                 if (result.success) {
-                    sessionStorage.setItem('isLoggedIn', 'true');
-                    sessionStorage.setItem('loggedInUser', username);
-                    window.location.href = '/index.html';
+                    // --- CHANGED THIS BLOCK ---
+                    alert("Password changed successfully. Please log in with your new password.");
+                    window.location.href = '/login.html'; // Redirect to login page
+                    // --- END OF CHANGE ---
                 }
             } catch (error) {
                  console.error('Password change failed:', error);
