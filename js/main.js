@@ -11,7 +11,8 @@ if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
     
-    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadCSV, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
+    // --- MODIFICATION: Added downloadXLSX ---
+    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
     
     // === MODIFICATION: Removed unused imports, added renderEmployeeList ===
@@ -260,7 +261,7 @@ async function initializeAppModules() {
     }
     // --- END MODIFICATION ---
 
-    // --- MODIFICATION: This function now only handles the *Employee Database* export ---
+    // --- MODIFICATION: This function now exports XLSX and uses friendly headers ---
     async function handleExportData() {
          // This now has to fetch all data, as mainLocalEmployees might be stale
          try {
@@ -296,45 +297,32 @@ async function initializeAppModules() {
                 "fileClosingDate", "fileClosingRemarks" // Fixed key names
             ];
             
-            let csvContent = headers.join(',') + '\n';
-            employeesToExport.forEach(emp => {
-                const row = headerKeys.map(key => {
+            // Map data to objects with friendly headers as keys
+            const dataToExport = employeesToExport.map(emp => {
+                const newRow = {};
+                headerKeys.forEach((key, index) => {
+                    const headerName = headers[index];
                     let value = emp[key] ?? '';
-                    if (key === 'salaryHeld') value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
-                    value = String(value).replace(/"/g, '""');
-                    if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
-                    return value;
+                    if (key === 'salaryHeld') {
+                        value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+                    }
+                    newRow[headerName] = value;
                 });
-                csvContent += row.join(',') + '\n';
+                return newRow;
             });
-            if (typeof downloadCSV === 'function') downloadCSV(csvContent, "employee_data_export.csv");
+
+            // Use the new XLSX downloader
+            await downloadXLSX(dataToExport, "employee_data_export.xlsx", "Employees");
+
          } catch (error) {
              customAlert("Error", `Failed to export data: ${error.message}`);
          }
     }
     // --- END MODIFICATION ---
 
-    // --- ADDITION: Helper to convert JSON log data to CSV ---
-    function jsonToCsv(jsonData) {
-        if (!jsonData || jsonData.length === 0) {
-            return ""; // No data
-        }
-        const headers = Object.keys(jsonData[0]);
-        let csvContent = headers.join(',') + '\n';
-        
-        jsonData.forEach(item => {
-            const row = headers.map(header => {
-                let value = item[header] ?? '';
-                value = String(value).replace(/"/g, '""');
-                if (String(value).includes(',') || String(value).includes('"') || String(value).includes('\n')) return `"${value}"`;
-                return value;
-            });
-            csvContent += row.join(',') + '\n';
-        });
-        return csvContent;
-    }
+    // --- DELETION: Removed jsonToCsv function ---
 
-    // --- ADDITION: Helper function to download log reports ---
+    // --- ADDITION: Helper function to download log reports (now using XLSX) ---
     async function handleLogReportDownload(logName, apiAction, fileName) {
         try {
             const logData = await apiCall(apiAction);
@@ -342,8 +330,8 @@ async function initializeAppModules() {
                 customAlert("No Data", `No data found for the ${logName}.`);
                 return;
             }
-            const csvContent = jsonToCsv(logData);
-            downloadCSV(csvContent, fileName);
+            // Directly pass the JSON data to the XLSX downloader
+            await downloadXLSX(logData, fileName, logName);
             closeModal('reportModal');
         } catch (error) {
             customAlert("Error", `Failed to download ${logName}: ${error.message}`);
@@ -381,17 +369,18 @@ async function initializeAppModules() {
                 handleExportData(); // Use the new async version
                 closeModal('reportModal');
             });
+            // --- MODIFICATION: Updated to use XLSX filenames ---
             $('downloadHoldLog').addEventListener('click', () => {
-                handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.csv');
+                handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.xlsx');
             });
             $('downloadSeparationLog').addEventListener('click', () => {
-                handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.csv');
+                handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.xlsx');
             });
             $('downloadTransferLog').addEventListener('click', () => {
-                handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.csv');
+                handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.xlsx');
             });
             $('downloadFileCloseLog').addEventListener('click', () => {
-                handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.csv');
+                handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
             });
         }
         
@@ -423,7 +412,7 @@ async function initializeAppModules() {
         if (appDiv) {
             appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
         } else {
-            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg} (Fatal: #app container not found)</div>`;
+            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg}. (Fatal: #app container not found)</div>`;
         }
     }
 }

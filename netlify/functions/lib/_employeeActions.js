@@ -497,9 +497,79 @@ async function logRejoin(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAP
     }
 }
 
-async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
+// --- *** MODIFICATION: getLogData now enriches with Employee data *** ---
+async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers, EMPLOYEE_SHEET_NAME, HEADER_MAPPING) {
     console.log(`Executing getLogData for sheet: ${sheetName}`);
     try {
+        // --- 1. Define requested employee fields and their friendly headers ---
+        const requiredEmpFields = {
+            name: 'Employee Name',
+            employeeType: 'Employee Type',
+            designation: 'Designation',
+            functionalRole: 'Functional Role',
+            joiningDate: 'Joining Date',
+            project: 'Project',
+            projectOffice: 'Project Office',
+            reportProject: 'Report Project',
+            subCenter: 'Sub Center',
+            basic: 'Basic',
+            others: 'Others',
+            salary: 'Gross Salary' // 'salary' is the key for Gross Salary in HEADER_MAPPING
+        };
+        const defaultEmpDetails = {};
+        for (const key in requiredEmpFields) {
+            defaultEmpDetails[requiredEmpFields[key]] = 'N/A';
+        }
+
+        // --- 2. Fetch all Employee data and build lookup map ---
+        let employeeMap = new Map();
+        try {
+            console.log("Fetching Employee headers...");
+            const empHeaders = await helpers.getSheetHeaders(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
+            if (empHeaders.length === 0) throw new Error("No headers in Employees sheet.");
+
+            // Find column indices for required fields
+            const empIdColIndex = empHeaders.indexOf(HEADER_MAPPING.employeeId);
+            if (empIdColIndex === -1) throw new Error("`employeeId` column not found in Employees sheet.");
+            
+            const empColIndices = {};
+            for (const key in requiredEmpFields) {
+                const headerName = HEADER_MAPPING[key];
+                const colIndex = empHeaders.indexOf(headerName);
+                if (colIndex === -1) console.warn(`Column for '${key}' ('${headerName}') not found in Employees sheet.`);
+                empColIndices[key] = colIndex;
+            }
+            
+            console.log("Fetching all Employee data rows...");
+            const lastEmpCol = helpers.getColumnLetter(empHeaders.length - 1);
+            const empResponse = await sheets.spreadsheets.values.get({ 
+                spreadsheetId: SPREADSHEET_ID, 
+                range: `${EMPLOYEE_SHEET_NAME}!A2:${lastEmpCol}` 
+            });
+            const empDataRows = empResponse.data.values;
+
+            if (empDataRows && empDataRows.length > 0) {
+                empDataRows.forEach(row => {
+                    const empId = row[empIdColIndex];
+                    if (empId) {
+                        const empDetails = {};
+                        for (const key in requiredEmpFields) {
+                            const headerName = requiredEmpFields[key];
+                            const colIndex = empColIndices[key];
+                            empDetails[headerName] = (colIndex !== -1) ? (row[colIndex] ?? '') : 'N/A';
+                        }
+                        employeeMap.set(empId, empDetails);
+                    }
+                });
+            }
+            console.log(`Built employeeMap with ${employeeMap.size} entries.`);
+
+        } catch (empError) {
+            console.error(`Failed to fetch and process Employees sheet: ${empError.message}. Log report will not be enriched.`);
+            // Continue without enrichment if this fails
+        }
+
+        // --- 3. Fetch Log Data (Original Logic) ---
         const headerResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!1:1`,
@@ -524,7 +594,8 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
         }
         console.log(`Fetched ${dataRows.length} data rows from ${sheetName}.`);
 
-        const logData = dataRows.map((row) => {
+        // --- 4. Process and Enrich Log Data ---
+        const logObjects = dataRows.map((row) => {
             const entry = {};
             actualHeaders.forEach((header, i) => {
                 entry[header] = row[i] ?? ''; 
@@ -532,8 +603,26 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
             return entry;
         });
 
-        console.log(`Processed ${logData.length} log entries.`);
-        return { statusCode: 200, body: JSON.stringify(logData) };
+        // The 'Employee ID' header is consistent across Hold, Separation, Transfer, and FileClosing logs
+        const logEmpIdKey = 'Employee ID';
+
+        const enrichedLogData = logObjects.map(logEntry => {
+            const logEmpId = logEntry[logEmpIdKey];
+            const empDetails = employeeMap.get(logEmpId) || defaultEmpDetails;
+            
+            // Remove the original Employee ID from the log to avoid duplication
+            // We will re-add it first to ensure order
+            const { [logEmpIdKey]: _, ...remainingLogEntry } = logEntry;
+
+            return {
+                [logEmpIdKey]: logEmpId, // Add Employee ID first
+                ...empDetails,          // Add all the enriched employee details
+                ...remainingLogEntry    // Add the rest of the log-specific fields
+            };
+        });
+
+        console.log(`Processed and enriched ${enrichedLogData.length} log entries.`);
+        return { statusCode: 200, body: JSON.stringify(enrichedLogData) };
 
     } catch (error) {
         console.error(`Error in getLogData for ${sheetName}:`, error.stack || error.message);
@@ -544,6 +633,8 @@ async function getLogData(sheets, SPREADSHEET_ID, sheetName, helpers) {
         return { statusCode: 500, body: JSON.stringify({ error: `Internal server error fetching ${sheetName} log.`, details: error.message }) };
     }
 }
+// --- *** END MODIFICATION *** ---
+
 
 async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers,
     { employeeId, fileClosingDate, fileClosingRemarks }

@@ -132,7 +132,7 @@ export function formatDateForInput(dateString) { // <<<< MAKE SURE THIS LINE HAS
      }
 }
 
-// --- CSV Download Helper ---
+// --- CSV Download Helper (Kept for fallback, but unused by main flow) ---
 export function downloadCSV(content, fileName) {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -147,5 +147,103 @@ export function downloadCSV(content, fileName) {
         URL.revokeObjectURL(url);
     } else {
          customAlert("Error", "CSV download is not supported.");
+    }
+}
+
+// --- *** NEW XLSX Download Helper *** ---
+/**
+ * Creates and downloads an XLSX file from an array of objects using ExcelJS.
+ * @param {Array<Object>} jsonData Array of data objects.
+ * @param {string} fileName The desired file name (e.g., "report.xlsx").
+ * @param {string} sheetName The name for the worksheet.
+ */
+export async function downloadXLSX(jsonData, fileName, sheetName = 'Sheet1') {
+    if (typeof ExcelJS === 'undefined') {
+        console.error("ExcelJS is not loaded.");
+        customAlert("Error", "Could not generate XLSX file. Library not found.");
+        return;
+    }
+    
+    if (!jsonData || jsonData.length === 0) {
+        customAlert("No Data", "There is no data to export.");
+        return;
+    }
+
+    showLoading();
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet(sheetName);
+
+        // Get headers from the keys of the first object
+        const headers = Object.keys(jsonData[0]);
+        const columns = headers.map(header => ({
+            name: header,
+            filterButton: true
+        }));
+
+        // Get rows
+        const rows = jsonData.map(item => {
+            return headers.map(header => item[header]);
+        });
+
+        // Add the table to the worksheet
+        worksheet.addTable({
+            name: 'ReportData',
+            ref: 'A1',
+            headerRow: true,
+            columns: columns,
+            rows: rows,
+            style: {
+                theme: 'TableStyleMedium9', // "Best table format"
+                showRowStripes: true,
+            }
+        });
+
+        // Auto-fit columns for readability
+        worksheet.columns.forEach(column => {
+            let maxLang = 0;
+            // The column.header is the first cell, check it
+            maxLang = column.header.length + 2; // Start with header length
+
+            // Iterate over all cells in the column to find max length
+            column.eachCell({ includeEmpty: true }, (cell, rowNumber) => {
+                 // Skip header row
+                if (rowNumber > 1) { 
+                    const colWidth = cell.value ? String(cell.value).length : 10;
+                    if (colWidth > maxLang) {
+                        maxLang = colWidth;
+                    }
+                }
+            });
+            // Set width with a buffer, max 50
+            column.width = Math.min(Math.max(maxLang + 2, 10), 50); 
+        });
+
+        // Generate the XLSX file buffer
+        const buffer = await workbook.xlsx.writeBuffer();
+        
+        // Create a Blob and trigger download
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const finalFileName = fileName.endsWith('.xlsx') ? fileName : `${fileName}.xlsx`;
+        
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", finalFileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } else {
+            customAlert("Error", "XLSX download is not supported in this browser.");
+        }
+
+    } catch (error) {
+        console.error("Error generating XLSX file:", error);
+        customAlert("Error", `Failed to generate XLSX file: ${error.message}`);
+    } finally {
+        hideLoading();
     }
 }
