@@ -38,26 +38,22 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
             try {
                 const salaryMonth = $('salaryMonth').value;
                 const attendanceFile = $('attendanceFile').files[0];
-                const accountabilityFile = $('accountabilityFile').files[0]; // Get the file
+                const accountabilityFile = $('accountabilityFile').files[0];
 
-                // --- MODIFICATION: Validation now includes accountabilityFile ---
                 if (!salaryMonth || !attendanceFile || !accountabilityFile) {
                     customAlert("Missing Data", "Please select a month and provide both the Attendance and Accountability CSV files.");
                     generateBtn.disabled = false;
                     generateBtn.textContent = 'Generate Sheet';
                     return;
                 }
-                // --- END MODIFICATION ---
-                
-                // --- MODIFICATION: Removed mock data block ---
+
                 // 1. Parse CSV files
                 const attendanceData = await parseCSV(attendanceFile);
-                const accountabilityData = await parseCSV(accountabilityFile); // Parse the real file
-                // --- END MODIFICATION ---
+                const accountabilityData = await parseCSV(accountabilityFile);
 
-                // 2. Process data
+                // 2. Process data (Reverted to ...emp to save ALL data)
                 const processedData = processPayrollData(attendanceData, accountabilityData, allEmployees);
-                
+
                 // 3. Group by Project
                 const employeesByProject = processedData.reduce((acc, emp) => {
                     const project = emp.project || 'Unknown';
@@ -89,40 +85,59 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
 
-                // 7. Archive the report
-                const archiveTimestamp = new Date().toISOString(); // <-- Get timestamp
+                // 7. Archive the report (NEW CHUNKING LOGIC)
+                generateBtn.textContent = 'Archiving...';
 
-                // --- MODIFICATION: Compress data before archiving ---
-                                if (!window.pako) {
-                                    throw new Error("Pako.js compression library is not loaded.");
-                                }
+                if (!window.pako) {
+                    throw new Error("Pako.js compression library is not loaded.");
+                }
 
-                                // 1. Stringify the data
-                                const jsonString = JSON.stringify(processedData);
+                // 1. Stringify the FULL data
+                const jsonString = JSON.stringify(processedData);
+                // 2. Compress
+                const compressed = window.pako.deflate(jsonString);
+                // 3. Convert to binary string
+                let binaryString = '';
+                for (let i = 0; i < compressed.length; i++) {
+                    binaryString += String.fromCharCode(compressed[i]);
+                }
+                // 4. Base64-encode
+                const fullCompressedBase64 = btoa(binaryString);
 
-                                // 2. Compress the string (returns Uint8Array)
-                                const compressed = window.pako.deflate(jsonString);
+                // 5. Split into chunks
+                const CHUNK_SIZE = 40000; // Well below 50k limit
+                const chunks = [];
+                for (let i = 0; i < fullCompressedBase64.length; i += CHUNK_SIZE) {
+                    chunks.push(fullCompressedBase64.substring(i, i + CHUNK_SIZE));
+                }
 
-                                // 3. Convert Uint8Array to a binary string for btoa
-                                let binaryString = '';
-                                for (let i = 0; i < compressed.length; i++) {
-                                    binaryString += String.fromCharCode(compressed[i]);
-                                }
+                const archiveId = new Date().toISOString(); // Unique ID for all chunks
+                const totalChunks = chunks.length;
 
-                                // 4. Base64-encode the binary string
-                                const compressedBase64 = btoa(binaryString);
+                // 6. Save each chunk as a separate row
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunkIndex = i + 1;
+                    const chunkData = chunks[i];
 
-                                // 5. Create a versioned payload
-                                const archivePayload = {
-                                    v: 2, // 'v' for version
-                                    data: compressedBase64
-                                };
+                    // This is the object that will be stored in the 'jsonData' cell
+                    const chunkPayload = {
+                        v: 3, // Version 3 (chunked)
+                        id: archiveId,
+                        month: salaryMonth,
+                        index: chunkIndex,
+                        total: totalChunks,
+                        data: chunkData
+                    };
 
-                await apiCall('saveSalaryArchive', 'POST', {
-                    monthYear: salaryMonth,
-                    timestamp: archiveTimestamp, // <-- Send timestamp
-                    jsonData: archivePayload // Archive the successfully processed data
-                });
+                    // We "hack" the saveSalaryArchive endpoint.
+                    // We use the `archiveId` as the `monthYear` key to group rows.
+                    // The backend will just append a row with [archiveId, chunkPayload]
+                    await apiCall('saveSalaryArchive', 'POST', {
+                        monthYear: archiveId,
+                        jsonData: chunkPayload
+                    });
+                }
+                // --- END OF NEW CHUNKING LOGIC ---
 
                 customAlert("Success", `Successfully generated and archived salary reports for ${salaryMonth}. Downloaded as a .zip file.`);
                 closeModal('attendanceModal');
@@ -153,13 +168,11 @@ function parseCSV(file) {
                 const text = event.target.result;
                 const lines = text.split(/[\r\n]+/).filter(line => line.trim() !== '');
                 if (lines.length < 2) throw new Error("CSV file is empty or has no data rows.");
-                
+
                 const headerLine = lines.shift();
-                // Handle potential BOM character at the start of the file
                 const headers = headerLine.replace(/^\uFEFF/, '').split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-                
+
                 const data = lines.map(line => {
-                    // Robust CSV parsing to handle commas inside quoted values
                     const values = [];
                     let inQuote = false;
                     let currentVal = '';
@@ -199,42 +212,44 @@ function processPayrollData(attendanceData, accountabilityData, allEmployeeData)
     const attendanceMap = new Map(attendanceData.map(row => [row.employeeid, parseInt(row.dayspresent, 10)]));
     const accountabilityMap = new Map();
     accountabilityData.forEach(row => {
-        const key = `${row.reportproject}|${row.subcenter}`;
+        const key = `${row.reportproject?.toLowerCase().trim()}|${row.subcenter?.toLowerCase().trim()}`;
         accountabilityMap.set(key, row.accountableemployeeid);
     });
 
     const processed = allEmployeeData
-        .filter(emp => emp.status === 'Active' || emp.status === 'Salary Held') // Only process active/held employees
+        .filter(emp => emp.status === 'Active' || emp.status === 'Salary Held')
         .map(emp => {
             const daysPresent = attendanceMap.get(emp.employeeId) || 0;
             const grossSalary = parseFloat(emp.salary) || 0;
-            
-            // Calculate salary as per requirement
+
             const perDaySalary = grossSalary / 30;
             const deduction = daysPresent >= 30 ? 0 : (30 - daysPresent) * perDaySalary;
             const netSalary = grossSalary - deduction;
 
-            // Determine payment method
             let paymentType = 'Bank';
             let accountableEmployeeId = null;
             if (!emp.bankAccount || emp.bankAccount.trim() === '') {
                 paymentType = 'Cash';
-                const key = `${emp.reportProject}|${emp.subCenter}`;
+                const key = `${emp.reportProject?.toLowerCase().trim()}|${emp.subCenter?.toLowerCase().trim()}`;
                 accountableEmployeeId = accountabilityMap.get(key) || null;
-                if (!accountableEmployeeId && accountabilityData.length > 0) { // Only warn if accountability data was provided
+                if (!accountableEmployeeId && accountabilityData.length > 0) {
                     console.warn(`No accountable person found for ${key}. Employee ${emp.employeeId} will not be paid.`);
                 }
             }
 
+            // --- *** REVERTED TO FULL DATA *** ---
+            // This is what you requested. We are now saving the entire
+            // employee object plus the calculated fields.
             return {
                 ...emp,
                 daysPresent,
-                grossSalary, // This is the original gross
+                grossSalary, // This is the original gross (emp.salary)
                 calculatedDeduction: deduction,
                 calculatedNetSalary: netSalary,
                 paymentType,
-                accountableEmployeeId // null if bank, or 'CL-XXXX' if cash
+                accountableEmployeeId
             };
+            // --- *** END REVERSION *** ---
         });
 
     return processed;
@@ -245,21 +260,17 @@ function processPayrollData(attendanceData, accountabilityData, allEmployeeData)
  */
 async function generateExcelReport(project, salaryMonth, projectEmployees, isArchive = false) {
     if (!ExcelJS) throw new Error("ExcelJS library is not loaded.");
-    
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = `HR Management System ${isArchive ? '(Archive)' : ''}`;
     workbook.created = new Date();
 
-    // 1. Create Salary Sheet (matches "Telecom" template)
     createSalaryWorksheet(workbook, project, projectEmployees, salaryMonth);
-
-    // 2. Create Advice Sheet
     createAdviceWorksheet(workbook, projectEmployees, salaryMonth);
 
-    // 3. Return the file blob and name
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
+
     const archiveSuffix = isArchive ? '-Archive' : '';
     const fileName = `Salary-${project}-${salaryMonth}${archiveSuffix}.xlsx`;
 
@@ -271,22 +282,18 @@ async function generateExcelReport(project, salaryMonth, projectEmployees, isArc
  * Creates the main "Salary Sheet" worksheet (like "Telecom").
  */
 function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
-    // Note: Template "Dhaka South Office-Casual" refers to Sub Center
     const sheet = workbook.addWorksheet(`${project} Salary Sheet`);
-
-    // --- Styling ---
     const headerFont = { name: 'Calibri', size: 11, bold: true };
     const centerAlign = { vertical: 'middle', horizontal: 'center' };
     const border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-    // --- Headers ---
     sheet.mergeCells('A1:L1');
     sheet.getCell('A1').value = `Salary Sheet for ${project} - ${salaryMonth}`;
     sheet.getCell('A1').font = { name: 'Calibri', size: 16, bold: true };
     sheet.getCell('A1').alignment = centerAlign;
 
     const headers = [
-        'SL No', 'Employee ID', 'Employee Name', 'Designation', 'Joining Date', 'Gross Salary', 
+        'SL No', 'Employee ID', 'Employee Name', 'Designation', 'Joining Date', 'Gross Salary',
         'Days Present', 'Deduction', 'Net Salary', 'Bank Account Number', 'Payment Type', 'Remarks'
     ];
     const headerRow = sheet.addRow(headers);
@@ -296,7 +303,6 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
         cell.border = border;
     });
 
-    // --- Group employees by Sub Center ---
     const employeesBySubCenter = employees.reduce((acc, emp) => {
         const subCenter = emp.subCenter || 'Unknown Sub Center';
         if (!acc[subCenter]) acc[subCenter] = [];
@@ -304,14 +310,12 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
         return acc;
     }, {});
 
-    // --- Populate Data ---
     let slNo = 1;
     let grandTotalGross = 0;
     let grandTotalDeduction = 0;
     let grandTotalNet = 0;
 
     for (const subCenter of Object.keys(employeesBySubCenter).sort()) {
-        // Add Sub-center header row
         const subCenterHeaderRow = sheet.addRow([subCenter]);
         sheet.mergeCells(sheet.lastRow.number, 1, sheet.lastRow.number, headers.length);
         subCenterHeaderRow.getCell(1).font = { name: 'Calibri', size: 12, bold: true };
@@ -327,7 +331,7 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
                 emp.employeeId,
                 emp.name,
                 emp.designation,
-                emp.joiningDate, // TODO: Format as date if needed
+                emp.joiningDate,
                 emp.grossSalary,
                 emp.daysPresent,
                 emp.calculatedDeduction,
@@ -336,20 +340,17 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
                 emp.paymentType,
                 emp.accountableEmployeeId ? `Cash via ${emp.accountableEmployeeId}` : ''
             ]);
-            
-            // Apply formatting
+
             row.getCell(6).numFmt = '#,##0.00';
             row.getCell(8).numFmt = '#,##0.00';
             row.getCell(9).numFmt = '#,##0.00';
             row.eachCell((cell) => { cell.border = border; });
 
-            // Add to subtotals
             subTotalGross += emp.grossSalary;
             subTotalDeduction += emp.calculatedDeduction;
             subTotalNet += emp.calculatedNetSalary;
         });
 
-        // Add Subtotal Row
         const subtotalRow = sheet.addRow([
             '', '', '', 'Sub Total', '', subTotalGross, '', subTotalDeduction, subTotalNet, '', '', ''
         ]);
@@ -358,14 +359,12 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
         subtotalRow.getCell(6).numFmt = '#,##0.00';
         subtotalRow.getCell(8).numFmt = '#,##0.00';
         subtotalRow.getCell(9).numFmt = '#,##0.00';
-        
-        // Add to grand totals
+
         grandTotalGross += subTotalGross;
         grandTotalDeduction += subTotalDeduction;
         grandTotalNet += subTotalNet;
     }
 
-    // Add Grand Total Row
     const grandTotalRow = sheet.addRow([
         '', '', '', 'Grand Total', '', grandTotalGross, '', grandTotalDeduction, grandTotalNet, '', '', ''
     ]);
@@ -374,10 +373,9 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
     grandTotalRow.getCell(6).numFmt = '#,##0.00';
     grandTotalRow.getCell(8).numFmt = '#,##0.00';
     grandTotalRow.getCell(9).numFmt = '#,##0.00';
-    
-    // Set column widths
+
     sheet.columns = [
-        { width: 5 }, { width: 12 }, { width: 25 }, { width: 20 }, { width: 12 }, 
+        { width: 5 }, { width: 12 }, { width: 25 }, { width: 20 }, { width: 12 },
         { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 18 },
         { width: 12 }, { width: 20 }
     ];
@@ -388,37 +386,36 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
  */
 function createAdviceWorksheet(workbook, employees, salaryMonth) {
     const sheet = workbook.addWorksheet('Advice');
-
-    // --- Logic for Advice ---
-    // 1. Create a map for all payments
     const paymentMap = new Map();
 
     employees.forEach(emp => {
         if (emp.paymentType === 'Bank') {
-            const key = emp.employeeId; // Pay the employee directly
+            const key = emp.employeeId;
             const payment = paymentMap.get(key) || { emp: emp, amount: 0 };
             payment.amount += emp.calculatedNetSalary;
             paymentMap.set(key, payment);
         } else if (emp.paymentType === 'Cash' && emp.accountableEmployeeId) {
-            const key = emp.accountableEmployeeId; // Pay the accountable person
-            // Find the accountable employee's record
+            const key = emp.accountableEmployeeId;
             const accountableEmp = allEmployees.find(e => e.employeeId === key);
             if (accountableEmp) {
                 const payment = paymentMap.get(key) || { emp: accountableEmp, amount: 0 };
-                payment.amount += emp.calculatedNetSalary; // Add cash amount
+                payment.amount += emp.calculatedNetSalary;
                 paymentMap.set(key, payment);
             } else {
-                console.warn(`Accountable employee ${key} not found in master list!`);
+                const fallbackEmp = { employeeId: key, name: `Accountable Emp (${key})`, bankAccount: 'N/A' };
+                const payment = paymentMap.get(key) || { emp: fallbackEmp, amount: 0 };
+                payment.amount += emp.calculatedNetSalary;
+                paymentMap.set(key, payment);
+                console.warn(`Accountable employee ${key} not found in master list! Using ID as fallback.`);
             }
         }
     });
 
-    // --- Headers ---
     sheet.mergeCells('A1:D1');
     sheet.getCell('A1').value = `Bank Advice - ${salaryMonth}`;
     sheet.getCell('A1').font = { name: 'Calibri', size: 16, bold: true };
     sheet.getCell('A1').alignment = { horizontal: 'center' };
-    
+
     const headers = ['Employee ID', 'Employee Name', 'Bank Account Number', 'Amount (BDT)'];
     const headerRow = sheet.addRow(headers);
     headerRow.eachCell((cell) => {
@@ -426,7 +423,6 @@ function createAdviceWorksheet(workbook, employees, salaryMonth) {
         cell.border = { bottom: { style: 'thin' } };
     });
 
-    // --- Populate Data ---
     let totalAdviceAmount = 0;
     for (const [employeeId, payment] of paymentMap.entries()) {
         if (payment.amount > 0) {
@@ -440,11 +436,9 @@ function createAdviceWorksheet(workbook, employees, salaryMonth) {
         }
     }
 
-    // --- Total Row ---
     const totalRow = sheet.addRow(['', '', 'Total', totalAdviceAmount]);
     totalRow.font = { bold: true };
-    
-    // --- Formatting ---
+
     sheet.getColumn('D').numFmt = '#,##0.00';
     sheet.getColumn(1).width = 15;
     sheet.getColumn(2).width = 30;

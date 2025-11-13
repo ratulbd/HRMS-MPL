@@ -1,16 +1,12 @@
 // js/pastSheets.js
 import { $, openModal, closeModal, customAlert } from './utils.js';
 import { apiCall } from './apiClient.js';
-// We need to import the core logic from salarySheet.js.
-// This requires salarySheet.js to export its helper functions.
-// For simplicity, we will duplicate the core logic function here.
-// A better long-term fix would be a shared 'payroll.js' module.
 
 // --- Global variable for ExcelJS ---
 const ExcelJS = window.ExcelJS;
 const JSZip = window.JSZip; // Get JSZip from global scope
 let allEmployees = []; // To be populated by getMainLocalEmployees
-let allArchives = [];  // To store the fetched archives
+let allArchives = [];  // To store the RECONSTRUCTED archives
 
 // --- MODIFICATION: Now accepts the button ID from main.js ---
 export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
@@ -25,15 +21,16 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
             openModal('viewSheetsModal');
 
             try {
-                const archives = await apiCall('getSalaryArchive');
-                
-                // MODIFIED SORT: Sort by timestamp (descending) first.
-                allArchives = archives.sort((a, b) => {
-                    const dateA = a.timestamp ? new Date(a.timestamp) : new Date('1970-01-01');
-                    const dateB = b.timestamp ? new Date(b.timestamp) : new Date('1970-01-01');
-                    if (dateB !== dateA) return dateB - dateA;
-                    // Fallback to monthYear if timestamps are missing or identical
-                    return b.monthYear.localeCompare(a.monthYear);
+                // 1. Fetch all raw rows/chunks from the archive sheet
+                const rawChunks = await apiCall('getSalaryArchive');
+
+                // 2. Reconstruct archives from chunks
+                const reconstructedArchives = reconstructArchivesFromChunks(rawChunks);
+
+                // 3. Sort the reconstructed archives by timestamp (which is the archiveId)
+                allArchives = reconstructedArchives.sort((a, b) => {
+                    // The 'timestamp' field is the archiveId (ISO date string)
+                    return new Date(b.timestamp) - new Date(a.timestamp);
                 });
 
                 if (allArchives.length === 0) {
@@ -43,7 +40,6 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
 
                 listElement.innerHTML = ''; // Clear spinner
                 allArchives.forEach((archive, index) => {
-                    // --- MODIFICATION: Format and display the timestamp ---
                     let displayTime = 'Generated before timestamping';
                     if (archive.timestamp) {
                         try {
@@ -56,12 +52,10 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                             });
                         } catch (e) { /* ignore bad date */ }
                     }
-                    // --- END MODIFICATION ---
 
                     const item = document.createElement('div');
                     item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded-lg border';
-                    
-                    // --- MODIFIED INNERHTML ---
+
                     item.innerHTML = `
                         <div>
                             <span class="font-medium text-gray-700">${archive.monthYear}</span>
@@ -71,8 +65,7 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                             Re-download
                         </button>
                     `;
-                    // --- END MODIFICATION ---
-                    
+
                     listElement.appendChild(item);
                 });
 
@@ -93,9 +86,9 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
             const button = e.target.closest('button[data-index]');
             if (button) {
                 const index = parseInt(button.dataset.index, 10);
-                const archive = allArchives[index];
+                const archive = allArchives[index]; // This is our reconstructed archive
 
-                if (!archive || !archive.jsonData) {
+                if (!archive || !archive.fullCompressedBase64) {
                     customAlert("Error", "Could not find the archived data.");
                     return;
                 }
@@ -104,7 +97,6 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                 button.textContent = 'Generating...';
 
                 try {
-                    // --- *** MODIFICATION: Decompress data *** ---
                     let processedData;
                     const salaryMonth = archive.monthYear;
 
@@ -112,38 +104,34 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                         throw new Error("Pako.js compression library is not loaded.");
                     }
 
-                    // Check if it's our new compressed format (v2)
-                    if (archive.jsonData && archive.jsonData.v === 2) {
-                        try {
-                            // 1. Base64-decode the data string
-                            const binaryString = atob(archive.jsonData.data);
+                    // --- *** NEW DECOMPRESSION LOGIC *** ---
+                    try {
+                        // 1. We already have the full Base64 string
+                        // 2. Base64-decode
+                        const binaryString = atob(archive.fullCompressedBase64);
 
-                            // 2. Convert binary string to Uint8Array
-                            const len = binaryString.length;
-                            const bytes = new Uint8Array(len);
-                            for (let i = 0; i < len; i++) {
-                                bytes[i] = binaryString.charCodeAt(i);
-                            }
-
-                            // 3. Decompress using pako
-                            const decompressedString = window.pako.inflate(bytes, { to: 'string' });
-
-                            // 4. Parse the JSON
-                            processedData = JSON.parse(decompressedString);
-                        } catch (err) {
-                            console.error("Failed to decompress archive:", err);
-                            throw new Error(`Failed to read compressed archive: ${err.message}`);
+                        // 3. Convert binary string to Uint8Array
+                        const len = binaryString.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
                         }
-                    } else {
-                        // It's old, uncompressed data (just the raw array)
-                        // This provides backward compatibility.
-                        processedData = archive.jsonData;
+
+                        // 4. Decompress using pako
+                        const decompressedString = window.pako.inflate(bytes, { to: 'string' });
+
+                        // 5. Parse the JSON
+                        processedData = JSON.parse(decompressedString);
+                    } catch (err) {
+                        console.error("Failed to decompress archive:", err);
+                        throw new Error(`Failed to read compressed archive: ${err.message}`);
                     }
+                    // --- *** END NEW LOGIC *** ---
+
 
                     if (!processedData || processedData.length === 0) {
                         throw new Error("Archive data is empty or could not be read.");
                     }
-                    // --- *** END MODIFICATION *** ---
 
                     const employeesByProject = processedData.reduce((acc, emp) => {
                         const project = emp.project || 'Unknown';
@@ -152,21 +140,16 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                         return acc;
                     }, {});
 
-                    // --- MODIFICATION: Re-generate Zip File ---
                     if (!JSZip) {
                         throw new Error("JSZip library is not loaded. Please check index.html.");
                     }
                     const zip = new JSZip();
 
-                    // Re-generate Excel file for each project
                     for (const project of Object.keys(employeesByProject)) {
-                        // This uses the helper functions duplicated below
-                        // Pass 'true' for isArchive flag
                         const { fileName, blob } = await generateExcelReport(project, salaryMonth, employeesByProject[project], true);
-                        zip.file(fileName, blob); // Add file to zip
+                        zip.file(fileName, blob);
                     }
 
-                    // Download the single zip file
                     const zipBlob = await zip.generateAsync({ type: "blob" });
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(zipBlob);
@@ -175,7 +158,6 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                     link.click();
                     document.body.removeChild(link);
                     URL.revokeObjectURL(link.href);
-                    // --- END MODIFICATION ---
 
                     customAlert("Success", `Re-generated salary reports for ${salaryMonth} as a .zip file.`);
 
@@ -191,17 +173,72 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
     }
 }
 
+/**
+ * Helper function to rebuild full archives from a flat list of chunks.
+ */
+function reconstructArchivesFromChunks(rawChunks) {
+    const chunksById = new Map();
+
+    // 1. Group all chunks by their unique 'id'
+    for (const chunkRow of rawChunks) {
+        if (!chunkRow.jsonData || chunkRow.jsonData.v !== 3) {
+            // This is old data (v1 or v2) or invalid, skip it.
+            // We could add backward compatibility for v2 here if needed.
+            continue;
+        }
+
+        const chunk = chunkRow.jsonData;
+        const id = chunk.id;
+
+        if (!chunksById.has(id)) {
+            chunksById.set(id, []);
+        }
+        chunksById.get(id).push(chunk);
+    }
+
+    const completeArchives = [];
+
+    // 2. Process each group
+    for (const [id, chunks] of chunksById.entries()) {
+        if (chunks.length === 0) continue;
+
+        const total = chunks[0].total; // Total chunks expected
+        const month = chunks[0].month;
+
+        // Check if we have all the chunks
+        if (chunks.length !== total) {
+            console.warn(`Incomplete archive ${id}: expected ${total} chunks, found ${chunks.length}. Skipping.`);
+            continue;
+        }
+
+        // Sort chunks by index (1, 2, 3...)
+        chunks.sort((a, b) => a.index - b.index);
+
+        // 3. Re-assemble the full compressed string
+        const fullCompressedBase64 = chunks.map(c => c.data).join('');
+
+        // 4. Add the complete, re-assembled archive to our list
+        completeArchives.push({
+            archiveId: id, // This is the timestamp
+            monthYear: month,
+            timestamp: id, // The ID is the timestamp
+            fullCompressedBase64: fullCompressedBase64
+        });
+    }
+
+    return completeArchives;
+}
+
 
 // --- DUPLICATED HELPER FUNCTIONS ---
-// These are copied from salarySheet.js to be used here.
-// In a larger refactor, these would live in a shared 'payrollLogic.js' file.
+// (These are unchanged from the previous file)
 
 /**
  * Uses ExcelJS to build and return one .xlsx file blob for a project.
  */
 async function generateExcelReport(project, salaryMonth, projectEmployees, isArchive = false) {
     if (!ExcelJS) throw new Error("ExcelJS library is not loaded.");
-    
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = `HR Management System ${isArchive ? '(Archive)' : ''}`;
     workbook.created = new Date();
@@ -214,7 +251,7 @@ async function generateExcelReport(project, salaryMonth, projectEmployees, isArc
     // 3. Return the file blob and name
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
+
     const archiveSuffix = isArchive ? '-Archive' : '';
     const fileName = `Salary-${project}-${salaryMonth}${archiveSuffix}.xlsx`;
 
@@ -236,7 +273,7 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
     sheet.getCell('A1').alignment = centerAlign;
 
     const headers = [
-        'SL No', 'Employee ID', 'Employee Name', 'Designation', 'Joining Date', 'Gross Salary', 
+        'SL No', 'Employee ID', 'Employee Name', 'Designation', 'Joining Date', 'Gross Salary',
         'Days Present', 'Deduction', 'Net Salary', 'Bank Account Number', 'Payment Type', 'Remarks'
     ];
     const headerRow = sheet.addRow(headers);
@@ -283,7 +320,7 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
                 emp.paymentType,
                 emp.accountableEmployeeId ? `Cash via ${emp.accountableEmployeeId}` : ''
             ]);
-            
+
             row.getCell(6).numFmt = '#,##0.00';
             row.getCell(8).numFmt = '#,##0.00';
             row.getCell(9).numFmt = '#,##0.00';
@@ -302,7 +339,7 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
         subtotalRow.getCell(6).numFmt = '#,##0.00';
         subtotalRow.getCell(8).numFmt = '#,##0.00';
         subtotalRow.getCell(9).numFmt = '#,##0.00';
-        
+
         grandTotalGross += subTotalGross;
         grandTotalDeduction += subTotalDeduction;
         grandTotalNet += subTotalNet;
@@ -316,9 +353,9 @@ function createSalaryWorksheet(workbook, project, employees, salaryMonth) {
     grandTotalRow.getCell(6).numFmt = '#,##0.00';
     grandTotalRow.getCell(8).numFmt = '#,##0.00';
     grandTotalRow.getCell(9).numFmt = '#,##0.00';
-    
+
     sheet.columns = [
-        { width: 5 }, { width: 12 }, { width: 25 }, { width: 20 }, { width: 12 }, 
+        { width: 5 }, { width: 12 }, { width: 25 }, { width: 20 }, { width: 12 },
         { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 18 },
         { width: 12 }, { width: 20 }
     ];
@@ -339,16 +376,12 @@ function createAdviceWorksheet(workbook, employees, salaryMonth) {
             paymentMap.set(key, payment);
         } else if (emp.paymentType === 'Cash' && emp.accountableEmployeeId) {
             const key = emp.accountableEmployeeId;
-            // Find the accountable employee's record FROM THE ARCHIVED DATA
-            // This is a slight flaw; we need the *master list*. We use the global 'allEmployees' for this.
             const accountableEmp = allEmployees.find(e => e.employeeId === key);
             if (accountableEmp) {
                 const payment = paymentMap.get(key) || { emp: accountableEmp, amount: 0 };
                 payment.amount += emp.calculatedNetSalary;
                 paymentMap.set(key, payment);
             } else {
-                // Fallback if accountable emp isn't in the main list (e.g., they're resigned)
-                // We'll just use the ID
                 const fallbackEmp = { employeeId: key, name: `Accountable Emp (${key})`, bankAccount: 'N/A' };
                 const payment = paymentMap.get(key) || { emp: fallbackEmp, amount: 0 };
                 payment.amount += emp.calculatedNetSalary;
