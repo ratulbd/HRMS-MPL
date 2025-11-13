@@ -36,7 +36,7 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
             generateBtn.textContent = 'Generating...';
 
             try {
-                const salaryMonth = $('salaryMonth').value;
+                const salaryMonth = $('salaryMonth').value; // e.g., "2025-11"
                 const attendanceFile = $('attendanceFile').files[0];
                 const accountabilityFile = $('accountabilityFile').files[0];
 
@@ -64,7 +64,7 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
 
                 // 4. Generate Zip File
                 if (!JSZip) {
-                    throw new Error("JSZip library is not loaded. Please check index.html.");
+                    throw new Error("JSZip library is not loaded.");
                 }
                 const zip = new JSZip();
 
@@ -122,20 +122,21 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
                     // This is the object that will be stored in the 'jsonData' cell
                     const chunkPayload = {
                         v: 3, // Version 3 (chunked)
-                        id: archiveId,
-                        month: salaryMonth,
-                        index: chunkIndex,
-                        total: totalChunks,
-                        data: chunkData
+                        id: archiveId,      // The unique ID for this archive
+                        index: chunkIndex,  // The chunk number
+                        total: totalChunks, // Total chunks
+                        data: chunkData     // The data slice
                     };
 
-                    // We "hack" the saveSalaryArchive endpoint.
-                    // We use the `archiveId` as the `monthYear` key to group rows.
-                    // The backend will just append a row with [archiveId, chunkPayload]
+                    // --- *** THIS IS THE FIX *** ---
+                    // We now send all 3 fields the server requires.
+                    // This stores the data logically in the sheet.
                     await apiCall('saveSalaryArchive', 'POST', {
-                        monthYear: archiveId,
-                        jsonData: chunkPayload
+                        monthYear: salaryMonth, // The actual salary month (e.g., "2025-11")
+                        timestamp: archiveId,   // The unique ID for all chunks in this set
+                        jsonData: chunkPayload  // The chunk payload
                     });
+                    // --- *** END OF FIX *** ---
                 }
                 // --- END OF NEW CHUNKING LOGIC ---
 

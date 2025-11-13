@@ -104,7 +104,10 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                         throw new Error("Pako.js compression library is not loaded.");
                     }
 
-                    // --- *** NEW DECOMPRESSION LOGIC *** ---
+                    // --- *** DECOMPRESSION LOGIC *** ---
+                    // This logic is correct and does not need to change,
+                    // as it operates on the `fullCompressedBase64` string
+                    // which we are still correctly building.
                     try {
                         // 1. We already have the full Base64 string
                         // 2. Base64-decode
@@ -126,7 +129,7 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                         console.error("Failed to decompress archive:", err);
                         throw new Error(`Failed to read compressed archive: ${err.message}`);
                     }
-                    // --- *** END NEW LOGIC *** ---
+                    // --- *** END DECOMPRESSION LOGIC *** ---
 
 
                     if (!processedData || processedData.length === 0) {
@@ -179,49 +182,63 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
 function reconstructArchivesFromChunks(rawChunks) {
     const chunksById = new Map();
 
-    // 1. Group all chunks by their unique 'id'
+    // 1. Group all chunks by their unique 'timestamp' (which is our archiveId)
     for (const chunkRow of rawChunks) {
+        // `chunkRow` is the entire object: { monthYear: "...", timestamp: "...", jsonData: {...} }
+
+        // --- *** THIS IS THE FIX *** ---
+        // Check the jsonData *inside* the row
         if (!chunkRow.jsonData || chunkRow.jsonData.v !== 3) {
             // This is old data (v1 or v2) or invalid, skip it.
-            // We could add backward compatibility for v2 here if needed.
             continue;
         }
 
-        const chunk = chunkRow.jsonData;
-        const id = chunk.id;
+        const id = chunkRow.timestamp; // <-- Read timestamp from the *row*
+        if (!id) {
+             console.warn("Found chunk row with no timestamp, skipping:", chunkRow);
+             continue;
+        }
 
         if (!chunksById.has(id)) {
             chunksById.set(id, []);
         }
-        chunksById.get(id).push(chunk);
+        // Store the *entire row*
+        chunksById.get(id).push(chunkRow);
+        // --- *** END OF FIX *** ---
     }
 
     const completeArchives = [];
 
     // 2. Process each group
-    for (const [id, chunks] of chunksById.entries()) {
-        if (chunks.length === 0) continue;
+    for (const [id, chunkRows] of chunksById.entries()) {
+        if (chunkRows.length === 0) continue;
 
-        const total = chunks[0].total; // Total chunks expected
-        const month = chunks[0].month;
+        // --- *** THIS IS THE FIX *** ---
+        // Get metadata from the first chunk's row and jsonData
+        const firstChunkRow = chunkRows[0];
+        const firstChunkData = firstChunkRow.jsonData;
+
+        const total = firstChunkData.total;     // Total chunks expected
+        const month = firstChunkRow.monthYear;  // <-- Get month from the *row*
+        // --- *** END OF FIX *** ---
 
         // Check if we have all the chunks
-        if (chunks.length !== total) {
-            console.warn(`Incomplete archive ${id}: expected ${total} chunks, found ${chunks.length}. Skipping.`);
+        if (chunkRows.length !== total) {
+            console.warn(`Incomplete archive ${id}: expected ${total} chunks, found ${chunkRows.length}. Skipping.`);
             continue;
         }
 
-        // Sort chunks by index (1, 2, 3...)
-        chunks.sort((a, b) => a.index - b.index);
+        // Sort chunks by index (which is inside jsonData)
+        chunkRows.sort((a, b) => a.jsonData.index - b.jsonData.index);
 
-        // 3. Re-assemble the full compressed string
-        const fullCompressedBase64 = chunks.map(c => c.data).join('');
+        // 3. Re-assemble the full compressed string from jsonData.data
+        const fullCompressedBase64 = chunkRows.map(row => row.jsonData.data).join('');
 
         // 4. Add the complete, re-assembled archive to our list
         completeArchives.push({
-            archiveId: id, // This is the timestamp
-            monthYear: month,
-            timestamp: id, // The ID is the timestamp
+            archiveId: id,
+            monthYear: month, // <-- Use the month from the row
+            timestamp: id,    // <-- Use the id (timestamp) for sorting
             fullCompressedBase64: fullCompressedBase64
         });
     }
@@ -231,7 +248,7 @@ function reconstructArchivesFromChunks(rawChunks) {
 
 
 // --- DUPLICATED HELPER FUNCTIONS ---
-// (These are unchanged from the previous file)
+// (These are unchanged)
 
 /**
  * Uses ExcelJS to build and return one .xlsx file blob for a project.
@@ -395,7 +412,7 @@ function createAdviceWorksheet(workbook, employees, salaryMonth) {
     sheet.getCell('A1').value = `Bank Advice - ${salaryMonth}`;
     sheet.getCell('A1').font = { name: 'Calibri', size: 16, bold: true };
     sheet.getCell('A1').alignment = { horizontal: 'center' };
-    
+
     const headers = ['Employee ID', 'Employee Name', 'Bank Account Number', 'Amount (BDT)'];
     const headerRow = sheet.addRow(headers);
     headerRow.eachCell((cell) => {
@@ -418,7 +435,7 @@ function createAdviceWorksheet(workbook, employees, salaryMonth) {
 
     const totalRow = sheet.addRow(['', '', 'Total', totalAdviceAmount]);
     totalRow.font = { bold: true };
-    
+
     sheet.getColumn('D').numFmt = '#,##0.00';
     sheet.getColumn(1).width = 15;
     sheet.getColumn(2).width = 30;
