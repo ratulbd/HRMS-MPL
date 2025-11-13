@@ -91,10 +91,37 @@ export function setupSalarySheetModal(getMainLocalEmployees) {
 
                 // 7. Archive the report
                 const archiveTimestamp = new Date().toISOString(); // <-- Get timestamp
+
+                // --- MODIFICATION: Compress data before archiving ---
+                                if (!window.pako) {
+                                    throw new Error("Pako.js compression library is not loaded.");
+                                }
+
+                                // 1. Stringify the data
+                                const jsonString = JSON.stringify(processedData);
+
+                                // 2. Compress the string (returns Uint8Array)
+                                const compressed = window.pako.deflate(jsonString);
+
+                                // 3. Convert Uint8Array to a binary string for btoa
+                                let binaryString = '';
+                                for (let i = 0; i < compressed.length; i++) {
+                                    binaryString += String.fromCharCode(compressed[i]);
+                                }
+
+                                // 4. Base64-encode the binary string
+                                const compressedBase64 = btoa(binaryString);
+
+                                // 5. Create a versioned payload
+                                const archivePayload = {
+                                    v: 2, // 'v' for version
+                                    data: compressedBase64
+                                };
+
                 await apiCall('saveSalaryArchive', 'POST', {
                     monthYear: salaryMonth,
                     timestamp: archiveTimestamp, // <-- Send timestamp
-                    jsonData: processedData // Archive the successfully processed data
+                    jsonData: archivePayload // Archive the successfully processed data
                 });
 
                 customAlert("Success", `Successfully generated and archived salary reports for ${salaryMonth}. Downloaded as a .zip file.`);

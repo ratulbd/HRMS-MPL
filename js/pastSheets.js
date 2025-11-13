@@ -94,7 +94,7 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
             if (button) {
                 const index = parseInt(button.dataset.index, 10);
                 const archive = allArchives[index];
-                
+
                 if (!archive || !archive.jsonData) {
                     customAlert("Error", "Could not find the archived data.");
                     return;
@@ -104,9 +104,46 @@ export function setupPastSheetsModal(getMainLocalEmployees, openButtonId) {
                 button.textContent = 'Generating...';
 
                 try {
-                    // Re-process the archived data
-                    const processedData = archive.jsonData; // This is the 'processedEmployees' list from the original generation
+                    // --- *** MODIFICATION: Decompress data *** ---
+                    let processedData;
                     const salaryMonth = archive.monthYear;
+
+                    if (!window.pako) {
+                        throw new Error("Pako.js compression library is not loaded.");
+                    }
+
+                    // Check if it's our new compressed format (v2)
+                    if (archive.jsonData && archive.jsonData.v === 2) {
+                        try {
+                            // 1. Base64-decode the data string
+                            const binaryString = atob(archive.jsonData.data);
+
+                            // 2. Convert binary string to Uint8Array
+                            const len = binaryString.length;
+                            const bytes = new Uint8Array(len);
+                            for (let i = 0; i < len; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+
+                            // 3. Decompress using pako
+                            const decompressedString = window.pako.inflate(bytes, { to: 'string' });
+
+                            // 4. Parse the JSON
+                            processedData = JSON.parse(decompressedString);
+                        } catch (err) {
+                            console.error("Failed to decompress archive:", err);
+                            throw new Error(`Failed to read compressed archive: ${err.message}`);
+                        }
+                    } else {
+                        // It's old, uncompressed data (just the raw array)
+                        // This provides backward compatibility.
+                        processedData = archive.jsonData;
+                    }
+
+                    if (!processedData || processedData.length === 0) {
+                        throw new Error("Archive data is empty or could not be read.");
+                    }
+                    // --- *** END MODIFICATION *** ---
 
                     const employeesByProject = processedData.reduce((acc, emp) => {
                         const project = emp.project || 'Unknown';
