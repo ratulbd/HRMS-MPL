@@ -37,19 +37,17 @@ export function setupSalarySheetModal(getEmployeesFunc) {
                     throw new Error("No employee data found in the system.");
                 }
 
-                // 1. Parse CSVs
                 const attendanceData = await parseCSV(attendanceFile);
                 const holderData = await parseCSV(holderFile);
 
-                // 2. Validate Headers
                 validateAttendanceHeaders(attendanceData);
                 validateHolderHeaders(holderData);
 
-                // 3. Process Data & Generate ZIP
                 customAlert("Processing", "Generating report project wise sheets...");
+
+                // Pass monthVal to generation for the Title Row
                 const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
 
-                // 4. Trigger Download
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(zipContent);
                 link.download = `Salary_Reports_${monthVal}.zip`;
@@ -69,37 +67,28 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 
 function parseCSV(file) {
     return new Promise((resolve, reject) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => resolve(results.data),
-            error: (err) => reject(err)
-        });
+        Papa.parse(file, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data), error: (err) => reject(err) });
     });
 }
 
 function validateAttendanceHeaders(data) {
     if (!data || data.length === 0) throw new Error("Attendance file is empty.");
     const headers = Object.keys(data[0]).map(k => k.toLowerCase());
-    const strictRequired = ['employeeid']; // Minimal check
-    const missing = strictRequired.filter(r => !headers.includes(r));
-    if (missing.length > 0) throw new Error(`Attendance file missing columns: ${missing.join(', ')}`);
+    if (!headers.some(h => h.includes('employeeid'))) throw new Error("Attendance file missing 'employeeId' column.");
 }
 
 function validateHolderHeaders(data) {
     if (!data || data.length === 0) throw new Error("Common Account Holder file is empty.");
-    const required = ['reportproject', 'subcenter', 'accountableemployeename', 'accountableemployeeid'];
-    const headers = Object.keys(data[0]).map(k => k.toLowerCase().trim());
-    const missing = required.filter(r => !headers.includes(r));
-    if (missing.length > 0) throw new Error(`Common Account Holder file missing columns: ${missing.join(', ')}`);
+    const headers = Object.keys(data[0]).map(k => k.toLowerCase());
+    if (!headers.some(h => h.includes('accountableemployeeid'))) throw new Error("Account Holder file missing required columns.");
 }
 
-// --- Core Generation Logic (Grouped by Project) ---
+// --- MAIN GENERATION LOGIC ---
 
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
     const zip = new JSZip();
 
-    // 1. Lookup Maps
+    // 1. Prepare Data Maps
     const attMap = {};
     attendanceData.forEach(row => {
         const cleanRow = {};
@@ -115,49 +104,34 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         holderMap[key] = { name: cleanRow['accountableemployeename'], id: cleanRow['accountableemployeeid'] };
     });
 
-    // 2. Employee Map (To find Holder's Bank Account)
-    const employeeIdMap = {};
-    employees.forEach(emp => {
-        employeeIdMap[String(emp.employeeId).trim()] = emp;
-    });
+    // Map of all employees to find Holder's Bank Account later
+    const allEmpMap = {};
+    employees.forEach(e => { allEmpMap[String(e.employeeId).trim()] = e; });
 
-    // 3. Group Employees by Report Project
+    // 2. Group by Project -> Then by Subcenter
     const projectGroups = {};
 
     employees.forEach(emp => {
         const attRow = attMap[String(emp.employeeId)];
-        if (!attRow) return; // Skip if not in attendance
+        if (!attRow) return; // Skip non-attendance
 
-        const project = emp.reportProject || 'Unknown_Project';
-        if (!projectGroups[project]) projectGroups[project] = [];
+        const project = emp.reportProject || 'Unknown';
+        const subCenter = emp.subCenter || 'General';
 
-        // --- Calculate Values ---
+        if (!projectGroups[project]) projectGroups[project] = {};
+        if (!projectGroups[project][subCenter]) projectGroups[project][subCenter] = [];
+
+        // Calculations
         const getVal = (val) => parseFloat(val) || 0;
 
-        // Attendance
         const totalDays = getVal(attRow['total working days']);
         const holidays = getVal(attRow['holidays']);
         const leave = getVal(attRow['availing leave']);
-        const lwpDays = getVal(attRow['lwp']);
+        const lwpDays = getVal(attRow['lwp']); // From Attendance
         const actualPresent = getVal(attRow['actual present']);
         const netPresent = getVal(attRow['net present']);
 
-        // Holder Info
-        const holderKey = `${String(project).toLowerCase().trim()}|${String(emp.subCenter || '').toLowerCase().trim()}`;
-        const holderInfo = holderMap[holderKey] || { name: '', id: '' };
-
-        // --- BANK ACCOUNT LOGIC ---
-        let finalAccountNo = emp.bankAccount || '';
-
-        // If employee account is blank, look up Holder's account
-        if (!finalAccountNo && holderInfo.id) {
-            const holderObj = employeeIdMap[String(holderInfo.id).trim()];
-            if (holderObj && holderObj.bankAccount) {
-                finalAccountNo = holderObj.bankAccount;
-            }
-        }
-
-        // Earnings
+        // Financials
         const grossSalary = getVal(emp.salary);
         const earnings = {
             maint: getVal(emp.motobikeCarMaintenance),
@@ -170,7 +144,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         };
         const grossPayable = grossSalary + Object.values(earnings).reduce((a, b) => a + b, 0);
 
-        // Deductions
         const deductions = {
             lunch: getVal(emp.subsidizedLunch),
             tds: getVal(emp.tds),
@@ -178,28 +151,44 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             welfare: getVal(emp.welfareFund),
             loan: getVal(emp.salaryOthersLoan),
             vehicle: getVal(emp.subsidizedVehicle),
-            lwpAmt: getVal(emp.lwp), // Amount from DB
+            lwpAmt: getVal(emp.lwp), // From DB (Amount)
             cpf: getVal(emp.cpf),
             adj: getVal(emp.othersAdjustment)
         };
 
-        // Calc Attendance Deduction
         let attDed = 0;
         if (totalDays > 0 && netPresent < totalDays) {
-            const dailyRate = grossSalary / totalDays;
-            attDed = dailyRate * (totalDays - netPresent);
+            attDed = (grossSalary / totalDays) * (totalDays - netPresent);
         }
         attDed = Math.round(attDed * 100) / 100;
-
         const totalDeduction = Object.values(deductions).reduce((a, b) => a + b, 0) + attDed;
         const netPayment = grossPayable - totalDeduction;
 
-        // Push processed object
-        projectGroups[project].push({
+        // --- LOGIC: Common Account Holder ---
+        let finalAccountNo = emp.bankAccount;
+        let remarksText = "";
+
+        // 1. Get Holder Info
+        const holderKey = `${String(project).toLowerCase().trim()}|${String(subCenter).toLowerCase().trim()}`;
+        const holderInfo = holderMap[holderKey];
+
+        // 2. If No Personal Account, use Holder's Account
+        if (!finalAccountNo || finalAccountNo.trim() === '') {
+            if (holderInfo && holderInfo.id) {
+                const holderEmp = allEmpMap[String(holderInfo.id).trim()];
+                if (holderEmp && holderEmp.bankAccount) {
+                    finalAccountNo = holderEmp.bankAccount; // Use Holder's Account for Advice
+                    remarksText = `Pay to: ${holderInfo.name} (${holderInfo.id})`; // Remark for Sheet
+                } else {
+                    remarksText = `Holder: ${holderInfo.name} (No Acc Found)`;
+                }
+            }
+        }
+
+        projectGroups[project][subCenter].push({
             ...emp,
-            holderName: holderInfo.name,
-            holderId: holderInfo.id,
-            finalAccountNo: finalAccountNo, // Calculated account
+            finalAccountNo,
+            remarksText,
             att: { totalDays, holidays, leave, lwpDays, actualPresent, netPresent },
             earn: { grossSalary, ...earnings, grossPayable },
             ded: { ...deductions, attDed, totalDeduction },
@@ -207,138 +196,140 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         });
     });
 
-    // 4. Generate Excel for each Project
-    for (const [project, empList] of Object.entries(projectGroups)) {
+    // 3. Generate Excel Files
+    for (const [project, subCenters] of Object.entries(projectGroups)) {
         const workbook = new ExcelJS.Workbook();
-
-        // --- Sheet 1: Salary Sheet ---
         const sheet = workbook.addWorksheet('Salary Sheet');
 
-        // STRICT HEADERS FROM Salary-Format.xlsx
+        // --- A. SHEET STYLING & COLUMNS ---
+        // We define columns to map data, but we manually write headers for styling
         sheet.columns = [
-            { header: 'SL', key: 'sl', width: 5 },
-            { header: 'ID', key: 'id', width: 10 },
-            { header: 'Name', key: 'name', width: 20 },
-            { header: 'Designation', key: 'designation', width: 15 },
-            { header: 'Project', key: 'project', width: 15 },
-            { header: 'Project Office', key: 'projectOffice', width: 15 },
-            { header: 'Report Project', key: 'reportProject', width: 15 },
-            { header: 'Sub Center', key: 'subCenter', width: 15 },
-            { header: 'Common Account Holder Name', key: 'holderName', width: 20 },
-            { header: 'Common Account Holder ID', key: 'holderId', width: 15 },
-            { header: 'Account No', key: 'accountNo', width: 15 },
-            { header: 'Bank Name', key: 'bankName', width: 15 },
-            { header: 'Route No', key: 'routeNo', width: 10 },
-
-            { header: 'Total Working Days', key: 'totalDays', width: 12 },
-            { header: 'Holidays', key: 'holidays', width: 10 },
-            { header: 'Availing Leave', key: 'availingLeave', width: 12 },
-            { header: 'LWP', key: 'lwpDays', width: 10 }, // Days
-            { header: 'Actual Present', key: 'actualPresent', width: 12 },
-            { header: 'Net Present', key: 'netPresent', width: 12 },
-
-            { header: 'Gross Salary', key: 'gross', width: 12 },
-            { header: 'Motobike / Car Maintenance Allowance', key: 'maint', width: 20 },
-            { header: 'Laptop Rent', key: 'laptop', width: 12 },
-            { header: 'Others Allowance', key: 'others', width: 15 },
-            { header: 'Arrear', key: 'arrear', width: 10 },
-            { header: 'Food Allowance', key: 'food', width: 12 },
-            { header: 'Station Allowance', key: 'station', width: 12 },
-            { header: 'Hardship Allowance', key: 'hardship', width: 12 },
-            { header: 'Gross Payable Salary', key: 'grossPayable', width: 15, style: { font: { bold: true } } },
-
-            { header: 'Subsidized Lunch', key: 'lunch', width: 12 },
-            { header: 'TDS', key: 'tds', width: 10 },
-            { header: 'Motorbike Loan', key: 'bike', width: 12 },
-            { header: 'Welfare Fund', key: 'welfare', width: 12 },
-            { header: 'Salary/ Others Loan', key: 'loan', width: 15 },
-            { header: 'Subsidized Vehicle', key: 'vehicle', width: 12 },
-            { header: 'LWP', key: 'lwpAmt', width: 12 }, // Amount
-            { header: 'CPF', key: 'cpf', width: 10 },
-            { header: 'Others Adjustment', key: 'adj', width: 15 },
-            { header: 'Attendance Deduction', key: 'attDed', width: 15 },
-            { header: 'Total Deduction', key: 'totalDed', width: 15, style: { font: { bold: true } } },
-
-            { header: 'Net Salary Payment', key: 'netPay', width: 15, style: { font: { bold: true }, fill: { type: 'pattern', pattern:'solid', fgColor:{argb:'FFFFE0'} } } },
-            { header: 'Remarks', key: 'remarks', width: 20 }
+            { key: 'sl', width: 6 }, { key: 'id', width: 10 }, { key: 'name', width: 22 }, { key: 'desig', width: 18 },
+            { key: 'proj', width: 15 }, { key: 'off', width: 15 }, { key: 'rep', width: 15 }, { key: 'sub', width: 15 },
+            { key: 'acc', width: 18 }, { key: 'bank', width: 15 }, { key: 'route', width: 10 },
+            { key: 'td', width: 8 }, { key: 'hol', width: 8 }, { key: 'lv', width: 8 }, { key: 'lwp_d', width: 8 }, { key: 'act', width: 8 }, { key: 'net_p', width: 8 },
+            { key: 'gr_sal', width: 12 }, { key: 'maint', width: 12 }, { key: 'lap', width: 12 }, { key: 'oth', width: 12 }, { key: 'arr', width: 12 },
+            { key: 'food', width: 12 }, { key: 'stn', width: 12 }, { key: 'hard', width: 12 }, { key: 'gr_pay', width: 15 },
+            { key: 'lunch', width: 12 }, { key: 'tds', width: 10 }, { key: 'bike', width: 12 }, { key: 'wel', width: 12 }, { key: 'loan', width: 12 },
+            { key: 'veh', width: 12 }, { key: 'lwp_a', width: 12 }, { key: 'cpf', width: 10 }, { key: 'adj', width: 12 }, { key: 'att_ded', width: 12 },
+            { key: 'tot_ded', width: 15 }, { key: 'net_pay', width: 15 }, { key: 'rem', width: 25 }
         ];
 
-        empList.forEach((d, index) => {
-            sheet.addRow({
-                sl: index + 1,
-                id: d.employeeId,
-                name: d.name,
-                designation: d.designation,
-                project: d.project,
-                projectOffice: d.projectOffice,
-                reportProject: d.reportProject,
-                subCenter: d.subCenter,
-                holderName: d.holderName,
-                holderId: d.holderId,
-                accountNo: d.finalAccountNo, // Using logic (Self or Holder)
-                bankName: '',
-                routeNo: '',
+        // --- B. HEADER ROWS ---
+        // Row 1: Title
+        sheet.mergeCells('A1:AM1'); // A to 39th column
+        const titleRow = sheet.getCell('A1');
+        titleRow.value = "Metal Plus Limited";
+        titleRow.font = { bold: true, size: 16, name: 'Calibri' };
+        titleRow.alignment = { horizontal: 'center' };
 
-                totalDays: d.att.totalDays,
-                holidays: d.att.holidays,
-                availingLeave: d.att.leave,
-                lwpDays: d.att.lwpDays,
-                actualPresent: d.att.actualPresent,
-                netPresent: d.att.netPresent,
+        // Row 2: Subtitle
+        sheet.mergeCells('A2:AM2');
+        const subTitleRow = sheet.getCell('A2');
+        subTitleRow.value = `Salary Sheet for the Month of ${monthVal}`;
+        subTitleRow.font = { bold: true, size: 12, name: 'Calibri' };
+        subTitleRow.alignment = { horizontal: 'center' };
 
-                gross: d.earn.grossSalary,
-                maint: d.earn.maint,
-                laptop: d.earn.laptop,
-                others: d.earn.others,
-                arrear: d.earn.arrear,
-                food: d.earn.food,
-                station: d.earn.station,
-                hardship: d.earn.hardship,
-                grossPayable: d.earn.grossPayable,
+        // Row 3: Actual Headers (Manual write for control)
+        const headerValues = [
+            "SL", "ID", "Name", "Designation", "Project", "Project Office", "Report Project", "Sub Center",
+            "Account No", "Bank Name", "Route No",
+            "Total Working Days", "Holidays", "Availing Leave", "LWP", "Actual Present", "Net Present",
+            "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent", "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Gross Payable Salary",
+            "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF", "Others Adjustment", "Attendance Deduction", "Total Deduction",
+            "Net Salary Payment", "Remarks"
+        ];
 
-                lunch: d.ded.lunch,
-                tds: d.ded.tds,
-                bike: d.ded.bike,
-                welfare: d.ded.welfare,
-                loan: d.ded.loan,
-                vehicle: d.ded.vehicle,
-                lwpAmt: d.ded.lwpAmt,
-                cpf: d.ded.cpf,
-                adj: d.ded.adj,
-                attDed: d.ded.attDed,
-                totalDed: d.ded.totalDeduction,
-
-                netPay: d.netPayment,
-                remarks: ''
-            });
+        const headerRow = sheet.addRow(headerValues);
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: '000000' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; // Greyish background
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         });
+        headerRow.height = 40; // Headers usually taller
 
-        // --- Sheet 2: Advice ---
+        // --- C. DATA ROWS (Grouped by Subcenter) ---
+        let slCounter = 1;
+
+        // Sort Subcenters alphabetically
+        const sortedSubCenters = Object.keys(subCenters).sort();
+
+        for (const scName of sortedSubCenters) {
+            const scEmployees = subCenters[scName];
+
+            // 1. Sub-Center Header Row (Merged)
+            const scRow = sheet.addRow([`Subcenter: ${scName}`]);
+            const rowIdx = scRow.number;
+            sheet.mergeCells(rowIdx, 1, rowIdx, 39); // Merge across all columns
+
+            const scCell = scRow.getCell(1);
+            scCell.font = { bold: true, color: { argb: '000000' } };
+            scCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow background
+            scCell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            scCell.alignment = { horizontal: 'left' };
+
+            // 2. Employee Rows
+            scEmployees.forEach(d => {
+                const row = sheet.addRow({
+                    sl: slCounter++,
+                    id: d.employeeId, name: d.name, desig: d.designation,
+                    proj: d.project, off: d.projectOffice, rep: d.reportProject, sub: d.subCenter,
+                    acc: d.finalAccountNo, // Logic applied (Personal or Holder)
+                    bank: '', route: '',
+
+                    td: d.att.totalDays, hol: d.att.holidays, lv: d.att.leave, lwp_d: d.att.lwpDays,
+                    act: d.att.actualPresent, net_p: d.att.netPresent,
+
+                    gr_sal: d.earn.grossSalary, maint: d.earn.maint, lap: d.earn.laptop, oth: d.earn.others,
+                    arr: d.earn.arrear, food: d.earn.food, stn: d.earn.station, hard: d.earn.hardship,
+                    gr_pay: d.earn.grossPayable,
+
+                    lunch: d.ded.lunch, tds: d.ded.tds, bike: d.ded.bike, wel: d.ded.welfare, loan: d.ded.loan,
+                    veh: d.ded.vehicle, lwp_a: d.ded.lwpAmt, cpf: d.ded.cpf, adj: d.ded.adj, att_ded: d.ded.attDed,
+                    tot_ded: d.ded.totalDeduction,
+
+                    net_pay: d.netPayment,
+                    rem: d.remarksText // "Pay to Holder..." or blank
+                });
+
+                // Apply borders to data row
+                row.eachCell({ includeEmpty: true }, (cell) => {
+                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                    cell.alignment = { vertical: 'middle' };
+                });
+            });
+        }
+
+        // --- D. ADVICE SHEET ---
         const adviceSheet = workbook.addWorksheet('Advice');
         adviceSheet.columns = [
-            { header: 'SL', key: 'sl', width: 5 },
+            { header: 'SL', key: 'sl', width: 8 },
             { header: 'ID', key: 'id', width: 15 },
             { header: 'Name', key: 'name', width: 25 },
-            { header: 'Account No', key: 'account', width: 20 },
+            { header: 'Account No', key: 'account', width: 25 },
             { header: 'Amount', key: 'amount', width: 15 },
             { header: 'Remarks', key: 'remarks', width: 20 }
         ];
 
-        empList.forEach((d, index) => {
-            adviceSheet.addRow({
-                sl: index + 1,
-                id: d.employeeId,
-                name: d.name,
-                account: d.finalAccountNo, // Using logic (Self or Holder)
-                amount: d.netPayment,
-                remarks: ''
-            });
-        });
+        // Flatten list for Advice (Sequence: Subcenter sorted)
+        let adviceSL = 1;
+        for (const scName of sortedSubCenters) {
+             subCenters[scName].forEach(d => {
+                adviceSheet.addRow({
+                    sl: adviceSL++,
+                    id: d.employeeId,
+                    name: d.name,
+                    account: d.finalAccountNo, // Crucial: Uses Holder info if employee blank
+                    amount: d.netPayment,
+                    remarks: ''
+                });
+             });
+        }
 
-        // Write to Buffer and Add to Zip
         const buffer = await workbook.xlsx.writeBuffer();
-        const safeProjectName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-        zip.file(`${safeProjectName}_${monthVal}.xlsx`, buffer);
+        const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+        zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
     }
 
     return zip.generateAsync({ type: "blob" });
