@@ -1,16 +1,61 @@
 // js/employeeList.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
-// Removed apiCall import, as main.js now handles fetching
 import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
 import { openFileClosingModal } from './fileClosingModal.js';
 
+// === NEW: Function to show Skeleton Cards ===
+export function renderSkeletons(count = 3, append = false) {
+    const listContainer = $('employee-list');
+    if (!listContainer) return;
+
+    // If we are NOT appending (new search), clear the list first
+    if (!append) listContainer.innerHTML = '';
+
+    // Remove old "Loading..." text if it exists (we use skeletons instead)
+    const loadingText = $('filterCountDisplay');
+    if(loadingText) loadingText.classList.add('hidden');
+
+    // Create dummy skeleton cards
+    for (let i = 0; i < count; i++) {
+        const skel = document.createElement('div');
+        // 'fade-out-target' can be used if you want to animate them out later
+        skel.className = 'skeleton-card';
+        skel.innerHTML = `
+            <div class="skeleton-pulse sk-title"></div>
+            <div class="skeleton-pulse sk-badge"></div>
+            <div class="skeleton-pulse sk-line"></div>
+            <div class="skeleton-pulse sk-line"></div>
+            <div class="skeleton-pulse sk-line-short"></div>
+            <div class="skeleton-pulse sk-footer"></div>
+        `;
+        listContainer.appendChild(skel);
+    }
+}
+
+// === NEW: Function to remove Skeleton Cards ===
+export function removeSkeletons() {
+    const listContainer = $('employee-list');
+    if (!listContainer) return;
+
+    // Remove all elements with the skeleton class
+    const skeletons = listContainer.querySelectorAll('.skeleton-card');
+    skeletons.forEach(el => el.remove());
+
+    // Show the count text again
+    const loadingText = $('filterCountDisplay');
+    if(loadingText) loadingText.classList.remove('hidden');
+}
+
 export function renderEmployeeList(employeesToRender, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
-    
+
+    // 1. Remove skeletons before rendering real data
+    removeSkeletons();
+
     let startIndex = 0;
     if (append) {
         startIndex = listContainer.children.length;
@@ -35,7 +80,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
             let statusText = emp.status || 'Active';
             let statusClass = 'status-active';
             const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
-            
+
             if (statusText === 'Active' && isHeld) { statusText = 'Salary Held'; statusClass = 'status-held'; }
             else if (statusText === 'Resigned') { statusClass = 'status-resigned'; }
             else if (statusText === 'Terminated') { statusClass = 'status-terminated'; }
@@ -44,14 +89,18 @@ export function renderEmployeeList(employeesToRender, append = false) {
 
 
             const card = document.createElement('div');
-            card.className = 'employee-card flex flex-col'; // All other styles are in CSS
+            card.className = 'employee-card flex flex-col';
             card.setAttribute('data-employee-row-id', emp.id);
-            card.style.setProperty('--card-index', startIndex + index);
+
+            // === MODIFICATION: Animation Delay Fix ===
+            // Use 'index' directly (0, 1, 2...) instead of 'startIndex + index'
+            // This ensures the new batch always cascades in from 0ms delay
+            card.style.setProperty('--card-index', index);
 
 
-            // --- Info Tags (replaces big boxes) ---
+            // --- Info Tags ---
             let infoTagsHTML = '';
-            
+
             if ((statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.remarks) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800" title="Separation Remarks: ${emp.remarks}">Separation: ${emp.remarks.substring(0, 20)}...</span>`;
             }
@@ -64,18 +113,17 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
-            // --- === MODIFICATION: Added 'pb-16' (padding-bottom: 4rem) to create space for the footer === ---
             card.innerHTML = `
                 <div class="card-content p-5 pb-16 flex-grow">
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
                         <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
                     </div>
-                    
+
                     <div class="mb-4 space-y-1.5">
                         <p class="text-sm text-gray-700">${emp.designation || 'N/A'}</p>
                         <p class="text-sm text-gray-500">ID: ${emp.employeeId || 'N/A'}</p>
-                        
+
                         <div class="flex items-center text-xs text-gray-600 pt-1">
                             <i class="fas fa-map-marker-alt w-4 mr-1.5 text-gray-400"></i>
                             <span>${emp.subCenter || 'N/A'}</span>
@@ -85,27 +133,25 @@ export function renderEmployeeList(employeesToRender, append = false) {
                             <span>Joined: ${formatDateForDisplay(emp.joiningDate)}</span>
                         </div>
                     </div>
-                    
-                    <!-- Info Tags Area -->
+
                     <div class="flex flex-wrap">
                         ${infoTagsHTML}
                     </div>
                 </div>
-                
-                <!-- Action Buttons Footer (This will now slide up into the 'pb-16' empty space) -->
-                <div class="card-footer flex flex-wrap gap-1.5 justify-end"> 
-                    <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button> 
-                    
+
+                <div class="card-footer flex flex-wrap gap-1.5 justify-end">
+                    <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button>
+
                     ${statusText !== 'Closed' ? `
-                        <button class="edit-btn btn-pill btn-pill-green" data-id="${emp.id}">Edit</button> 
+                        <button class="edit-btn btn-pill btn-pill-green" data-id="${emp.id}">Edit</button>
                     ` : ''}
 
-                    ${statusText === 'Active' || statusText === 'Salary Held' ? ` 
-                        <button class="toggle-hold-btn btn-pill ${isHeld ? 'btn-pill-green' : 'btn-pill-orange'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button> 
-                        <button class="transfer-btn btn-pill btn-pill-green" data-id="${emp.id}">Transfer</button> 
-                        <button class="resign-btn btn-pill btn-pill-yellow" data-id="${emp.id}">Resign</button> 
-                        <button class="terminate-btn btn-pill btn-pill-red" data-id="${emp.id}">Terminate</button> 
-                    ` : ''} 
+                    ${statusText === 'Active' || statusText === 'Salary Held' ? `
+                        <button class="toggle-hold-btn btn-pill ${isHeld ? 'btn-pill-green' : 'btn-pill-orange'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
+                        <button class="transfer-btn btn-pill btn-pill-green" data-id="${emp.id}">Transfer</button>
+                        <button class="resign-btn btn-pill btn-pill-yellow" data-id="${emp.id}">Resign</button>
+                        <button class="terminate-btn btn-pill btn-pill-red" data-id="${emp.id}">Terminate</button>
+                    ` : ''}
 
                     ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
                         <button class="close-file-btn btn-pill btn-pill-gray" data-id="${emp.id}">Close File</button>
@@ -146,14 +192,14 @@ export function populateFilterDropdowns(filterData) {
             populateDataList(elementId, filterData[key]);
         }
     };
-    
+
     formatAndPopulate('designation', 'designation-list');
     formatAndPopulate('project', 'project-list');
     formatAndPopulate('projectOffice', 'projectOffice-list');
     formatAndPopulate('reportProject', 'reportProject-list');
     formatAndPopulate('subCenter', 'subCenter-list');
-    
-    const identificationTypes = ['NID', 'Passport', 'Birth Certificate']; 
+
+    const identificationTypes = ['NID', 'Passport', 'Birth Certificate'];
     populateDataList('identificationType-list', identificationTypes);
 }
 
@@ -166,27 +212,27 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
         const card = e.target.closest('.employee-card');
         if (card) {
             const rect = card.getBoundingClientRect();
-            
+
             // Spotlight effect
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             card.style.setProperty('--mouse-x', `${x}px`);
             card.style.setProperty('--mouse-y', `${y}px`);
-            
+
             // 3D Tilt effect
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
             const mouseX = x - centerX;
             const mouseY = y - centerY;
-            
+
             const rotateX = (mouseY / centerY) * -8; // Invert Y for natural tilt
             const rotateY = (mouseX / centerX) * 8;
-            
+
             card.style.setProperty('--rotate-x', `${rotateX}deg`);
             card.style.setProperty('--rotate-y', `${rotateY}deg`);
         }
     });
-    
+
     listContainer.addEventListener('mouseleave', (e) => {
          const card = e.target.closest('.employee-card');
          if(card) {
@@ -206,12 +252,12 @@ export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployees
 
         const allEmployees = getEmployeesFunc();
         const employee = allEmployees.find(emp => String(emp.id) === String(localId));
-        
-        if (!employee) { 
-            customAlert("Error", "Could not find employee data. The list might be out of date. Please refresh."); 
-            return; 
+
+        if (!employee) {
+            customAlert("Error", "Could not find employee data. The list might be out of date. Please refresh.");
+            return;
         }
-        
+
         const employeeSheetId = employee.employeeId;
         if (!employeeSheetId) { customAlert("Error", "Employee ID missing."); return; }
 

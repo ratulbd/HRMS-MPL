@@ -10,18 +10,23 @@ if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
 
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
-    
-    // --- MODIFICATION: Added downloadXLSX ---
+
     const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
-    
-    // === MODIFICATION: Removed unused imports, added renderEmployeeList ===
-    const { renderEmployeeList, populateFilterDropdowns, setupEmployeeListEventListeners } = await import('./employeeList.js');
+
+    // === MODIFICATION: Imported new skeleton functions ===
+    const {
+        renderEmployeeList,
+        renderSkeletons, // <-- NEW
+        removeSkeletons, // <-- NEW
+        populateFilterDropdowns,
+        setupEmployeeListEventListeners
+    } = await import('./employeeList.js');
     // === END MODIFICATION ===
 
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
-    const { setupFileCloseModal } = await import('./fileClosingModal.js'); 
+    const { setupFileCloseModal } = await import('./fileClosingModal.js');
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
@@ -30,33 +35,33 @@ async function initializeAppModules() {
 
     // === MODIFICATION: New Pagination & Filter State ===
     let mainLocalEmployees = []; // Still needed for edit/duplicate checks and modal data
-    
+
     // Default filter: Hide "Closed" employees, as requested
-    let currentFilters = { 
-        name: '', 
-        status: ['Active', 'Salary Held', 'Resigned', 'Terminated'], 
-        designation: [], 
+    let currentFilters = {
+        name: '',
+        status: ['Active', 'Salary Held', 'Resigned', 'Terminated'],
+        designation: [],
         functionalRole: [],
-        type: [], 
-        project: [], 
-        projectOffice: [], 
-        reportProject: [], 
-        subCenter: [] 
+        type: [],
+        project: [],
+        projectOffice: [],
+        reportProject: [],
+        subCenter: []
     };
     let tomSelects = {};
-    
+
     // Pagination state
     let currentPage = 1;
     let totalPages = 1;
     let isLoading = false;
     let hasMorePages = true;
     let allFiltersLoaded = false; // Flag to stop reloading dropdowns
-    
+
     // === END MODIFICATION ===
 
     // State Accessor
     const getMainLocalEmployees = () => mainLocalEmployees;
-    
+
     // --- Helper function to populate Tom Select instances ---
     function updateTomSelectFilterOptions(filterData) {
         if (!filterData) return;
@@ -84,11 +89,11 @@ async function initializeAppModules() {
         updateOptions(tomSelects.subCenter, formatOptions(filterData.subCenter));
     }
 
-    // === MODIFICATION: Main Fetch Function rebuilt for Pagination ===
+    // === MODIFICATION: Main Fetch Function with Skeleton Support ===
     async function fetchAndRenderEmployees(isLoadMore = false) {
         if (isLoading) return;
         isLoading = true;
-        
+
         if (isLoadMore && !hasMorePages) {
             isLoading = false;
             return; // No more pages to load
@@ -96,17 +101,17 @@ async function initializeAppModules() {
 
         const countDisplay = $('filterCountDisplay');
         const listContainer = $('employee-list');
-        const initialLoading = $('initialLoading');
 
+        // Show Skeletons instead of plain text
         if (isLoadMore) {
             currentPage++;
             if (countDisplay) countDisplay.textContent = 'Loading more employees...';
+            renderSkeletons(3, true); // Append 3 skeleton cards at the bottom
         } else {
             currentPage = 1;
             hasMorePages = true;
             if (countDisplay) countDisplay.textContent = 'Loading employees...';
-            if (listContainer) listContainer.innerHTML = ''; // Clear for new search
-            if (initialLoading) initialLoading.classList.remove('hidden');
+            renderSkeletons(6, false); // Clear list and show 6 skeleton cards
         }
 
         // Prepare API parameters
@@ -121,12 +126,9 @@ async function initializeAppModules() {
                 params[key] = params[key].join(',');
             }
         }
-        
+
         try {
-            // Use new 'params' argument in apiCall
             const response = await apiCall('getEmployees', 'GET', null, params);
-            
-            if (initialLoading) initialLoading.remove();
 
             if (!response || !response.employees) {
                 throw new Error("Invalid API response format.");
@@ -135,11 +137,12 @@ async function initializeAppModules() {
             const { employees, totalPages, totalCount, filters } = response;
 
             // Render the new batch of employees
-            renderEmployeeList(employees, isLoadMore); // 'true' to append
+            // (This function will internally remove the skeletons first)
+            renderEmployeeList(employees, isLoadMore);
 
             // Update pagination state
             hasMorePages = currentPage < totalPages;
-            
+
             // Update filter dropdowns *only on the first load*
             if (!allFiltersLoaded) {
                 populateFilterDropdowns(filters); // For modals
@@ -150,9 +153,8 @@ async function initializeAppModules() {
             if (countDisplay) {
                 countDisplay.textContent = `Showing ${listContainer.children.length} of ${totalCount} employees.`;
             }
-            
+
             // --- Background load of ALL employees for modal/edit logic ---
-            // This is the compromise for not having a getEmployeeById API
             if (currentPage === 1) {
                 apiCall('getEmployees', 'GET', null, { limit: 5000 }) // Fetch all
                     .then(fullResponse => {
@@ -162,10 +164,10 @@ async function initializeAppModules() {
             }
 
         } catch (error) {
+             removeSkeletons(); // Clean up skeletons on error
              customAlert("Error", `Failed to load employee data: ${error.message}`);
              if(countDisplay) countDisplay.textContent = 'Error loading data.';
-             if(listContainer) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
-             if (initialLoading) initialLoading.remove();
+             if(listContainer && !isLoadMore) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
         } finally {
             isLoading = false;
         }
@@ -214,7 +216,7 @@ async function initializeAppModules() {
                 console.warn(`Filter element with ID '${elementId}' not found.`);
             }
         }
-        
+
         // Set default filter values in the UI
         if(tomSelects.status) {
             tomSelects.status.setValue(currentFilters.status, true); // Set default silently
@@ -224,11 +226,11 @@ async function initializeAppModules() {
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
                 // Reset to default (hiding 'Closed')
-                currentFilters = { 
-                    name: '', 
-                    status: ['Active', 'Salary Held', 'Resigned', 'Terminated'], 
-                    designation: [], functionalRole: [], type: [], 
-                    project: [], projectOffice: [], reportProject: [], subCenter: [] 
+                currentFilters = {
+                    name: '',
+                    status: ['Active', 'Salary Held', 'Resigned', 'Terminated'],
+                    designation: [], functionalRole: [], type: [],
+                    project: [], projectOffice: [], reportProject: [], subCenter: []
                 };
                 if (nameInput) nameInput.value = '';
                 for (const key in tomSelects) {
@@ -246,7 +248,7 @@ async function initializeAppModules() {
         }
     }
     // === END MODIFICATION ===
-    
+
     // --- MODIFICATION: Infinite Scroll Listener ---
     function setupInfiniteScroll() {
         window.addEventListener('scroll', () => {
@@ -267,12 +269,12 @@ async function initializeAppModules() {
          try {
             const fullData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
             const employeesToExport = fullData.employees;
-            
-            if (!employeesToExport || employeesToExport.length === 0) { 
-                customAlert("No Data", "No employees to export."); 
-                return; 
+
+            if (!employeesToExport || employeesToExport.length === 0) {
+                customAlert("No Data", "No employees to export.");
+                return;
             }
-            
+
             const headers = [
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
                 "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
@@ -284,7 +286,7 @@ async function initializeAppModules() {
                 "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason",
                 "File Close Date", "File Close Remarks"
             ];
-            
+
             const headerKeys = [
                 "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
                 "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
@@ -296,7 +298,7 @@ async function initializeAppModules() {
                 "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
                 "fileClosingDate", "fileClosingRemarks" // Fixed key names
             ];
-            
+
             // Map data to objects with friendly headers as keys
             const dataToExport = employeesToExport.map(emp => {
                 const newRow = {};
@@ -320,8 +322,6 @@ async function initializeAppModules() {
     }
     // --- END MODIFICATION ---
 
-    // --- DELETION: Removed jsonToCsv function ---
-
     // --- ADDITION: Helper function to download log reports (now using XLSX) ---
     async function handleLogReportDownload(logName, apiAction, fileName) {
         try {
@@ -339,13 +339,13 @@ async function initializeAppModules() {
     }
 
      function setupGlobalListeners() {
-         const reportBtn = $('reportBtn'); 
+         const reportBtn = $('reportBtn');
          if (reportBtn) {
              reportBtn.addEventListener('click', () => openModal('reportModal'));
          } else {
              console.warn("Report button (#reportBtn) not found.");
          }
-         
+
          const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
          const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
          const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
@@ -360,8 +360,8 @@ async function initializeAppModules() {
         console.log("Initializing HRMS App (Modular & Authenticated)...");
         setupFilterListeners();
         setupGlobalListeners();
-        setupInfiniteScroll(); // <-- Setup the new scroll listener
-        
+        setupInfiniteScroll();
+
         const reportModal = $('reportModal');
         if (reportModal) {
             $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
@@ -383,7 +383,7 @@ async function initializeAppModules() {
                 handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
             });
         }
-        
+
         // Setup module-specific listeners
         // Note: We pass the *full* list getter to these functions for modal operations
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
@@ -393,11 +393,11 @@ async function initializeAppModules() {
         if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
         if (typeof setupPastSheetsModal === 'function') {
-            setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn'); 
+            setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
         }
         if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
         if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
-        
+
         // Initial data load (Page 1)
         fetchAndRenderEmployees(false);
     }
