@@ -84,16 +84,15 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[project].push(d);
             });
 
-            // Helper to safely get values from old data structure
+            // Helper to safely get values
             const getVal = (val) => (val !== undefined && val !== null) ? Number(val) : 0;
             const getStr = (val) => (val !== undefined && val !== null) ? String(val) : '';
 
-            // Generate Excel for each group
             for (const [project, empList] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
                 const sheet = workbook.addWorksheet('Salary Sheet');
 
-                // Headers strictly matching requested format
+                // STRICT HEADERS FROM Salary-Format.xlsx
                 sheet.columns = [
                     { header: 'SL', key: 'sl', width: 5 },
                     { header: 'ID', key: 'id', width: 10 },
@@ -112,7 +111,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     { header: 'Total Working Days', key: 'totalDays', width: 12 },
                     { header: 'Holidays', key: 'holidays', width: 10 },
                     { header: 'Availing Leave', key: 'availingLeave', width: 12 },
-                    { header: 'LWP', key: 'lwpDays', width: 10 },
+                    { header: 'LWP', key: 'lwpDays', width: 10 }, // Days
                     { header: 'Actual Present', key: 'actualPresent', width: 12 },
                     { header: 'Net Present', key: 'netPresent', width: 12 },
 
@@ -132,7 +131,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     { header: 'Welfare Fund', key: 'welfare', width: 12 },
                     { header: 'Salary/ Others Loan', key: 'loan', width: 15 },
                     { header: 'Subsidized Vehicle', key: 'vehicle', width: 12 },
-                    { header: 'LWP', key: 'lwpAmt', width: 12 },
+                    { header: 'LWP', key: 'lwpAmt', width: 12 }, // Amount
                     { header: 'CPF', key: 'cpf', width: 10 },
                     { header: 'Others Adjustment', key: 'adj', width: 15 },
                     { header: 'Attendance Deduction', key: 'attDed', width: 15 },
@@ -143,9 +142,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 ];
 
                 empList.forEach((d, index) => {
-                    // Note: Handling different variable names from previous 'generateSalaryExcel' output structure
-                    // If historical data used 'ded_lunch', use that. If it used nested objects, this needs to adjust.
-                    // Assuming past sheets stored FLAT data (like the previous pastSheets code logic).
+                    // Map old keys to new strict columns
+                    // d.finalAccountNo needs to be present in saved data.
+                    // If not, fallback to d.accountNo (which might be blank)
 
                     sheet.addRow({
                         sl: index + 1,
@@ -158,7 +157,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         subCenter: getStr(d.subCenter),
                         holderName: getStr(d.holderName),
                         holderId: getStr(d.holderId),
-                        accountNo: getStr(d.accountNo || d.bankAccount),
+                        accountNo: getStr(d.finalAccountNo || d.accountNo || d.bankAccount),
                         bankName: getStr(d.bankName),
                         routeNo: getStr(d.routeNo),
 
@@ -172,7 +171,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         gross: getVal(d.gross),
                         maint: getVal(d.maint),
                         laptop: getVal(d.laptop),
-                        others: getVal(d.otherAllow || d.others), // check both keys
+                        others: getVal(d.otherAllow || d.others),
                         arrear: getVal(d.arrear),
                         food: getVal(d.food),
                         station: getVal(d.station),
@@ -212,7 +211,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         sl: index + 1,
                         id: getStr(d.id || d.employeeId),
                         name: getStr(d.name),
-                        account: getStr(d.accountNo || d.bankAccount),
+                        account: getStr(d.finalAccountNo || d.accountNo || d.bankAccount),
                         amount: getVal(d.netPayment || d.netPay),
                         remarks: ''
                     });

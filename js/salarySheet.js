@@ -57,8 +57,6 @@ export function setupSalarySheetModal(getEmployeesFunc) {
                 URL.revokeObjectURL(link.href);
 
                 closeModal('attendanceModal');
-                // customAlert("Success", "Salary Reports generated successfully.");
-
             } catch (error) {
                 console.error(error);
                 customAlert("Error", error.message);
@@ -82,12 +80,8 @@ function parseCSV(file) {
 
 function validateAttendanceHeaders(data) {
     if (!data || data.length === 0) throw new Error("Attendance file is empty.");
-    // Flexible matching for headers
-    const required = ['employeeid', 'employeename', 'days', 'holidays', 'leave', 'lwp', 'actual', 'net']; // Keywords
     const headers = Object.keys(data[0]).map(k => k.toLowerCase());
-
-    // Check if at least strict matches exist (adjusting for your specific file)
-    const strictRequired = ['employeeid'];
+    const strictRequired = ['employeeid']; // Minimal check
     const missing = strictRequired.filter(r => !headers.includes(r));
     if (missing.length > 0) throw new Error(`Attendance file missing columns: ${missing.join(', ')}`);
 }
@@ -105,7 +99,7 @@ function validateHolderHeaders(data) {
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
     const zip = new JSZip();
 
-    // 1. Prepare Maps
+    // 1. Lookup Maps
     const attMap = {};
     attendanceData.forEach(row => {
         const cleanRow = {};
@@ -121,7 +115,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         holderMap[key] = { name: cleanRow['accountableemployeename'], id: cleanRow['accountableemployeeid'] };
     });
 
-    // 2. Group Employees by Report Project
+    // 2. Employee Map (To find Holder's Bank Account)
+    const employeeIdMap = {};
+    employees.forEach(emp => {
+        employeeIdMap[String(emp.employeeId).trim()] = emp;
+    });
+
+    // 3. Group Employees by Report Project
     const projectGroups = {};
 
     employees.forEach(emp => {
@@ -134,8 +134,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         // --- Calculate Values ---
         const getVal = (val) => parseFloat(val) || 0;
 
-        // Attendance Keys (flexible matching based on your description)
-        // Mapping: 'total working days', 'holidays', 'availing leave', 'lwp', 'actual present', 'net present'
+        // Attendance
         const totalDays = getVal(attRow['total working days']);
         const holidays = getVal(attRow['holidays']);
         const leave = getVal(attRow['availing leave']);
@@ -143,9 +142,20 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         const actualPresent = getVal(attRow['actual present']);
         const netPresent = getVal(attRow['net present']);
 
-        // Holder
+        // Holder Info
         const holderKey = `${String(project).toLowerCase().trim()}|${String(emp.subCenter || '').toLowerCase().trim()}`;
         const holderInfo = holderMap[holderKey] || { name: '', id: '' };
+
+        // --- BANK ACCOUNT LOGIC ---
+        let finalAccountNo = emp.bankAccount || '';
+
+        // If employee account is blank, look up Holder's account
+        if (!finalAccountNo && holderInfo.id) {
+            const holderObj = employeeIdMap[String(holderInfo.id).trim()];
+            if (holderObj && holderObj.bankAccount) {
+                finalAccountNo = holderObj.bankAccount;
+            }
+        }
 
         // Earnings
         const grossSalary = getVal(emp.salary);
@@ -189,6 +199,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             ...emp,
             holderName: holderInfo.name,
             holderId: holderInfo.id,
+            finalAccountNo: finalAccountNo, // Calculated account
             att: { totalDays, holidays, leave, lwpDays, actualPresent, netPresent },
             earn: { grossSalary, ...earnings, grossPayable },
             ded: { ...deductions, attDed, totalDeduction },
@@ -196,12 +207,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         });
     });
 
-    // 3. Generate Excel for each Project
+    // 4. Generate Excel for each Project
     for (const [project, empList] of Object.entries(projectGroups)) {
         const workbook = new ExcelJS.Workbook();
 
         // --- Sheet 1: Salary Sheet ---
         const sheet = workbook.addWorksheet('Salary Sheet');
+
+        // STRICT HEADERS FROM Salary-Format.xlsx
         sheet.columns = [
             { header: 'SL', key: 'sl', width: 5 },
             { header: 'ID', key: 'id', width: 10 },
@@ -220,7 +233,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             { header: 'Total Working Days', key: 'totalDays', width: 12 },
             { header: 'Holidays', key: 'holidays', width: 10 },
             { header: 'Availing Leave', key: 'availingLeave', width: 12 },
-            { header: 'LWP', key: 'lwpDays', width: 10 }, // Note: Header matched to CSV "LWP"
+            { header: 'LWP', key: 'lwpDays', width: 10 }, // Days
             { header: 'Actual Present', key: 'actualPresent', width: 12 },
             { header: 'Net Present', key: 'netPresent', width: 12 },
 
@@ -240,7 +253,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             { header: 'Welfare Fund', key: 'welfare', width: 12 },
             { header: 'Salary/ Others Loan', key: 'loan', width: 15 },
             { header: 'Subsidized Vehicle', key: 'vehicle', width: 12 },
-            { header: 'LWP', key: 'lwpAmt', width: 12 }, // Note: Header matched to CSV "LWP" (Deduction)
+            { header: 'LWP', key: 'lwpAmt', width: 12 }, // Amount
             { header: 'CPF', key: 'cpf', width: 10 },
             { header: 'Others Adjustment', key: 'adj', width: 15 },
             { header: 'Attendance Deduction', key: 'attDed', width: 15 },
@@ -262,7 +275,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 subCenter: d.subCenter,
                 holderName: d.holderName,
                 holderId: d.holderId,
-                accountNo: d.bankAccount,
+                accountNo: d.finalAccountNo, // Using logic (Self or Holder)
                 bankName: '',
                 routeNo: '',
 
@@ -316,7 +329,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 sl: index + 1,
                 id: d.employeeId,
                 name: d.name,
-                account: d.bankAccount,
+                account: d.finalAccountNo, // Using logic (Self or Holder)
                 amount: d.netPayment,
                 remarks: ''
             });
@@ -324,7 +337,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
         // Write to Buffer and Add to Zip
         const buffer = await workbook.xlsx.writeBuffer();
-        // Filename: [ReportProject]_[Month].xlsx
         const safeProjectName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
         zip.file(`${safeProjectName}_${monthVal}.xlsx`, buffer);
     }
