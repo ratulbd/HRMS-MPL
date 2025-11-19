@@ -462,3 +462,4 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     return zip.generateAsync({ type: "blob" });
 }
+}
