@@ -260,7 +260,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
         // Freeze and setup widths
         sheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
-        sheet.columns.forEach((col, colNumber) => {
+        sheet.columns = new Array(43).fill({ width: 15 }); // Initialize columns with default width
+sheet.columns.forEach((col, colNumber) => {
             // NOTE: Column indices start at 1 for ExcelJS, but 0 in JS array.
             // Cols 11-39 (indices 10-38)
             if (colNumber >= 10 && colNumber <= 38) col.width = 11.18;
@@ -461,5 +462,4 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     }
 
     return zip.generateAsync({ type: "blob" });
-}
 }
