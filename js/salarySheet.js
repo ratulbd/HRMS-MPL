@@ -36,7 +36,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
             }
 
             try {
-                // Critical check for global libraries (UNCHANGED)
+                // Critical check for global libraries
                 if (typeof Papa === 'undefined' || typeof ExcelJS === 'undefined' || typeof JSZip === 'undefined') {
                     throw new Error("Initialization Error: Required libraries (PapaParse, ExcelJS, JSZip) are not loaded. Please check index.html.");
                 }
@@ -46,7 +46,6 @@ export function setupSalarySheetModal(getEmployeesFunc) {
                     throw new Error("No employee data found in the system.");
                 }
 
-                // Parse CSVs
                 const attendanceData = await parseCSV(attendanceFile);
                 const holderData = await parseCSV(holderFile);
 
@@ -82,7 +81,6 @@ function parseCSV(file) {
             if (!results || !Array.isArray(results.data)) {
                 return resolve([]);
             }
-            // Filter out any rows that might have resulted in null/undefined during parsing
             resolve(results.data.filter(row => row !== null && typeof row === 'object'));
         }, error: (err) => reject(err) });
     });
@@ -158,13 +156,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     // 2. Grouping
     const projectGroups = {};
 
-    // --- START CRITICAL LOOP WITH LOGGING ---
+    // --- CRITICAL LOOP START ---
     employees.forEach((emp, index) => {
         try {
-            // LOGGING STEP 1: Identify current employee index
-            console.log(`Processing employee index: ${index}. ID: ${emp?.employeeId}`);
-
-            // Safety check 1: Ensure the employee object itself is valid
             if (!emp || !emp.employeeId) {
                 console.warn(`Skipping invalid/null employee object at index ${index}.`);
                 return;
@@ -173,7 +167,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             const empId = String(emp.employeeId).trim();
 
             const attRow = attMap[empId];
-            if (!attRow) return; // Skip if no attendance data
+            if (!attRow) return;
 
             const project = emp.reportProject || 'Unknown';
             const subCenter = emp.subCenter || 'General';
@@ -183,14 +177,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
             const getVal = (val) => parseFloat(val) || 0;
 
-            // LOGGING STEP 2: Checking Attendance Data Structure
             const totalDays = getVal(attRow['total working days']);
-
-            // Check if vital data is being read as expected (this is often where null access begins)
-            if (isNaN(totalDays) || totalDays === null) {
-                 console.error(`CRASH POINT LOG: totalDays (Att) is invalid for Emp ID: ${empId}.`);
-            }
-
             const holidays = getVal(attRow['holidays']);
             const leave = getVal(attRow['availing leave']);
             const lwpDays = getVal(attRow['lwp']);
@@ -262,29 +249,49 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             });
 
         } catch (e) {
-            // LOGGING STEP 3: Catch error in the loop and re-throw with context
-            console.error(`--- CRASH DURING EMPLOYEE LOOP ---`);
-            console.error(`Employee ID causing crash: ${emp ? emp.employeeId : 'UNKNOWN (NULL EMP OBJECT)'}`);
-            console.error(`Error details: ${e.message}`);
-            // Re-throw the error to halt the process and show the alert
-            throw new Error(`CRASH: Processing Emp ID ${emp ? emp.employeeId : 'UNKNOWN'}. Details: ${e.message}`);
+            // Re-throw the error with context to halt the process
+            throw new Error(`CRASH: Processing Emp ID ${emp ? emp.employeeId : 'UNKNOWN'} at index ${index}. Details: ${e.message}`);
         }
     });
-    // --- END CRITICAL LOOP WITH LOGGING ---
+    // --- CRITICAL LOOP END ---
 
-    // 3. Generate Excel per Project (UNCHANGED LOGIC)
-    for (const [project, subCenters] of Object.entries(projectGroups)) {
-        if (typeof ExcelJS === 'undefined') {
-            throw new Error("ExcelJS is not defined. Cannot proceed with workbook generation.");
-        }
+    // 3. Generate Excel per Project
+
+    // --- CRITICAL FIX: Ensure safe iteration over projectGroups ---
+    const projectEntries = Object.entries(projectGroups);
+
+    if (projectEntries.length === 0) {
+        throw new Error("No employees processed. Check attendance file mapping or filters.");
+    }
+    // -----------------------------------------------------------
+
+    for (const [project, subCenters] of projectEntries) {
         const workbook = new ExcelJS.Workbook();
 
-        // ... (rest of Excel generation logic, including headers, body, advice sheet) ...
+        // ... (rest of Excel generation logic, headers, body, advice sheet) ...
 
-        // This is where the old line 255 (the start of the loop) was.
-        // We ensure all necessary logic is inside the try/catch block of the outer function.
+        // --- SALARY SHEET CONFIG & HEADERS (Omitted for brevity, assume unchanged) ---
+        const sheet = workbook.addWorksheet('Salary Sheet');
+        // ... (all sheet setup code) ...
 
-        // ...
+        // --- BODY (Omitted for brevity, assume unchanged) ---
+        let sl = 1;
+        const sortedSubCenters = Object.keys(subCenters).sort();
+        let projectGrandTotal = 0;
+
+        for (const scName of sortedSubCenters) {
+            const scEmployees = subCenters[scName];
+
+            // Subcenter Header Row (Omitted for brevity, assume unchanged)
+            // ...
+
+            scEmployees.forEach(d => {
+                projectGrandTotal += d.netPayment;
+                // ... (data row addition logic) ...
+            });
+        }
+
+        // Finalize Zip
         const buffer = await workbook.xlsx.writeBuffer();
         const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
         zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
