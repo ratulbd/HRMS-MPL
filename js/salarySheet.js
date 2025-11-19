@@ -49,6 +49,14 @@ export function setupSalarySheetModal(getEmployeesFunc) {
                 const attendanceData = await parseCSV(attendanceFile);
                 const holderData = await parseCSV(holderFile);
 
+if (!attendanceData || attendanceData.length === 0) {
+    throw new Error("Attendance file is empty or invalid.");
+}
+if (!holderData || holderData.length === 0) {
+    throw new Error("Account Holder file is empty or invalid.");
+}
+
+
                 validateAttendanceHeaders(attendanceData);
                 validateHolderHeaders(holderData);
 
@@ -282,7 +290,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
             let scTotalNet = 0;
 
-            scEmployees.forEach(d => {
+            if (Array.isArray(scEmployees) && scEmployees.length > 0) {
+    scEmployees.forEach(d => {
                 scTotalNet += d.netPayment;
                 projectGrandTotal += d.netPayment;
 
