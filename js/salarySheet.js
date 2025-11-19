@@ -78,11 +78,12 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 function parseCSV(file) {
     return new Promise((resolve, reject) => {
         Papa.parse(file, { header: true, skipEmptyLines: true, complete: (results) => {
-            // Defensive check: Ensure data is an array, otherwise return empty array
+            // Defensive check: Ensure data is an array, filtering out null/undefined rows
             if (!results || !Array.isArray(results.data)) {
                 return resolve([]);
             }
-            resolve(results.data);
+            // Filter out any rows that might have resulted in null/undefined during parsing
+            resolve(results.data.filter(row => row !== null && typeof row === 'object'));
         }, error: (err) => reject(err) });
     });
 }
@@ -135,7 +136,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const accountingFmt = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)';
 
-    // 1. Maps (Defensive array check applied in parseCSV)
+    // 1. Maps
     const attMap = {};
     attendanceData.forEach(row => {
         const cleanRow = {};
@@ -157,8 +158,15 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     // 2. Grouping
     const projectGroups = {};
 
+    // --- CRITICAL FIX: Ensure emp is not null and has a valid ID for mapping ---
     employees.forEach(emp => {
-        const attRow = attMap[String(emp.employeeId)];
+        // Safety check 1: Ensure the employee object itself is valid
+        if (!emp || !emp.employeeId) return;
+
+        // Safety check 2: Get a clean ID
+        const empId = String(emp.employeeId).trim();
+
+        const attRow = attMap[empId];
         if (!attRow) return;
 
         const project = emp.reportProject || 'Unknown';
@@ -243,6 +251,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     // 3. Generate Excel per Project
     for (const [project, subCenters] of Object.entries(projectGroups)) {
+        if (typeof ExcelJS === 'undefined') {
+            throw new Error("ExcelJS is not defined. Cannot proceed with workbook generation.");
+        }
         const workbook = new ExcelJS.Workbook();
 
         // ==================================================
@@ -253,9 +264,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         // Freeze and setup widths
         sheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
         sheet.columns.forEach((col, colNumber) => {
-            // Col K(11) to AM(39)
             if (colNumber >= 10 && colNumber <= 38) col.width = 11.18;
-            // Col AP(42)
             if (colNumber === 41) col.width = 11.55;
         });
 
