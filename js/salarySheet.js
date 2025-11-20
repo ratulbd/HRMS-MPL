@@ -6,9 +6,22 @@ export function setupSalarySheetModal(getEmployeesFunc) {
     const form = $('attendanceForm');
     const cancelBtn = $('cancelAttendanceModal');
     const triggerBtn = $('uploadAttendanceBtn');
-    // ... (rest of setupSalarySheetModal function remains unchanged) ...
-    // ... (rest of setupSalarySheetModal function remains unchanged) ...
-    // ... (rest of setupSalarySheetModal function remains unchanged) ...
+
+    if (triggerBtn) {
+        triggerBtn.addEventListener('click', () => {
+            if (modal) {
+                modal.classList.remove('hidden');
+                form.reset();
+            }
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            if (modal) modal.classList.add('hidden');
+        });
+    }
+
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -60,7 +73,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
     }
 }
 
-// --- Helpers (unchanged) ---
+// --- Helpers (UNCHANGED) ---
 
 function parseCSV(file) {
     return new Promise((resolve, reject) => {
@@ -111,8 +124,6 @@ function getFormattedMonthYear(dateStr) {
     const year = date.getFullYear();
     return { month, year, full: `${month}-${year}`, quote: `${month}'${year}` };
 }
-
-// --- MAIN GENERATION LOGIC ---
 
 // Helper to normalize Employee IDs for matching (remove spaces, ensure uppercase)
 const normalizeId = (id) => {
@@ -246,7 +257,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     // 3. Generate Excel per Project
 
-    const projectEntries = Object.entries(projectGroups);
+    // --- CRITICAL FIX: Ensure safe iteration over projectGroups ---
+    const projectEntries = Object.entries(projectGroups || {});
+    // -----------------------------------------------------------
 
     if (projectEntries.length === 0) {
         throw new Error("No employees processed. Check attendance file mapping or filters.");
@@ -270,8 +283,59 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             if (colNumber === 41) col.width = 11.55;
         });
 
-        // --- HEADERS --- (UNCHANGED LOGIC)
-        // ... (Header Rows 1-4 and styling) ...
+        // --- HEADERS ---
+        // Row 1: Company Name
+        sheet.mergeCells('A1:AQ1');
+        const r1 = sheet.getCell('A1');
+        r1.value = "Metal Plus Limited";
+        r1.font = { bold: true, size: 16 }; r1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Row 2: Sheet Title
+        sheet.mergeCells('A2:AQ2');
+        const r2 = sheet.getCell('A2');
+        r2.value = `Salary Sheet-${project} for the Month of ${full}`;
+        r2.font = { bold: true, size: 12 }; r2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Row 3: Merged Categories
+        const mergeRanges = [
+            { r: 'A3:J3', t: 'Employee Information' }, { r: 'K3:P3', t: 'Attendance' },
+            { r: 'Q3:T3', t: 'Salary Structure' }, { r: 'U3:AB3', t: 'Earnings & Benefits' },
+            { r: 'AC3:AM3', t: 'Deductions' }, { r: 'AN3:AQ3', t: 'Payment Information' }
+        ];
+
+        mergeRanges.forEach(m => {
+            sheet.mergeCells(m.r);
+            const cell = sheet.getCell(m.r.split(':')[0]);
+            cell.value = m.t;
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+        });
+
+        // Row 4: Specific Headers
+        const headers = [
+            "SL", "ID", "Name", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
+            "Total Working Days", "Holidays", "Availing Leave", "LWP", "Actual Present", "Net Present",
+            "Previous Salary", "Basic", "Others", "Gross Salary",
+            "Motobike / Car Maintenance Allowance", "Laptop Rent", "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Gross Payable Salary",
+            "Gratuity", "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "CPF", "Others Adjustment", "Attendance Deduction", "Total Deduction",
+            "Net Salary Payment", "Bank Account Number", "Payment Type", "Remarks"
+        ];
+
+        const headerRow = sheet.addRow(headers);
+        headerRow.height = 65;
+
+        headerRow.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, size: 9 };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+            cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+            if (colNumber >= 11 && colNumber <= 39) {
+                cell.alignment = { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true };
+            }
+        });
 
         // --- BODY ---
         let sl = 1;
@@ -281,8 +345,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         for (const scName of sortedSubCenters) {
             const scEmployees = subCenters[scName];
 
-            // Subcenter Header Row (UNCHANGED LOGIC)
-            // ...
+            // Subcenter Header Row
+            const scRow = sheet.addRow([`Subcenter: ${scName}`]);
+            for(let i=1; i<=43; i++) {
+                const c = scRow.getCell(i);
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
+                c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                if (i===1) c.font = { bold: true };
+            }
 
             let scTotalNet = 0;
 
@@ -314,13 +384,137 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 });
             });
 
-            // Subcenter Total (UNCHANGED LOGIC)
-            // ...
+            // Subcenter Total
+            const totRow = sheet.addRow([]);
+            totRow.getCell(3).value = `Total for ${scName}`;
+            const netPayCell = totRow.getCell(40);
+            netPayCell.value = scTotalNet;
+            netPayCell.numFmt = accountingFmt;
+
+            totRow.eachCell(c => {
+                 c.font = { bold: true };
+                 c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+                 c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            });
         }
 
         // ==================================================
-        // 2. ADVICE SHEET (UNCHANGED LOGIC)
-        // ... (rest of Advice sheet generation logic) ...
+        // 2. ADVICE SHEET
+        // ==================================================
+        const adviceSheet = workbook.addWorksheet('Advice', {
+            pageSetup: {
+                paperSize: 9,
+                orientation: 'portrait',
+                fitToPage: false,
+                fitToWidth: 1,
+                fitToHeight: 0,
+                printTitlesRow: '41:41'
+            }
+        });
+
+        // Consolidate Payments
+        const consolidationMap = new Map();
+        const allProjectEmployees = Object.values(subCenters).flat();
+
+        allProjectEmployees.forEach(emp => {
+            if (emp.finalAccountNo && emp.finalAccountNo.trim() !== '') {
+                const key = String(emp.employeeId);
+                if (!consolidationMap.has(key)) {
+                    consolidationMap.set(key, { id: emp.employeeId, name: emp.name, designation: emp.designation, account: emp.finalAccountNo, amount: 0 });
+                }
+                consolidationMap.get(key).amount += emp.netPayment;
+            } else if (emp.holderId) {
+                const holderKey = String(emp.holderId);
+                if (consolidationMap.has(holderKey)) {
+                    consolidationMap.get(holderKey).amount += emp.netPayment;
+                }
+            }
+        });
+
+        const totalAmountWords = convertNumberToWords(projectGrandTotal);
+
+        const writeRow = (rIdx, text, bold=false, size=11) => {
+            const row = adviceSheet.getRow(rIdx);
+            const cell = row.getCell(1);
+            cell.value = text;
+            cell.font = { name: 'Calibri', size: size, bold: bold };
+            adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
+        };
+
+        // Static Letter Content (Rows 1-29)
+        writeRow(1, `Ref: MPL/TELECOM/Salary/${project}/${full}`, true);
+        writeRow(2, `Date: ${today}`, true);
+        writeRow(4, "To");
+        writeRow(5, "The Manager");
+        writeRow(6, "Dutch Bangla Bank PLC");
+        writeRow(7, "Elephant Road Branch, Dhaka");
+        writeRow(9, `Subject: Salary expenses disbursement for the Month of ${quote}.`, true);
+        writeRow(11, "Dear Sir,");
+
+        const bodyText = `Please Transfer Tk.${projectGrandTotal.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. Maintained with you.`;
+        const bodyRow = adviceSheet.getRow(13);
+        const bodyCell = bodyRow.getCell(1);
+        bodyCell.value = bodyText;
+        bodyCell.font = { name: 'Calibri', size: 11 };
+        bodyCell.alignment = { wrapText: true, vertical: 'top' };
+        adviceSheet.mergeCells(13, 1, 17, 6);
+
+        writeRow(19, "Regards,");
+
+        const sigRow = adviceSheet.getRow(23);
+        sigRow.getCell(1).value = "Authorized Signature";
+        sigRow.getCell(1).font = { bold: true };
+        sigRow.getCell(5).value = "Authorized Signature";
+        sigRow.getCell(5).font = { bold: true };
+
+        // CC Section
+        writeRow(27, "CC:");
+        writeRow(28, "1. GM, Finance & Accounts, Metal Plus Limited.");
+        writeRow(29, "2. Office Copy");
+
+        // Table Header at Row 41
+        const tableHeaderRowIdx = 41;
+        const adviceHeaders = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
+        const tblHeader = adviceSheet.getRow(tableHeaderRowIdx);
+        tblHeader.values = adviceHeaders;
+        tblHeader.height = 30;
+        tblHeader.eachCell(c => {
+            c.font = { bold: true };
+            c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            c.alignment = { horizontal: 'center', vertical: 'middle' };
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+        });
+
+        // Data Rows starting at 42
+        let advSl = 1;
+        const finalAdviceList = Array.from(consolidationMap.values()).sort((a,b) => a.id.localeCompare(b.id));
+
+        finalAdviceList.forEach(item => {
+            const r = adviceSheet.addRow([
+                advSl++, item.id, item.name, item.designation, item.account, item.amount
+            ]);
+            r.eachCell((c, colNum) => {
+                 c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                 c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                 if(colNum === 3 || colNum === 4) c.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+                 if(colNum === 6) c.numFmt = accountingFmt;
+            });
+        });
+
+        // Total Row for Advice
+        const advTotRow = adviceSheet.addRow(['', '', '', 'Total', '', projectGrandTotal]);
+        advTotRow.eachCell((c, colNum) => {
+            c.font = { bold: true };
+            if(colNum === 6) c.numFmt = accountingFmt;
+        });
+
+        // Final Widths
+        adviceSheet.getColumn(1).width = 6;
+        adviceSheet.getColumn(2).width = 12;
+        adviceSheet.getColumn(3).width = 25;
+        adviceSheet.getColumn(4).width = 20;
+        adviceSheet.getColumn(5).width = 20;
+        adviceSheet.getColumn(6).width = 15;
 
         const buffer = await workbook.xlsx.writeBuffer();
         const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
