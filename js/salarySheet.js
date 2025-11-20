@@ -21,7 +21,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const monthVal = $('salaryMonth').value; // YYYY-MM
+      const monthVal = $('salaryMonth').value;          // YYYY-MM
       const attendanceFile = $('attendanceFile').files[0];
       const holderFile = $('accountabilityFile').files[0];
 
@@ -54,20 +54,24 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         closeModal('attendanceModal');
       } catch (error) {
         console.error(error);
-        customAlert("Error", error.message);
+        customAlert("Error", error.message || "Unknown error.");
       }
     });
   }
 }
 
-// ---------- CSV & validation ----------
+/* ---------------- CSV & validation ---------------- */
 function parseCSV(file) {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => resolve(results.data),
-      error: (err) => reject(err)
+      complete: (results) => {
+        // Ensure array of objects
+        const rows = Array.isArray(results?.data) ? results.data.filter(r => r && typeof r === 'object') : [];
+        resolve(rows);
+      },
+      error: (err) => reject(err),
     });
   });
 }
@@ -84,13 +88,13 @@ function validateHolderHeaders(data) {
     throw new Error("Account Holder file missing required columns.");
 }
 
-// ---------- Utilities ----------
+/* ---------------- Utilities ---------------- */
 function convertNumberToWords(amount) {
   const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
   const b = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
   const numToWords = (n) => {
     if ((n = n.toString()).length > 9) return 'overflow';
-    let n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    const n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n_array) return '';
     let str = '';
     str += (n_array[1] != 0) ? (a[Number(n_array[1])] + b[n_array[1][0]] + ' ' + a[n_array[1][1]]) + 'Crore ' : '';
@@ -102,7 +106,6 @@ function convertNumberToWords(amount) {
   };
   return numToWords(Math.floor(amount)) + "Only";
 }
-
 function getFormattedMonthYear(dateStr) {
   const date = new Date(dateStr + "-01");
   const month = date.toLocaleString('default', { month: 'long' });
@@ -110,45 +113,48 @@ function getFormattedMonthYear(dateStr) {
   return { month, year, full: `${month}-${year}`, quote: `${month}'${year}` };
 }
 
-// ---------- MAIN GENERATION ----------
+/* ---------------- MAIN GENERATION ---------------- */
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
   const zip = new JSZip();
-  const { month, year, full, quote } = getFormattedMonthYear(monthVal);
-
+  const { full, quote } = getFormattedMonthYear(monthVal);
   // Accounting format (0 decimals)
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
 
   // Build maps
   const attMap = {};
-  attendanceData.forEach(row => {
+  attendanceData.forEach((row) => {
     const cleanRow = {};
-    for (let k in row) cleanRow[k.toLowerCase().trim()] = row[k];
-    attMap[String(cleanRow['employeeid']).trim()] = cleanRow;
+    for (const k in row) cleanRow[k.toLowerCase().trim()] = row[k];
+    const id = String(cleanRow['employeeid']).trim();
+    if (id) attMap[id] = cleanRow;
   });
 
   const holderMap = {};
-  holderData.forEach(row => {
+  holderData.forEach((row) => {
     const cleanRow = {};
-    for (let k in row) cleanRow[k.toLowerCase().trim()] = row[k];
+    for (const k in row) cleanRow[k.toLowerCase().trim()] = row[k];
     const key = `${String(cleanRow['reportproject']).trim().toLowerCase()}${String(cleanRow['subcenter']).trim().toLowerCase()}`;
-    holderMap[key] = { name: cleanRow['accountableemployeename'], id: cleanRow['accountableemployeeid'] };
+    holderMap[key] = {
+      name: cleanRow['accountableemployeename'],
+      id: cleanRow['accountableemployeeid'],
+    };
   });
 
   const allEmpMap = {};
-  employees.forEach(e => { allEmpMap[String(e.employeeId).trim()] = e; });
+  employees.forEach((e) => { allEmpMap[String(e.employeeId).trim()] = e; });
 
   // Group by project/subcenter
   const projectGroups = {};
-  employees.forEach(emp => {
+  const getVal = (v) => parseFloat(v) || 0;
+
+  employees.forEach((emp) => {
     const attRow = attMap[String(emp.employeeId)];
     if (!attRow) return;
 
     const project = emp.reportProject || 'Unknown';
     const subCenter = emp.subCenter || 'General';
-    if (!projectGroups[project]) projectGroups[project] = {};
-    if (!projectGroups[project][subCenter]) projectGroups[project][subCenter] = [];
+    (projectGroups[project] ||= {})[subCenter] ||= [];
 
-    const getVal = (val) => parseFloat(val) || 0;
     const totalDays     = getVal(attRow['total working days']);
     const holidays      = getVal(attRow['holidays']);
     const leave         = getVal(attRow['availing leave']);
@@ -158,13 +164,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const grossSalary = getVal(emp.salary);
     const earnings = {
-      maint: getVal(emp.motobikeCarMaintenance),
-      laptop: getVal(emp.laptopRent),
-      others: getVal(emp.othersAllowance),
-      arrear: getVal(emp.arrear),
-      food: getVal(emp.foodAllowance),
-      station: getVal(emp.stationAllowance),
-      hardship: getVal(emp.hardshipAllowance)
+      maint:    getVal(emp.motobikeCarMaintenance),
+      laptop:   getVal(emp.laptopRent),
+      others:   getVal(emp.othersAllowance),
+      arrear:   getVal(emp.arrear),
+      food:     getVal(emp.foodAllowance),
+      station:  getVal(emp.stationAllowance),
+      hardship: getVal(emp.hardshipAllowance),
     };
     const grossPayable = grossSalary + Object.values(earnings).reduce((a, b) => a + b, 0);
 
@@ -176,7 +182,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       loan:    getVal(emp.salaryOthersLoan),
       vehicle: getVal(emp.subsidizedVehicle),
       cpf:     getVal(emp.cpf),
-      adj:     getVal(emp.othersAdjustment)
+      adj:     getVal(emp.othersAdjustment),
     };
 
     let attDed = 0;
@@ -198,7 +204,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (!finalAccountNo || finalAccountNo.trim() === '') {
       paymentType = "Cash (Holder)";
-      if (holderInfo && holderInfo.id) {
+      if (holderInfo?.id) {
         holderId = String(holderInfo.id).trim();
         const holderEmp = allEmpMap[holderId];
         remarksText = holderEmp
@@ -216,7 +222,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent },
       earn: { grossSalary, ...earnings, grossPayable },
       ded:  { ...deductions, attDed, totalDeduction },
-      netPayment
+      netPayment,
     });
   });
 
@@ -224,7 +230,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   for (const [project, subCenters] of Object.entries(projectGroups)) {
     const workbook = new ExcelJS.Workbook();
 
-    // ---------------- SALARY SHEET ----------------
+    /* ---------------- SALARY SHEET ---------------- */
     const sheet = workbook.addWorksheet('Salary Sheet', {
       views: [{ state: 'frozen', ySplit: 4 }] // Freeze up to row 4
     });
@@ -245,12 +251,12 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     // Row 3 merged categories
     [
-      { r: 'A3:J3', t: 'Employee Information' },
-      { r: 'K3:P3', t: 'Attendance' },
-      { r: 'Q3:T3', t: 'Salary Structure' },
+      { r: 'A3:J3',  t: 'Employee Information' },
+      { r: 'K3:P3',  t: 'Attendance' },
+      { r: 'Q3:T3',  t: 'Salary Structure' },
       { r: 'U3:AB3', t: 'Earnings & Benefits' },
-      { r: 'AC3:AM3', t: 'Deductions' },
-      { r: 'AN3:AQ3', t: 'Payment Information' }
+      { r: 'AC3:AM3',t: 'Deductions' },
+      { r: 'AN3:AQ3',t: 'Payment Information' },
     ].forEach(m => {
       sheet.mergeCells(m.r);
       const cell = sheet.getCell(m.r.split(':')[0]);
@@ -261,7 +267,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
 
-    // Row 4 headers
+    // Row 4 headers (height 65)
     const headers = [
       "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
       "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present",
@@ -271,7 +277,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
     ];
     const headerRow = sheet.addRow(headers);
-    headerRow.height = 65; // per spec
+    headerRow.height = 65;
     headerRow.eachCell((cell, colNumber) => {
       cell.font = { bold: true, size: 9 };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -334,7 +340,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       const netPayCell = totRow.getCell(40);
       netPayCell.value = scTotalNet;
       netPayCell.numFmt = accountingFmt0;
-      totRow.eachCell(c => {
+      totRow.eachCell((c) => {
         c.font = { bold: true };
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -342,15 +348,16 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       });
     }
 
-    // ---------------- ADVICE SHEET ----------------
+    /* ---------------- ADVICE SHEET ---------------- */
     const adviceSheet = workbook.addWorksheet('Advice', {
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
 
-    // Consolidation (holder amounts go to holder account if present)
+    // Consolidation
     const consolidationMap = new Map();
     const allProjectEmployees = Object.values(subCenters).flat();
 
+    // Employees with accounts
     allProjectEmployees.forEach(emp => {
       if (emp.finalAccountNo && emp.finalAccountNo.trim() !== '') {
         const key = String(emp.employeeId);
@@ -360,13 +367,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             name: emp.name,
             designation: emp.designation,
             account: emp.finalAccountNo,
-            amount: 0
+            amount: 0,
           });
         }
         consolidationMap.get(key).amount += emp.netPayment;
       }
     });
 
+    // Cash/Holder -> routed to holder (if holder has account)
     allProjectEmployees.forEach(emp => {
       if (!emp.finalAccountNo || emp.finalAccountNo.trim() === '') {
         if (emp.holderId && consolidationMap.has(emp.holderId)) {
@@ -375,33 +383,30 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
     });
 
-    // Text writer (with optional merge)
-    const writeTextRow = (rIdx, text, bold=false, size=11, doMerge=true) => {
+    // text helper
+    const writeTextRow = (rIdx, text, bold=false, size=11, merge=true) => {
       const cell = adviceSheet.getRow(rIdx).getCell(1);
       cell.value = text;
       cell.font = { name: 'Calibri', size, bold };
       cell.alignment = { vertical: 'top', wrapText: true };
-      if (doMerge) adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
+      if (merge) adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
     };
 
-    // Letter (per Advice Sample)
+    // Letter
     const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
     const totalLetterAmount = allProjectEmployees.reduce((sum, e) => sum + (e.netPayment || 0), 0);
     const totalAmountWords = convertNumberToWords(totalLetterAmount);
 
     writeTextRow(1,  `Ref: MPL/TELECOM/Salary/${full}`, true);
     writeTextRow(2,  `Date: ${today}`, true);
-
     writeTextRow(4,  "To");
     writeTextRow(5,  "The Manager");
-    writeTextRow(6,  "Dutch Bangla Bank Ltd.");  // from sample
-    writeTextRow(7,  "Banani Branch");           // from sample
-
+    writeTextRow(6,  "Dutch Bangla Bank Ltd.");
+    writeTextRow(7,  "Banani Branch");
     writeTextRow(9,  `Subject: Salary expenses disbursement for the Month of ${quote}.`, true);
-
     writeTextRow(11, "Dear sir,");
 
-    // Merge single block A13:F17 for paragraph, assign value once (NO re-merge)
+    // Merge A13:F17 once for paragraph
     adviceSheet.mergeCells(13, 1, 17, 6);
     const paraCell = adviceSheet.getCell('A13');
     paraCell.value =
@@ -414,25 +419,22 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     paraCell.alignment = { wrapText: true, vertical: 'top' };
 
     writeTextRow(19, "Thanking You,", false);
-
-    // Signatures
     writeTextRow(21, "Engr. Sadid Jamil", true);
     writeTextRow(22, "Managing Director", false);
     writeTextRow(24, "Engr. Aminul Islam", true);
     writeTextRow(25, "Chairman", false);
 
-    // Table header at row 40, data starts at row 41
-    const headerRowAdvice = adviceSheet.getRow(40);
-    headerRowAdvice.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
-    headerRowAdvice.height = 24;
-    headerRowAdvice.eachCell((c) => {
+    // Header at row 40; data starts row 41
+    const hdr = adviceSheet.getRow(40);
+    hdr.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
+    hdr.height = 24;
+    hdr.eachCell((c) => {
       c.font = { bold: true };
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
       c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
     });
 
-    // Column widths tuned to fit one page width
     adviceSheet.getColumn(1).width = 6;
     adviceSheet.getColumn(2).width = 12;
     adviceSheet.getColumn(3).width = 28;
@@ -449,18 +451,17 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       r.eachCell((c, colNumber) => {
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
         c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
-        if (colNumber === 6) c.numFmt = accountingFmt0; // Amount
+        if (colNumber === 6) c.numFmt = accountingFmt0;
       });
     });
 
-    const advTotRow = adviceSheet.addRow(['', '', 'Total', '', totalLetterAmount]);
-    advTotRow.getCell(5).numFmt = accountingFmt0;
-    advTotRow.eachCell(c => {
+    const advTot = adviceSheet.addRow(['', '', 'Total', '', totalLetterAmount]);
+    advTot.getCell(5).numFmt = accountingFmt0;
+    advTot.eachCell((c) => {
       c.font = { bold: true };
       c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     });
 
-    // Zip
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
     zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
