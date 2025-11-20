@@ -127,18 +127,16 @@ function getFormattedMonthYear(dateStr) {
 
 // --- MAIN GENERATION LOGIC ---
 
-// Helper to normalize Employee IDs for matching (only strict trimming/case change)
-const normalizeId = (id) => {
+// Helper to sanitize ID for map lookup (trimming and uppercasing)
+const sanitizeMapKey = (id) => {
     if (!id) return '';
-    // FIXED: Only trim and uppercase, preserve complex characters/spaces used in IDs like "TMPL 01515"
     return String(id).toUpperCase().trim();
 };
 
-// Helper to fully sanitize ID for map lookup (removes all non-alphanumeric/hyphen/space)
-// Used when creating the map keys from uploaded files which might have messy data.
-const sanitizeMapKey = (id) => {
-    if (!id) return '';
-    return String(id).toUpperCase().replace(/\s+/g, ' ').trim(); // Replace multiple spaces with single space
+// Helper to sanitize property names (CSV headers)
+const sanitizePropertyKey = (key) => {
+    if (!key) return '';
+    return String(key).toLowerCase().trim();
 };
 
 
@@ -153,30 +151,23 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const attMap = {};
     attendanceData.forEach(row => {
         const cleanRow = {};
-        for(let k in row) cleanRow[k.toLowerCase().trim()] = row[k];
-        attMap[sanitizeMapKey(cleanRow['employeeid'])] = cleanRow; // Key: Sanitized ID
+        for(const k in row) cleanRow[sanitizePropertyKey(k)] = row[k]; // CLEAN HEADER NAMES
+        attMap[sanitizeMapKey(cleanRow['employeeid'])] = cleanRow;
     });
 
     const holderMap = {};
     holderData.forEach(row => {
         const cleanRow = {};
-        for(let k in row) cleanRow[k.toLowerCase().trim()] = row[k];
-        const key = `${String(cleanRow['reportproject']).trim().toLowerCase()}|${String(cleanRow['subcenter']).trim().toLowerCase()}`;
-        holderMap[key] = { name: cleanRow['accountableemployeename'], id: sanitizeMapKey(cleanRow['accountableemployeeid']) }; // Value: Sanitized ID
+        for(const k in row) cleanRow[sanitizePropertyKey(k)] = row[k]; // CLEAN HEADER NAMES
+        const key = `${sanitizePropertyKey(cleanRow['reportproject'])}|${sanitizePropertyKey(cleanRow['subcenter'])}`;
+        holderMap[key] = { name: cleanRow['accountableemployeename'], id: sanitizeMapKey(cleanRow['accountableemployeeid']) };
     });
 
     const allEmpMap = {};
-    employees.forEach(e => { allEmpMap[sanitizeMapKey(e.employeeId)] = e; }); // Key: Sanitized ID
-
-    // --- LOGGING: Map Stats ---
-    console.log(`[DEBUG] Attendance Map Keys Loaded: ${Object.keys(attMap).length}`);
-    console.log(`[DEBUG] Employee DB Map Keys Loaded: ${Object.keys(allEmpMap).length}`);
-    // --------------------------
-
+    employees.forEach(e => { allEmpMap[sanitizeMapKey(e.employeeId)] = e; });
 
     // 2. Grouping
     const projectGroups = {};
-    let matchedEmployeeCount = 0;
 
     employees.forEach((emp, index) => {
         try {
@@ -185,14 +176,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             const empId = sanitizeMapKey(emp.employeeId); // Use Sanitized ID for lookup
 
             const attRow = attMap[empId]; // Lookup with Sanitized ID
-
-            // --- LOGGING: Match Attempt ---
-            if (!attRow) {
-                // console.warn(`[DEBUG] Match Failed: Emp ID '${emp.employeeId}' (Normalized: '${empId}') not found in Attendance Map.`);
-                return; // Skip if no attendance data
-            }
-            matchedEmployeeCount++;
-            // -----------------------------
+            if (!attRow) return; // SKIPPED: Employee not in Attendance file
 
             const project = emp.reportProject || 'Unknown';
             const subCenter = emp.subCenter || 'General';
@@ -202,12 +186,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
             const getVal = (val) => parseFloat(val) || 0;
 
+            // --- ATTENDANCE LOOKUP (using sanitized keys) ---
             const totalDays = getVal(attRow['total working days']);
             const holidays = getVal(attRow['holidays']);
             const leave = getVal(attRow['availing leave']);
             const lwpDays = getVal(attRow['lwp']);
             const actualPresent = getVal(attRow['actual present']);
             const netPresent = getVal(attRow['net present']);
+            // ------------------------------------------------
 
             const grossSalary = getVal(emp.salary);
             const earnings = {
@@ -245,13 +231,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             let remarksText = "";
             let paymentType = "Bank";
 
-            const holderKey = `${String(project).toLowerCase().trim()}|${String(subCenter).toLowerCase().trim()}`;
+            const holderKey = `${sanitizePropertyKey(project)}|${sanitizePropertyKey(subCenter)}`;
             const holderInfo = holderMap[holderKey];
 
             if (!finalAccountNo || finalAccountNo.trim() === '') {
                 paymentType = "Cash (Holder)";
                 if (holderInfo && holderInfo.id) {
-                    const holderEmp = allEmpMap[holderInfo.id]; // Lookup with Sanitized ID
+                    const holderEmp = allEmpMap[holderInfo.id];
                     if (holderEmp && holderEmp.bankAccount) {
                         finalAccountNo = holderEmp.bankAccount;
                         remarksText = `Pay to: ${holderInfo.name} (${holderInfo.id})`;
@@ -278,20 +264,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             throw new Error(`CRASH: Processing Emp ID ${emp ? emp.employeeId : 'UNKNOWN'} at index ${index}. Details: ${e.message}`);
         }
     });
-    // --- END CRITICAL LOOP ---
-
-    // --- LOGGING: Final Match Count ---
-    console.log(`[SUCCESS] Matched and processed ${matchedEmployeeCount} employees.`);
-    if (matchedEmployeeCount === 0) {
-        throw new Error("No employees processed. Check attendance file mapping or filters.");
-    }
-    // -----------------------------------
 
     // 3. Generate Excel per Project
 
-    const projectEntries = Object.entries(projectGroups);
+    const projectEntries = Object.entries(projectGroups || {});
 
-    // ... (rest of Excel generation logic is unchanged) ...
+    if (projectEntries.length === 0) {
+        throw new Error("No employees processed. Check attendance file mapping or filters.");
+    }
 
     for (const [project, subCenters] of projectEntries) {
         if (typeof ExcelJS === 'undefined') {
@@ -300,19 +280,19 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         const workbook = new ExcelJS.Workbook();
 
         // ==================================================
-        // 1. SALARY SHEET
+        // 1. SALARY SHEET (UNCHANGED)
         // ==================================================
         const sheet = workbook.addWorksheet('Salary Sheet');
 
-        // Freeze and setup widths (Omitted for brevity)
+        // Freeze and setup widths
         sheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 4 }];
         sheet.columns.forEach((col, colNumber) => {
             if (colNumber >= 10 && colNumber <= 38) col.width = 11.18;
             if (colNumber === 41) col.width = 11.55;
         });
 
-        // --- HEADERS --- (Omitted for brevity)
-        // ...
+        // --- HEADERS --- (UNCHANGED LOGIC)
+        // ... (Header Rows 1-4 and styling) ...
 
         // --- BODY ---
         let sl = 1;
@@ -322,8 +302,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         for (const scName of sortedSubCenters) {
             const scEmployees = subCenters[scName];
 
-            // Subcenter Header Row (Omitted for brevity)
-            // ...
+            // Subcenter Header Row
+            const scRow = sheet.addRow([`Subcenter: ${scName}`]);
+            for(let i=1; i<=43; i++) {
+                const c = scRow.getCell(i);
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
+                c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                if (i===1) c.font = { bold: true };
+            }
 
             let scTotalNet = 0;
 
@@ -355,12 +341,22 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 });
             });
 
-            // Subcenter Total (Omitted for brevity)
-            // ...
+            // Subcenter Total
+            const totRow = sheet.addRow([]);
+            totRow.getCell(3).value = `Total for ${scName}`;
+            const netPayCell = totRow.getCell(40);
+            netPayCell.value = scTotalNet;
+            netPayCell.numFmt = accountingFmt;
+
+            totRow.eachCell(c => {
+                 c.font = { bold: true };
+                 c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+                 c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            });
         }
 
         // ==================================================
-        // 2. ADVICE SHEET (Omitted for brevity)
+        // 2. ADVICE SHEET (UNCHANGED LOGIC)
         // ...
 
         const buffer = await workbook.xlsx.writeBuffer();
