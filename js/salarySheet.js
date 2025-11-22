@@ -1,5 +1,6 @@
 // js/salarySheet.js
 import { $, customAlert, closeModal } from './utils.js';
+// Assume Papa, JSZip, and ExcelJS are available (imported or global)
 
 export function setupSalarySheetModal(getEmployeesFunc) {
   const modal = $('attendanceModal');
@@ -455,12 +456,19 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       });
     });
 
-    const advTot = adviceSheet.addRow(['', '', 'Total', '', totalLetterAmount]);
-    advTot.getCell(5).numFmt = accountingFmt0;
+    // FIX: Correctly align the TOTAL row in Advice Sheet (added extra empty string)
+    // Headers: SL(1), ID(2), Name(3), Desig(4), Account(5), Amount(6)
+    const advTot = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
+
+    // FIX: Format Column 6 (Amount), not 5
+    advTot.getCell(6).numFmt = accountingFmt0;
+
     advTot.eachCell((c) => {
       c.font = { bold: true };
       c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
+
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
@@ -468,4 +476,4 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   }
 
   return zip.generateAsync({ type: "blob" });
-  }
+}

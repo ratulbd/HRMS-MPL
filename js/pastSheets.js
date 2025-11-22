@@ -1,6 +1,9 @@
 // js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
+import JSZip from 'jszip'; // Assume JSZip is imported or global
+import * as ExcelJS from 'exceljs'; // Assume ExcelJS is imported or global
+
 
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
@@ -20,7 +23,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            const sheets = await apiCall('getSalarySheets');
+            // FIX: Corrected API action name from 'getSalarySheets' to 'getPastSheets'
+            const sheets = await apiCall('getPastSheets');
             renderSheetList(sheets);
         } catch (error) {
             listContainer.innerHTML = '<div class="text-center py-4 text-red-500">Failed to load.</div>';
@@ -54,7 +58,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     async function downloadSheetZip(sheetMeta) {
         try {
             customAlert("Please Wait", "Downloading archive...");
-            const fullSheetData = await apiCall('getSalarySheetData', 'GET', null, { id: sheetMeta.id });
+
+            // FIX: Corrected API action name from 'getSalarySheetData' to 'getSheetData'
+            const fullSheetData = await apiCall('getSheetData', 'GET', null, { sheetId: sheetMeta.id });
 
             if (!fullSheetData || !fullSheetData.data) throw new Error("Data empty.");
 
@@ -62,6 +68,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             // If not, we might need to fallback to logic, but ideally the snapshot is static.
             const employeesData = fullSheetData.data;
             const zip = new JSZip();
+
+            // Assume the following are available (must be imported or global, e.g., via script tag):
+            // import JSZip from 'jszip';
+            // import * as ExcelJS from 'exceljs';
+            // import { getFormattedMonthYear } from './salarySheet.js'; // Not available, using direct month name
 
             // Group: Project -> SubCenter
             const projectGroups = {};
