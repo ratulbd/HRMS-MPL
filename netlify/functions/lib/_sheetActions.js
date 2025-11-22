@@ -1,7 +1,7 @@
 // netlify/functions/lib/_sheetActions.js
 
 // Using a conservative limit slightly below Google Sheets' 50,000 character limit
-// NOTE: This assumes your compression/encoding ratio doesn't drastically change the chunk size.
+// The MAX_CELL_SIZE refers to the length of the Base64 encoded string.
 const MAX_CELL_SIZE = 48000;
 
 // (Original saveSalarySheet, getPastSheets, getSheetData functions - unchanged)
@@ -92,11 +92,10 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
         throw new Error("Invalid input: monthYear, timestamp, and jsonData required.");
     }
 
-    // Step 1: Serialize and Compress/Encode the entire JSON data (using raw JSON for demonstration)
-    // *** You must replace JSON.stringify with your actual compression/encoding logic ***
+    // --- STEP 1: Compress and Encode ---
     const fullJsonString = JSON.stringify(jsonData);
-    const encodedString = fullJsonString; // Placeholder for compressed/encoded string
-    // *********************************************************************************
+    const encodedString = helpers.compressAndEncode(fullJsonString); // Use pako compression + Base64
+    // ------------------------------------
 
     const totalLength = encodedString.length;
     const totalRows = Math.ceil(totalLength / MAX_CELL_SIZE);
@@ -135,7 +134,7 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
             });
         }
 
-        console.log(`Successfully archived salary data for ${monthYear} across ${totalRows} rows.`);
+        console.log(`Successfully archived salary data for ${monthYear} across ${totalRows} rows. Original size: ${totalLength}.`);
         return { statusCode: 200, body: JSON.stringify({ message: `Salary data archived successfully (${totalRows} rows).` }) };
 
     } catch (error) {
@@ -172,8 +171,8 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             const rowIndex = parseInt(row[3], 10);
             const totalRows = parseInt(row[4], 10);
 
-            // Use a unique key combining monthYear and totalRows for robust grouping
-            const groupKey = `${monthYear}_${totalRows}`;
+            // Use a unique key combining monthYear and timestamp (or TotalRows) for robust grouping
+            const groupKey = `${monthYear}_${timestamp}`;
 
             if (monthYear && chunk && !isNaN(rowIndex) && !isNaN(totalRows)) {
                 if (!groupedArchives[groupKey]) {
@@ -199,10 +198,10 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
                 const fullEncodedString = archive.chunks.join(''); // Re-merge the chunks
 
                 try {
-                    // *** You must replace this with your actual decoding/decompression logic ***
-                    const fullJsonString = fullEncodedString; // Placeholder for decoded string
+                    // --- STEP 2: Decode and Decompress ---
+                    const fullJsonString = helpers.decodeAndDecompress(fullEncodedString); // Use pako decompression + Base64 decoding
                     const jsonData = JSON.parse(fullJsonString);
-                    // *****************************************************************************
+                    // --------------------------------------
 
                     mergedArchives.push({
                         monthYear: archive.monthYear,
@@ -211,8 +210,7 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
                     });
 
                 } catch (e) {
-                    console.warn(`Failed to process merged JSON for ${archive.monthYear}. Data may be corrupted.`, e);
-                    // Continue to next archive
+                    console.warn(`Failed to process merged JSON for ${archive.monthYear}. Data may be corrupted or unparsable after decompression.`, e);
                 }
             } else {
                  console.warn(`Skipping incomplete archive for ${archive.monthYear}. Missing ${archive.chunks.filter(c => c === null).length} chunks out of ${archive.totalRows}.`);

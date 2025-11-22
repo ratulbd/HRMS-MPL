@@ -1,12 +1,44 @@
 // netlify/functions/lib/_helpers.js
 
+const pako = require('pako'); // Ensure pako is imported in your Netlify environment
+
 // --- Cache ---
 let headerCache = {};
 let headerCacheTimestamp = {};
 const CACHE_DURATION = 60000;
 
+// === NEW HELPERS: Compression & Encoding ===
+
+/**
+ * Compresses a string using Pako (Gzip) and encodes the result in Base64.
+ * @param {string} dataString - The JSON string to compress.
+ * @returns {string} The compressed and Base64 encoded string.
+ */
+function compressAndEncode(dataString) {
+    const dataUint8 = new TextEncoder().encode(dataString);
+    const compressed = pako.deflate(dataUint8);
+    // Convert Uint8Array to a Base64 string
+    return Buffer.from(compressed).toString('base64');
+}
+
+/**
+ * Decodes a Base64 string and decompresses it using Pako (Gunzip).
+ * @param {string} encodedString - The Base64 encoded string.
+ * @returns {string} The original decompressed string.
+ */
+function decodeAndDecompress(encodedString) {
+    const compressed = Buffer.from(encodedString, 'base64');
+    const decompressed = pako.inflate(compressed);
+    // Convert Uint8Array back to a UTF-8 string
+    return new TextDecoder().decode(decompressed);
+}
+
+// === END NEW HELPERS ===
+
+
 // --- Helper: Get Sheet Headers ---
 async function getSheetHeaders(sheets, SPREADSHEET_ID, sheetName) {
+// ... (rest of function is unchanged)
     const now = Date.now();
     if (headerCache[sheetName] && (now - (headerCacheTimestamp[sheetName] || 0) < CACHE_DURATION)) {
         console.log(`Using cached headers for ${sheetName}.`);
@@ -40,6 +72,7 @@ function getColumnLetter(colIndex) { // 0-based index
 
 // --- Helper: Find Row by Employee ID ---
 async function findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, getSheetHeadersFunc, employeeId) {
+// ... (rest of function is unchanged)
     const headers = await getSheetHeadersFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
     if (!headers || headers.length === 0) throw new Error(`Headers missing or empty in '${EMPLOYEE_SHEET_NAME}'.`);
 
@@ -68,6 +101,7 @@ async function findEmployeeRow(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEAD
 
 // --- Helper: Find Row by Username ---
 async function findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username) {
+// ... (rest of function is unchanged)
     console.log(`Searching for username: ${username} in sheet: ${USERS_SHEET_NAME}`);
     try {
         const range = `${USERS_SHEET_NAME}!A2:A`; // Assume Username is always Column A, start scan from row 2
@@ -96,6 +130,7 @@ async function findUserRow(sheets, SPREADSHEET_ID, USERS_SHEET_NAME, username) {
 
 // --- Helper: Ensure Sheet Exists and Has Headers ---
 async function ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, expectedHeaders, getSheetHeadersFunc) {
+// ... (rest of function is unchanged)
      try {
         console.log(`Ensuring sheet '${sheetName}' exists.`);
         const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID, fields: 'sheets(properties(title))' });
@@ -126,6 +161,7 @@ async function ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, expected
 
 // --- Helper: Format Date for Sheet ---
 function formatDateForSheet(date) {
+// ... (rest of function is unchanged)
     const options = {
         timeZone: 'Asia/Dhaka', // Use appropriate timezone
         day: '2-digit', month: 'short', year: '2-digit',
@@ -139,6 +175,7 @@ function formatDateForSheet(date) {
 
 // --- Helper: Log Event to a Sheet ---
 async function logEvent(sheets, SPREADSHEET_ID, logSheetName, logHeaders, eventDataArray, preformattedTimestamp = null, ensureSheetFunc) {
+// ... (rest of function is unchanged)
     const timestamp = preformattedTimestamp || formatDateForSheet(new Date());
     const rowToLog = [timestamp, ...eventDataArray];
     console.log(`Logging event to ${logSheetName}:`, rowToLog);
@@ -154,6 +191,7 @@ async function logEvent(sheets, SPREADSHEET_ID, logSheetName, logHeaders, eventD
 
 // --- Helper: Get Employee Salary ---
 async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, findEmployeeRowFunc, getSheetHeadersFunc, employeeId) {
+// ... (rest of function is unchanged)
     // Pass getSheetHeadersFunc to findEmployeeRowFunc
     const rowIndex = await findEmployeeRowFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, getSheetHeadersFunc, employeeId);
     if (rowIndex === -1) return null;
@@ -180,10 +218,13 @@ async function getEmployeeSalary(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HE
 module.exports = {
     getSheetHeaders,
     findEmployeeRow,
-    findUserRow, // Export the new user finder
+    findUserRow,
     ensureSheetAndHeaders,
     logEvent,
     getEmployeeSalary,
     getColumnLetter,
-    formatDateForSheet
+    formatDateForSheet,
+    // === NEW EXPORTS ===
+    compressAndEncode,
+    decodeAndDecompress
 };
