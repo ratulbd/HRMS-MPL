@@ -1,10 +1,7 @@
 // js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
-// Removed: import JSZip from 'jszip';
-// Removed: import * as ExcelJS from 'exceljs';
-// The global variables JSZip and ExcelJS are available from the index.html script tags.
-
+// Relying on global JSZip and ExcelJS loaded via index.html script tags
 
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
@@ -24,11 +21,13 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // FIX: Corrected API action name to 'getPastSheets'
-            const sheets = await apiCall('getPastSheets');
+            // FIX: Changed to 'getSalaryArchive' to fetch JSON-based row archives
+            // This matches the logic in _sheetActions.js: getSalaryArchive
+            const sheets = await apiCall('getSalaryArchive');
             renderSheetList(sheets);
         } catch (error) {
-            listContainer.innerHTML = '<div class="text-center py-4 text-red-500">Failed to load.</div>';
+            console.error(error);
+            listContainer.innerHTML = '<div class="text-center py-4 text-red-500">Failed to load past sheets.</div>';
         }
     }
 
@@ -39,35 +38,43 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             return;
         }
 
+        // 'sheets' is now an array of objects: { monthYear, timestamp, jsonData }
         sheets.forEach(sheet => {
             const item = document.createElement('div');
             item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded border';
             item.innerHTML = `
-                <div><p class="font-semibold text-gray-800">${sheet.month}</p><p class="text-xs text-gray-500">Generated: ${formatDateForDisplay(sheet.generatedAt)}</p></div>
+                <div>
+                    <p class="font-semibold text-gray-800">${sheet.monthYear}</p>
+                    <p class="text-xs text-gray-500">Generated: ${formatDateForDisplay(sheet.timestamp)}</p>
+                </div>
             `;
             const btnDiv = document.createElement('div');
             const dBtn = document.createElement('button');
             dBtn.className = 'btn btn-sm btn-primary ml-2';
             dBtn.innerHTML = '<i class="fas fa-download mr-1"></i> ZIP';
+
+            // Pass the full sheet object (which includes jsonData) to the downloader
             dBtn.addEventListener('click', () => downloadSheetZip(sheet));
+
             btnDiv.appendChild(dBtn);
             item.appendChild(btnDiv);
             listContainer.appendChild(item);
         });
     }
 
-    async function downloadSheetZip(sheetMeta) {
+    async function downloadSheetZip(sheetObj) {
         try {
             customAlert("Please Wait", "Downloading archive...");
 
-            // FIX: Corrected API action name to 'getSheetData'
-            const fullSheetData = await apiCall('getSheetData', 'GET', null, { sheetId: sheetMeta.id });
+            // The jsonData is already present in the sheetObj returned by getSalaryArchive
+            // No need to make another API call to 'getSheetData' (which was for sheet tabs).
 
-            if (!fullSheetData || !fullSheetData.data) throw new Error("Data empty.");
+            const employeesData = sheetObj.jsonData;
 
-            // For Past sheets, the 'finalAccountNo' should have been saved in the DB row.
-            // If not, we might need to fallback to logic, but ideally the snapshot is static.
-            const employeesData = fullSheetData.data;
+            if (!employeesData || !Array.isArray(employeesData) || employeesData.length === 0) {
+                throw new Error("Archive data is empty or invalid.");
+            }
+
             const zip = new JSZip(); // Uses global JSZip
 
             // Group: Project -> SubCenter
@@ -107,7 +114,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sheet.getCell('A1').alignment = { horizontal: 'center' };
 
                 sheet.mergeCells('A2:AM2');
-                sheet.getCell('A2').value = `Salary Sheet for ${sheetMeta.month}`;
+                sheet.getCell('A2').value = `Salary Sheet for ${sheetObj.monthYear}`;
                 sheet.getCell('A2').font = { bold: true, size: 12 };
                 sheet.getCell('A2').alignment = { horizontal: 'center' };
 
@@ -142,21 +149,36 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                     // Rows
                     subCenters[scName].forEach(d => {
-                        // Map legacy keys to new strict order
+                        // Map data
+                        // Note: Data coming from JSON archive might have different property names if we didn't normalize them.
+                        // But based on salarySheet.js, we saved the 'employees' object which has these keys.
+
+                        // Safeguard for potentially missing 'att' or 'earn' objects if structure changed
+                        const att = d.att || {};
+                        const earn = d.earn || {};
+                        const ded = d.ded || {};
+
                         const row = sheet.addRow({
                             sl: sl++,
                             id: getStr(d.id || d.employeeId), name: getStr(d.name), desig: getStr(d.designation),
                             proj: getStr(d.project), off: getStr(d.projectOffice), rep: getStr(d.reportProject), sub: getStr(d.subCenter),
-                            acc: getStr(d.finalAccountNo || d.accountNo || d.bankAccount), // Prioritize finalAccountNo
+                            acc: getStr(d.finalAccountNo || d.accountNo || d.bankAccount),
                             bank: '', route: '',
-                            td: getVal(d.totalDays), hol: getVal(d.holidays), lv: getVal(d.availingLeave), lwp_d: getVal(d.lwpDays), act: getVal(d.actualPresent), net_p: getVal(d.netPresent),
-                            gr_sal: getVal(d.gross), maint: getVal(d.maint), lap: getVal(d.laptop), oth: getVal(d.others || d.otherAllow), arr: getVal(d.arrear), food: getVal(d.food), stn: getVal(d.station), hard: getVal(d.hardship),
-                            gr_pay: getVal(d.grossPayable),
-                            lunch: getVal(d.ded_lunch || d.lunch), tds: getVal(d.ded_tds || d.tds), bike: getVal(d.ded_bike || d.bike), wel: getVal(d.ded_welfare || d.welfare),
-                            loan: getVal(d.ded_loan || d.loan), veh: getVal(d.ded_vehicle || d.vehicle), lwp_a: getVal(d.ded_lwp || d.lwpAmt), cpf: getVal(d.ded_cpf || d.cpf), adj: getVal(d.ded_adj || d.adj),
-                            att_ded: getVal(d.ded_attendance || d.attDed), tot_ded: getVal(d.totalDeduction || d.totalDed),
-                            net_pay: getVal(d.netPayment || d.netPay),
-                            rem: getStr(d.remarksText || d.remarks) // Ensure new Remark logic is saved/loaded
+                            td: getVal(att.totalDays ?? d.totalDays), hol: getVal(att.holidays ?? d.holidays), lv: getVal(att.leave ?? d.availingLeave),
+                            lwp_d: getVal(att.lwpDays ?? d.lwpDays), act: getVal(att.actualPresent ?? d.actualPresent), net_p: getVal(att.netPresent ?? d.netPresent),
+
+                            gr_sal: getVal(earn.grossSalary ?? d.gross), maint: getVal(earn.maint ?? d.maint), lap: getVal(earn.laptop ?? d.laptop),
+                            oth: getVal(earn.others ?? d.others), arr: getVal(earn.arrear ?? d.arrear), food: getVal(earn.food ?? d.food),
+                            stn: getVal(earn.station ?? d.station), hard: getVal(earn.hardship ?? d.hardship),
+                            gr_pay: getVal(earn.grossPayable ?? d.grossPayable),
+
+                            lunch: getVal(ded.lunch ?? d.lunch), tds: getVal(ded.tds ?? d.tds), bike: getVal(ded.bike ?? d.bike),
+                            wel: getVal(ded.welfare ?? d.welfare), loan: getVal(ded.loan ?? d.loan), veh: getVal(ded.vehicle ?? d.vehicle),
+                            lwp_a: getVal(ded.lwp ?? d.lwpAmt), cpf: getVal(ded.cpf ?? d.cpf), adj: getVal(ded.adj ?? d.adj),
+                            att_ded: getVal(ded.attDed ?? d.attDed), tot_ded: getVal(ded.totalDeduction ?? d.totalDeduction),
+
+                            net_pay: getVal(d.netPayment),
+                            rem: getStr(d.remarksText || d.remarks)
                         });
                         row.eachCell({includeEmpty:true}, c => { c.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}} });
                     });
@@ -183,11 +205,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const blob = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Archive_${sheetMeta.month}.zip`;
+            a.download = `Archive_${sheetObj.monthYear}.zip`;
             a.click();
         } catch (error) {
             console.error(error);
-            customAlert("Error", "Download failed.");
+            customAlert("Error", "Download failed. " + error.message);
         }
     }
 }
