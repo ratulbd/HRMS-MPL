@@ -1,6 +1,10 @@
 // netlify/functions/lib/_sheetActions.js
 
-// (Original saveSalarySheet, getPastSheets, getSheetData functions)
+// Using a conservative limit slightly below Google Sheets' 50,000 character limit
+// NOTE: This assumes your compression/encoding ratio doesn't drastically change the chunk size.
+const MAX_CELL_SIZE = 48000;
+
+// (Original saveSalarySheet, getPastSheets, getSheetData functions - unchanged)
 async function saveSalarySheet(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, helpers, { sheetId, sheetData }) {
      console.log(`Executing saveSalarySheet for sheetId: ${sheetId}`);
      if (!sheetId || !sheetData || !Array.isArray(sheetData)) {
@@ -13,10 +17,12 @@ async function saveSalarySheet(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, help
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, sheetName, headers, helpers.getSheetHeaders);
         const rows = sheetData.map(row => [
             row.employeeId ?? '', row.name ?? '', row.salary ?? '', row.daysPresent ?? '',
-            row.deduction ?? '', row.netSalary ?? '', row.status ?? ''
+            row.deduction ?? '', row.netSalary ?? '', row.status ?? '',
+            // NOTE: Assuming your employee objects now have calculated fields like 'netPayment'
+            // which are NOT being mapped here, but are present in jsonData sent to archive.
         ]);
         console.log(`Prepared ${rows.length} rows for ${sheetName}.`);
-        const clearRange = `${sheetName}!A2:G`; 
+        const clearRange = `${sheetName}!A2:G`;
         console.log(`Clearing range: ${clearRange}`);
         await sheets.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: clearRange });
         if (rows.length > 0) {
@@ -56,7 +62,7 @@ async function getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId
     console.log(`Fetching data from sheet: ${sheetName}`);
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: sheetName });
     const rows = response.data.values;
-    if (!rows || rows.length < 2) return { statusCode: 200, body: JSON.stringify({ sheetId, sheetData: [] }) }; 
+    if (!rows || rows.length < 2) return { statusCode: 200, body: JSON.stringify({ sheetId, sheetData: [] }) };
     const [headerRow, ...dataRows] = rows;
     const headers = headerRow.map(h => (h || '').toLowerCase().replace(/\s+/g, ''));
     const expected = ['employeeid', 'name', 'grosssalary', 'dayspresent', 'deduction', 'netsalary', 'status'];
@@ -75,40 +81,63 @@ async function getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId
 }
 // ...
 
-// --- MODIFICATION: Add new functions for Salary Archive ---
+// --- MODIFICATION: Updated functions for Salary Archive to handle splitting ---
 
 /**
- * Saves a new salary archive (JSON data) to the archive sheet.
+ * Saves a new salary archive (JSON data) to the archive sheet, splitting across rows if needed.
  */
-// --- MODIFICATION: Accept 'timestamp' from requestBody ---
 async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, { monthYear, timestamp, jsonData }) {
     console.log(`Executing saveSalaryArchive for: ${monthYear}`);
-    if (!monthYear || !jsonData || !timestamp) { // Added timestamp validation
+    if (!monthYear || !jsonData || !timestamp) {
         throw new Error("Invalid input: monthYear, timestamp, and jsonData required.");
     }
-    
-    // --- MODIFICATION: Add "Timestamp" header ---
-    const headers = ["MonthYear", "Timestamp", "JsonData"];
-    const jsonString = JSON.stringify(jsonData);
-    
+
+    // Step 1: Serialize and Compress/Encode the entire JSON data (using raw JSON for demonstration)
+    // *** You must replace JSON.stringify with your actual compression/encoding logic ***
+    const fullJsonString = JSON.stringify(jsonData);
+    const encodedString = fullJsonString; // Placeholder for compressed/encoded string
+    // *********************************************************************************
+
+    const totalLength = encodedString.length;
+    const totalRows = Math.ceil(totalLength / MAX_CELL_SIZE);
+
+    // Headers now include fields for merging
+    const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows"];
+
     try {
-        // Ensure the archive sheet exists
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
 
-        // Append the new row
-        // --- MODIFICATION: Add timestamp to the row ---
-        const rowToLog = [monthYear, timestamp, jsonString];
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SALARY_ARCHIVE_SHEET_NAME}!A1`,
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            resource: { values: [rowToLog] }
-        });
-        
-        console.log(`Successfully archived salary data for ${monthYear}.`);
-        return { statusCode: 200, body: JSON.stringify({ message: 'Salary data archived successfully.' }) };
-        
+        const rowsToLog = [];
+
+        for (let i = 0; i < totalRows; i++) {
+            const start = i * MAX_CELL_SIZE;
+            const end = (i + 1) * MAX_CELL_SIZE;
+            const chunk = encodedString.substring(start, end);
+
+            // Log format: [MonthYear, Timestamp, DataChunk, RowIndex (0-based), TotalRows]
+            const row = [
+                monthYear,
+                timestamp,
+                chunk,
+                i,
+                totalRows
+            ];
+            rowsToLog.push(row);
+        }
+
+        if (rowsToLog.length > 0) {
+            await sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_ID,
+                range: `${SALARY_ARCHIVE_SHEET_NAME}!A1`,
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS',
+                resource: { values: rowsToLog }
+            });
+        }
+
+        console.log(`Successfully archived salary data for ${monthYear} across ${totalRows} rows.`);
+        return { statusCode: 200, body: JSON.stringify({ message: `Salary data archived successfully (${totalRows} rows).` }) };
+
     } catch (error) {
         console.error(`Error in saveSalaryArchive:`, error.response?.data || error.message);
         throw new Error(`Failed to save salary archive: ${error.errors?.[0]?.message || error.message}`);
@@ -116,41 +145,82 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
 }
 
 /**
- * Retrieves all salary archives from the sheet.
+ * Retrieves all salary archives from the sheet, merging split rows.
  */
 async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers) {
     console.log("Executing getSalaryArchive");
     try {
-        // --- MODIFICATION: Ensure "Timestamp" header exists ---
-        const headers = ["MonthYear", "Timestamp", "JsonData"];
+        const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows"];
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
-        
-        // --- MODIFICATION: Read up to column C ---
-        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:C`; // Get all data starting from row 2
+
+        // Fetch all columns (A:E) to get splitting metadata
+        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:E`;
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const rows = response.data.values;
-        
+
         if (!rows || rows.length === 0) {
             console.log(`No salary archives found in ${SALARY_ARCHIVE_SHEET_NAME}.`);
-            return { statusCode: 200, body: JSON.stringify([]) }; // Return empty array
+            return { statusCode: 200, body: JSON.stringify([]) };
         }
 
-        const archives = rows.map(row => {
-            try {
-                // --- MODIFICATION: Read timestamp from row[1] ---
-                return {
-                    monthYear: row[0],
-                    timestamp: row[1] || null, // Get timestamp (or null if empty)
-                    jsonData: JSON.parse(row[2]) // Parse the JSON data from row[2]
-                };
-            } catch (e) {
-                console.warn(`Failed to parse JSON for archive: ${row[0]}`, e);
-                return null; // Skip corrupted rows
+        // Group rows by monthYear and TotalRows to merge chunks
+        const groupedArchives = {};
+        rows.forEach(row => {
+            const monthYear = row[0];
+            const timestamp = row[1] || null;
+            const chunk = row[2];
+            const rowIndex = parseInt(row[3], 10);
+            const totalRows = parseInt(row[4], 10);
+
+            // Use a unique key combining monthYear and totalRows for robust grouping
+            const groupKey = `${monthYear}_${totalRows}`;
+
+            if (monthYear && chunk && !isNaN(rowIndex) && !isNaN(totalRows)) {
+                if (!groupedArchives[groupKey]) {
+                    groupedArchives[groupKey] = {
+                        monthYear,
+                        timestamp,
+                        totalRows,
+                        chunks: new Array(totalRows).fill(null)
+                    };
+                }
+                // Store chunk at its calculated index
+                groupedArchives[groupKey].chunks[rowIndex] = chunk;
             }
-        }).filter(Boolean); // Filter out any nulls
-        
-        console.log(`Fetched ${archives.length} salary archives.`);
-        return { statusCode: 200, body: JSON.stringify(archives) };
+        });
+
+        const mergedArchives = [];
+
+        for (const groupKey in groupedArchives) {
+            const archive = groupedArchives[groupKey];
+
+            // Check if all chunks were successfully read before merging
+            if (archive.chunks.every(chunk => chunk !== null)) {
+                const fullEncodedString = archive.chunks.join(''); // Re-merge the chunks
+
+                try {
+                    // *** You must replace this with your actual decoding/decompression logic ***
+                    const fullJsonString = fullEncodedString; // Placeholder for decoded string
+                    const jsonData = JSON.parse(fullJsonString);
+                    // *****************************************************************************
+
+                    mergedArchives.push({
+                        monthYear: archive.monthYear,
+                        timestamp: archive.timestamp,
+                        jsonData // Full, parsed JSON object
+                    });
+
+                } catch (e) {
+                    console.warn(`Failed to process merged JSON for ${archive.monthYear}. Data may be corrupted.`, e);
+                    // Continue to next archive
+                }
+            } else {
+                 console.warn(`Skipping incomplete archive for ${archive.monthYear}. Missing ${archive.chunks.filter(c => c === null).length} chunks out of ${archive.totalRows}.`);
+            }
+        }
+
+        console.log(`Fetched and merged ${mergedArchives.length} salary archives.`);
+        return { statusCode: 200, body: JSON.stringify(mergedArchives) };
 
     } catch (error) {
         console.error(`Error in getSalaryArchive:`, error.response?.data || error.message);
@@ -161,14 +231,11 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
         throw new Error(`Failed to fetch salary archives: ${error.errors?.[0]?.message || error.message}`);
     }
 }
-// --- END MODIFICATION ---
 
 module.exports = {
     saveSalarySheet,
     getPastSheets,
     getSheetData,
-    // --- MODIFICATION: Export new functions ---
     saveSalaryArchive,
     getSalaryArchive
-    // --- END MODIFICATION ---
 };
