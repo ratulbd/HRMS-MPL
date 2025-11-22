@@ -3,7 +3,7 @@ import { showLoading, hideLoading } from './utils.js';
 
 const API_URL = '/api/proxy'; // Adjust if your proxy endpoint is different
 
-// === MODIFICATION: apiCall now accepts params for GET requests ===
+// === MODIFICATION: apiCall is EXPORTED ===
 export async function apiCall(action, method = 'GET', body = null, params = null) {
     showLoading();
     try {
@@ -11,7 +11,7 @@ export async function apiCall(action, method = 'GET', body = null, params = null
             method: method,
             headers: { 'Content-Type': 'application/json' },
         };
-        
+
         let url = `${API_URL}?action=${action}`;
 
         if (method === 'GET' && params) {

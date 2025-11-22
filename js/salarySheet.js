@@ -1,5 +1,6 @@
 // js/salarySheet.js
 import { $, customAlert, closeModal } from './utils.js';
+import { apiCall } from './apiClient.js'; // <-- ADDED: Import apiCall
 // Relying on global Papa, JSZip, and ExcelJS loaded via index.html script tags
 
 export function setupSalarySheetModal(getEmployeesFunc) {
@@ -44,8 +45,22 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         validateHolderHeaders(holderData);
 
         customAlert("Processing", "Generating report project wise sheets...");
+
+        // This process calculates the final netPayment and other fields for each employee
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
 
+        // --- ADDITION: ARCHIVE THE DATA ---
+        // 'employees' array now contains the fully calculated data (including netPayment)
+        // after being processed by generateProjectWiseZip
+        customAlert("Processing", "Archiving data for record keeping...");
+        const archiveData = {
+          monthYear: monthVal, // e.g., '2025-12'
+          timestamp: new Date().toISOString(), // Current timestamp
+          jsonData: employees // Send the full calculated employee data array
+        };
+        await apiCall('saveSalaryArchive', 'POST', archiveData); // <-- NEW API CALL
+
+        // --- CONTINUE WITH DOWNLOAD ---
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipContent);
         link.download = `Salary_Reports_${monthVal}.zip`;
