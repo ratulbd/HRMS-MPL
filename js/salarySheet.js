@@ -1,6 +1,6 @@
 // js/salarySheet.js
 import { $, customAlert, closeModal } from './utils.js';
-// Assume Papa, JSZip, and ExcelJS are available (imported or global)
+// Relying on global Papa, JSZip, and ExcelJS loaded via index.html script tags
 
 export function setupSalarySheetModal(getEmployeesFunc) {
   const modal = $('attendanceModal');

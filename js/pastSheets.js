@@ -1,8 +1,9 @@
 // js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
-import JSZip from 'jszip'; // Assume JSZip is imported or global
-import * as ExcelJS from 'exceljs'; // Assume ExcelJS is imported or global
+// Removed: import JSZip from 'jszip';
+// Removed: import * as ExcelJS from 'exceljs';
+// The global variables JSZip and ExcelJS are available from the index.html script tags.
 
 
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
@@ -23,7 +24,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // FIX: Corrected API action name from 'getSalarySheets' to 'getPastSheets'
+            // FIX: Corrected API action name to 'getPastSheets'
             const sheets = await apiCall('getPastSheets');
             renderSheetList(sheets);
         } catch (error) {
@@ -59,7 +60,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         try {
             customAlert("Please Wait", "Downloading archive...");
 
-            // FIX: Corrected API action name from 'getSalarySheetData' to 'getSheetData'
+            // FIX: Corrected API action name to 'getSheetData'
             const fullSheetData = await apiCall('getSheetData', 'GET', null, { sheetId: sheetMeta.id });
 
             if (!fullSheetData || !fullSheetData.data) throw new Error("Data empty.");
@@ -67,12 +68,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             // For Past sheets, the 'finalAccountNo' should have been saved in the DB row.
             // If not, we might need to fallback to logic, but ideally the snapshot is static.
             const employeesData = fullSheetData.data;
-            const zip = new JSZip();
-
-            // Assume the following are available (must be imported or global, e.g., via script tag):
-            // import JSZip from 'jszip';
-            // import * as ExcelJS from 'exceljs';
-            // import { getFormattedMonthYear } from './salarySheet.js'; // Not available, using direct month name
+            const zip = new JSZip(); // Uses global JSZip
 
             // Group: Project -> SubCenter
             const projectGroups = {};
@@ -88,7 +84,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
             for (const [project, subCenters] of Object.entries(projectGroups)) {
-                const workbook = new ExcelJS.Workbook();
+                const workbook = new ExcelJS.Workbook(); // Uses global ExcelJS
                 const sheet = workbook.addWorksheet('Salary Sheet');
 
                 // Columns Key Map
