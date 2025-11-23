@@ -8,23 +8,23 @@ const authActions = require('./lib/_authActions');
 
 console.log("Loaded sheetActions, keys:", Object.keys(sheetActions));
 
-// === FIX: Add the missing formatDateForInput function to the helpers object ===
+// === Date Helper ===
 helpers.formatDateForInput = (dateString) => {
-     if (!dateString || (typeof dateString !== 'string' && typeof dateString !== 'number')) return ''; // Allow numbers (Excel dates)
+     if (!dateString || (typeof dateString !== 'string' && typeof dateString !== 'number')) return '';
      try {
          let dateObj = null;
-         let dateValueStr = String(dateString); // Work with string version
+         let dateValueStr = String(dateString);
 
          if (dateValueStr.includes('/')) {
              const parts = dateValueStr.split('/');
              if (parts.length === 3) dateObj = new Date(Date.UTC(parts[2], parts[0] - 1, parts[1]));
-         } else if (!isNaN(dateString) && Number(dateString) > 10000 && Number(dateString) < 60000) { // Check original number
+         } else if (!isNaN(dateString) && Number(dateString) > 10000 && Number(dateString) < 60000) {
              const excelEpoch = new Date(1899, 11, 30);
              dateObj = new Date(excelEpoch.getTime() + Number(dateString) * 24 * 60 * 60 * 1000);
          } else if (dateValueStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
              dateObj = new Date(dateValueStr + 'T00:00:00Z');
          } else {
-             dateObj = new Date(dateValueStr); // Fallback
+             dateObj = new Date(dateValueStr);
          }
 
          if (dateObj && !isNaN(dateObj.getTime())) {
@@ -33,14 +33,12 @@ helpers.formatDateForInput = (dateString) => {
              const day = String(dateObj.getUTCDate()).padStart(2, '0');
              return `${year}-${month}-${day}`;
          }
-         console.warn(`Could not format date for input: ${dateString}`);
          return '';
      } catch (e) {
          console.warn(`Error converting date for input: ${dateString}`, e);
          return '';
      }
 }
-// === END FIX ===
 
 // --- Authorization ---
 const auth = new google.auth.GoogleAuth({
@@ -61,61 +59,93 @@ const SALARY_ARCHIVE_SHEET_NAME = 'SalaryArchive';
 const REJOIN_LOG_SHEET_NAME = 'Rejoin_Log';
 const FILE_CLOSING_LOG_SHEET_NAME = 'FileClosing_Log';
 
+// === CRITICAL FIX: HEADER MAPPING ALIGNED TO SHEET HEADERS ===
 const HEADER_MAPPING = {
     // Basic Info
-    employeeId: 'employeeid', name: 'employeename', employeeType: 'employeetype',
-    designation: 'designation', 
+    employeeId: 'employeeid',
+    name: 'employeename',
+    employeeType: 'employeetype',
+    designation: 'designation',
     functionalRole: 'functionalrole',
     joiningDate: 'joiningdate',
-    workExperience: 'workexperienceyears', 
+
+    // FIX 1: "Work Experience (Years)" -> removes parens -> "workexperience"
+    workExperience: 'workexperience',
+
     education: 'education',
-    // Project Info
-    project: 'project', projectOffice: 'projectoffice',
-    reportProject: 'reportproject', subCenter: 'subcenter',
-    // Personal Info
-    fatherName: 'fathersname', motherName: 'mothersname',
-    personalMobile: 'personalmobilenumber', dob: 'dateofbirth',
-    bloodGroup: 'bloodgroup', address: 'address',
+
+    // Personal Info (Apostrophes removed by normalizer)
+    fatherName: 'fathersname',
+    motherName: 'mothersname',
+    personalMobile: 'personalmobilenumber',
+    officialMobile: 'officialmobilenumber',
+    mobileLimit: 'mobilelimit',
+    dob: 'dateofbirth',
+    bloodGroup: 'bloodgroup',
+    address: 'address',
     identificationType: 'identificationtype',
     identification: 'identification',
+
     // Contact & Nominee
-    nomineeName: 'nomineesname', nomineeMobile: 'nomineesmobilenumber',
-    officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit',
+    nomineeName: 'nomineesname',
+    nomineeMobile: 'nomineesmobilenumber',
+
+    // Project Info
+    project: 'project',
+    projectOffice: 'projectoffice',
+    reportProject: 'reportproject',
+    subCenter: 'subcenter',
+
     // Salary - Earnings
-    previousSalary: 'previoussalary', 
+    previousSalary: 'previoussalary',
     basic: 'basic',
     others: 'others',
-    salary: 'grosssalary', // This is Gross Salary
-    motobikeCarMaintenance: 'motobikecarmaintenanceallowance', 
+    salary: 'grosssalary', // Sheet header: "Gross Salary"
+
+    // FIX 2: "Motobike / Car..." -> slash is KEPT by normalizer -> "motobike/carmaintenanceallowance"
+    motobikeCarMaintenance: 'motobike/carmaintenanceallowance',
+
     laptopRent: 'laptoprent',
     othersAllowance: 'othersallowance',
     arrear: 'arrear',
     foodAllowance: 'foodallowance',
     stationAllowance: 'stationallowance',
     hardshipAllowance: 'hardshipallowance',
-    // Salary - Calculated Earnings Total
     grandTotal: 'grandtotal',
+
     // Salary - Deductions
     gratuity: 'gratuity',
     subsidizedLunch: 'subsidizedlunch',
     tds: 'tds',
     motorbikeLoan: 'motorbikeloan',
     welfareFund: 'welfarefund',
-    salaryOthersLoan: 'salaryothersloan', 
+
+    // FIX 3: "Salary/ Others Loan" -> slash is KEPT -> "salary/othersloan"
+    salaryOthersLoan: 'salary/othersloan',
+
     subsidizedVehicle: 'subsidizedvehicle',
     lwp: 'lwp',
     cpf: 'cpf',
+
+    // Note: "Others Adjustment" was missing from your text list, but usually maps to this.
+    // If the column is missing in the sheet, this key will just be ignored.
     othersAdjustment: 'othersadjustment',
-    // Salary - Calculated Deductions Total
+
+    // Totals
     totalDeduction: 'totaldeduction',
-    // Salary - Calculated Net Total
     netSalaryPayment: 'netsalarypayment',
-    // Bank
+
+    // Bank & Status
     bankAccount: 'bankaccountnumber',
-    // Status & History
-    status: 'status', salaryHeld: 'salaryheld', holdTimestamp: 'holdtimestamp',
-    separationDate: 'separationdate', remarks: 'remarks',
-    lastTransferDate: 'lasttransferdate', lastSubcenter: 'lastsubcenter',
+    status: 'status',
+    salaryHeld: 'salaryheld',
+    holdTimestamp: 'holdtimestamp',
+    separationDate: 'separationdate',
+    remarks: 'remarks',
+
+    // Logs
+    lastTransferDate: 'lasttransferdate',
+    lastSubcenter: 'lastsubcenter',
     lastTransferReason: 'lasttransferreason',
     fileClosingDate: 'fileclosingdate',
     fileClosingRemarks: 'fileclosingremarks'
@@ -139,35 +169,24 @@ exports.handler = async (event) => {
     let requestBody = {};
 
     console.log(`Handler received event for action: ${action}, method: ${event.httpMethod}`);
-    console.log("Raw event.body:", event.body ? event.body.substring(0, 500) + '...' : '<empty>');
-    console.log("event.isBase64Encoded:", event.isBase64Encoded);
 
     try {
         if (event.httpMethod === 'POST' && event.body) {
              let bodyString = event.body;
              if (event.isBase64Encoded) {
-                  console.log("Decoding Base64 body...");
                   bodyString = Buffer.from(bodyString, 'base64').toString('utf-8');
-                  console.log("Decoded body string:", bodyString ? bodyString.substring(0, 500) + '...' : '<empty>');
              }
              try {
                   requestBody = JSON.parse(bodyString);
-                  console.log("Successfully parsed JSON body.");
              } catch (parseError) {
                   console.error("Error parsing JSON body:", parseError);
-                  console.error("Original body string that failed parsing:", bodyString ? bodyString.substring(0, 500) + '...' : '<empty>');
                   throw new Error("Invalid JSON body format received.");
              }
-        } else if (event.httpMethod === 'POST') {
-             console.warn("POST request received but event.body is empty or missing.");
         }
     } catch (e) {
         console.error("Critical error during body processing:", e);
         return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: e.message || 'Failed to process request body.' }) };
     }
-
-    console.log("Using requestBody:", JSON.stringify(requestBody).substring(0, 200) + '...');
-
 
     try {
         let result;
@@ -179,7 +198,7 @@ exports.handler = async (event) => {
                 SALARY_SHEET_PREFIX, USERS_SHEET_NAME, TRANSFER_LOG_SHEET_NAME,
                 HOLD_LOG_SHEET_NAME, SEPARATION_LOG_SHEET_NAME,
                 SALARY_ARCHIVE_SHEET_NAME,
-                REJOIN_LOG_SHEET_NAME, 
+                REJOIN_LOG_SHEET_NAME,
                 FILE_CLOSING_LOG_SHEET_NAME
             };
 
@@ -225,8 +244,8 @@ exports.handler = async (event) => {
                      if (event.httpMethod !== 'POST') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                      else result = await employeeActions.closeFile(context.sheets, context.SPREADSHEET_ID, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING, context.helpers, requestBody);
                      break;
-                
-                // --- *** MODIFICATION: Pass context for enrichment *** ---
+
+                // --- Logs ---
                 case 'getHoldLog':
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.HOLD_LOG_SHEET_NAME, context.helpers, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING);
@@ -243,7 +262,6 @@ exports.handler = async (event) => {
                     if (event.httpMethod !== 'GET') result = { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
                     else result = await employeeActions.getLogData(context.sheets, context.SPREADSHEET_ID, context.FILE_CLOSING_LOG_SHEET_NAME, context.helpers, context.EMPLOYEE_SHEET_NAME, context.HEADER_MAPPING);
                     break;
-                // --- *** END MODIFICATION *** ---
 
                 // --- Sheet Actions ---
                 case 'saveSheet':
