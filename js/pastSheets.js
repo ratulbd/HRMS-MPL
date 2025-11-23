@@ -1,7 +1,8 @@
 // js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
-// Relying on global JSZip and ExcelJS loaded via index.html script tags
+import JSZip from 'jszip';
+import * as ExcelJS from 'exceljs';
 
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
@@ -21,7 +22,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // Fetch the archived JSON data (which contains the full employee objects)
+            // Fetch the archived JSON data
             const sheets = await apiCall('getSalaryArchive');
             renderSheetList(sheets);
         } catch (error) {
@@ -37,7 +38,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             return;
         }
 
-        // Sort by date descending (assuming monthYear is YYYY-MM)
+        // Sort by date descending
         sheets.sort((a, b) => b.monthYear.localeCompare(a.monthYear));
 
         sheets.forEach(sheet => {
@@ -62,7 +63,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         });
     }
 
-    // Helper to format month for the Excel title
     function getFormattedMonthYear(dateStr) {
         const date = new Date(dateStr + "-01");
         const month = date.toLocaleString('default', { month: 'long' });
@@ -101,7 +101,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
             const zip = new JSZip();
 
-            // 1. Group Data: Project -> SubCenter
             const projectGroups = {};
             employeesData.forEach(d => {
                 const p = d.reportProject || 'Unknown';
@@ -114,30 +113,29 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const getVal = (v) => (v !== undefined && v !== null) ? Number(v) : 0;
             const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
-            // 2. Generate Workbooks per Project
             for (const [project, subCenters] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
 
                 /* ---------------- SALARY SHEET ---------------- */
                 const sheet = workbook.addWorksheet('Salary Sheet', {
-                    views: [{ state: 'frozen', ySplit: 4 }] // Freeze top 4 rows
+                    views: [{ state: 'frozen', ySplit: 4 }]
                 });
 
-                // Row 1: Company Title
+                // Row 1
                 sheet.mergeCells('A1:AQ1');
                 const r1 = sheet.getCell('A1');
                 r1.value = "Metal Plus Limited";
                 r1.font = { bold: true, size: 16, name: 'Calibri' };
                 r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                // Row 2: Sheet Title
+                // Row 2
                 sheet.mergeCells('A2:AQ2');
                 const r2 = sheet.getCell('A2');
                 r2.value = `Salary Sheet-${project} for the Month of ${full}`;
                 r2.font = { bold: true, size: 12, name: 'Calibri' };
                 r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                // Row 3: Merged Categories (The key part for matching format)
+                // Row 3
                 [
                     { r: 'A3:J3',  t: 'Employee Information' },
                     { r: 'K3:P3',  t: 'Attendance' },
@@ -150,12 +148,12 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     const cell = sheet.getCell(m.r.split(':')[0]);
                     cell.value = m.t;
                     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }; // Blue Header
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                // Row 4: Main Headers
+                // Row 4 Headers
                 const headers = [
                     "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
                     "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present",
@@ -168,19 +166,16 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 headerRow.height = 65;
                 headerRow.eachCell((cell, colNumber) => {
                     cell.font = { bold: true, size: 9 };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; // Grey Header
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    // Rotate attendance/money columns for compact fit
                     cell.alignment = (colNumber >= 11 && colNumber <= 39)
                         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
                         : { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
 
-                // Set Column Widths
                 for (let c = 11; c <= 39; c++) sheet.getColumn(c).width = 11.18;
                 sheet.getColumn(42).width = 11.55;
 
-                // --- DATA BODY ---
                 let sl = 1;
                 const sortedSubCenters = Object.keys(subCenters).sort();
                 let projectGrandTotal = 0;
@@ -188,14 +183,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 for (const scName of sortedSubCenters) {
                     const scEmployees = subCenters[scName];
 
-                    // Subcenter Header Row
                     const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    // Merge A-AQ? salarySheet.js does not merge explicitly in the snippet provided previously,
-                    // but usually subcenter headers span across.
-                    // However, salarySheet.js snippet looped 1-43 setting style. Let's match that.
                     for (let i = 1; i <= 43; i++) {
                         const c = scRow.getCell(i);
-                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } }; // Light Blue
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                         c.alignment = { vertical: 'middle', horizontal: i === 1 ? 'left' : 'center', wrapText: true };
                         if (i === 1) c.font = { bold: true };
@@ -204,12 +195,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     let scTotalNet = 0;
 
                     scEmployees.forEach(d => {
-                        // Access nested data safely (Archive should have full object)
                         const att = d.att || {};
                         const earn = d.earn || {};
                         const ded = d.ded || {};
 
-                        // Fallbacks for flat data if archive format was different in past
                         const netPay = getVal(d.netPayment || d.netPay);
                         scTotalNet += netPay;
                         projectGrandTotal += netPay;
@@ -218,21 +207,16 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                             sl++,
                             getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
                             getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
-                            // Attendance
                             getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
                             getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent),
-                            // Structure
                             getVal(d.previousSalary), getVal(earn.grossSalary ?? d.gross), getVal(d.others), getVal(earn.grossSalary ?? d.gross),
-                            // Earnings
                             getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.others ?? d.others),
                             getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship),
                             getVal(earn.grossPayable ?? d.grossPayable),
-                            // Deductions
-                            0, // Gratuity (Static 0 in logic)
+                            0,
                             getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
                             getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
-                            // Net
                             netPay,
                             getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
                         ];
@@ -243,12 +227,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                             c.alignment = (colNumber === 3 || colNumber === 43)
                                 ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                                 : { vertical: 'middle', horizontal: 'center', wrapText: true };
-                            // Money columns formatting (K=17 to AN=40)
                             if (colNumber >= 17 && colNumber <= 40) c.numFmt = accountingFmt0;
                         });
                     });
 
-                    // Subcenter Total Row
                     const totRow = sheet.addRow(new Array(43).fill(''));
                     totRow.getCell(3).value = `Total for ${scName}`;
                     const netPayCell = totRow.getCell(40);
@@ -257,7 +239,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                     totRow.eachCell((c) => {
                         c.font = { bold: true };
-                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow Total
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                         c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     });
@@ -268,11 +250,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
                 });
 
-                // Consolidate Payouts
                 const consolidationMap = new Map();
                 const allProjectEmployees = Object.values(subCenters).flat();
 
-                // 1. Bank Users
                 allProjectEmployees.forEach(emp => {
                     const acc = emp.finalAccountNo || emp.bankAccount;
                     if (acc && acc.trim() !== '') {
@@ -287,7 +267,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // 2. Cash/Holder Users -> Map to Holder
                 allProjectEmployees.forEach(emp => {
                     const acc = emp.finalAccountNo || emp.bankAccount;
                     if (!acc || acc.trim() === '') {
@@ -297,7 +276,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // Letter Header Construction
                 const writeTextRow = (rIdx, text, bold=false, size=11, merge=true) => {
                     const cell = adviceSheet.getRow(rIdx).getCell(1);
                     cell.value = text;
@@ -331,7 +309,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 writeTextRow(24, "Engr. Aminul Islam", true);
                 writeTextRow(25, "Chairman", false);
 
-                // Table Header (Row 40)
                 const adviceHeader = adviceSheet.getRow(40);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
                 adviceHeader.height = 24;
@@ -342,7 +319,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                 });
 
-                // Column Widths
                 adviceSheet.getColumn(1).width = 6;
                 adviceSheet.getColumn(2).width = 12;
                 adviceSheet.getColumn(3).width = 28;
@@ -350,7 +326,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 adviceSheet.getColumn(5).width = 20;
                 adviceSheet.getColumn(6).width = 15;
 
-                // Advice Data Rows
                 let advSl = 1;
                 const finalAdviceList = Array.from(consolidationMap.values())
                     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
@@ -364,7 +339,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     });
                 });
 
-                // Advice Total Row
                 const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
                 advTotRow.getCell(6).numFmt = accountingFmt0;
                 advTotRow.eachCell((c) => {
@@ -383,6 +357,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             a.href = URL.createObjectURL(blob);
             a.download = `Archive_${sheetObj.monthYear}.zip`;
             a.click();
+
+            // === NEW: Explicit Success Message ===
+            customAlert("Success", "Past salary sheet downloaded successfully.");
+
         } catch (error) {
             console.error(error);
             customAlert("Error", "Download failed. " + error.message);
