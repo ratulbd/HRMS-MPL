@@ -1,286 +1,200 @@
 // js/employeeList.js
-import { $, customAlert, formatDateForDisplay } from './utils.js';
+import { $, formatDateForDisplay } from './utils.js';
 import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
-import { openFileClosingModal } from './fileClosingModal.js';
+// === IMPORT ADDED: Import the open function for file closing ===
+import { openFileCloseModal } from './fileClosingModal.js';
 
-// === NEW: Function to show Skeleton Cards ===
-export function renderSkeletons(count = 3, append = false) {
+export function renderSkeletons(count = 6, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) return;
 
-    // If we are NOT appending (new search), clear the list first
+    const skeletonHTML = `
+        <div class="bg-white rounded-lg shadow p-6 animate-pulse flex flex-col items-center space-y-4">
+            <div class="rounded-full bg-gray-200 h-24 w-24"></div>
+            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+            <div class="flex space-x-2 mt-4 w-full justify-center">
+                <div class="h-8 bg-gray-200 rounded w-8"></div>
+                <div class="h-8 bg-gray-200 rounded w-8"></div>
+                <div class="h-8 bg-gray-200 rounded w-8"></div>
+            </div>
+        </div>
+    `;
+
     if (!append) listContainer.innerHTML = '';
-
-    // Remove old "Loading..." text if it exists (we use skeletons instead)
-    const loadingText = $('filterCountDisplay');
-    if(loadingText) loadingText.classList.add('hidden');
-
-    // Create dummy skeleton cards
     for (let i = 0; i < count; i++) {
-        const skel = document.createElement('div');
-        // 'fade-out-target' can be used if you want to animate them out later
-        skel.className = 'skeleton-card';
-        skel.innerHTML = `
-            <div class="skeleton-pulse sk-title"></div>
-            <div class="skeleton-pulse sk-badge"></div>
-            <div class="skeleton-pulse sk-line"></div>
-            <div class="skeleton-pulse sk-line"></div>
-            <div class="skeleton-pulse sk-line-short"></div>
-            <div class="skeleton-pulse sk-footer"></div>
-        `;
-        listContainer.appendChild(skel);
+        const div = document.createElement('div');
+        div.innerHTML = skeletonHTML;
+        listContainer.appendChild(div.firstElementChild);
     }
 }
 
-// === NEW: Function to remove Skeleton Cards ===
 export function removeSkeletons() {
     const listContainer = $('employee-list');
     if (!listContainer) return;
-
-    // Remove all elements with the skeleton class
-    const skeletons = listContainer.querySelectorAll('.skeleton-card');
+    // Skeletons usually don't have a specific class identifying them exclusively vs content
+    // but in our flow, renderEmployeeList clears container or appends real data.
+    // If we appended skeletons, we might need to remove specifically them.
+    // For simplicity in this architecture, renderEmployeeList handles clearing if not append.
+    // If append=true was used, we assume the API call finished and we replace skeletons or just append data.
+    // A simple way to remove strictly skeletons is finding elements with 'animate-pulse':
+    const skeletons = listContainer.querySelectorAll('.animate-pulse');
     skeletons.forEach(el => el.remove());
-
-    // Show the count text again
-    const loadingText = $('filterCountDisplay');
-    if(loadingText) loadingText.classList.remove('hidden');
 }
 
-export function renderEmployeeList(employeesToRender, append = false) {
+export function renderEmployeeList(employees, append = false) {
     const listContainer = $('employee-list');
-    if (!listContainer) { console.error("renderEmployeeList: listContainer element not found."); return; }
+    if (!listContainer) return;
 
-    // 1. Remove skeletons before rendering real data
+    // Remove existing skeletons before rendering new data
     removeSkeletons();
 
-    let startIndex = 0;
-    if (append) {
-        startIndex = listContainer.children.length;
-    } else {
-        listContainer.innerHTML = ''; // Clear for new search
+    if (!append) {
+        listContainer.innerHTML = '';
     }
 
-    const noResultsEl = listContainer.querySelector('.no-results');
-    if (noResultsEl) noResultsEl.remove();
-
-    if (!employeesToRender || employeesToRender.length === 0) {
-        if (!append) {
-             listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
-        }
+    if (employees.length === 0 && !append) {
+        listContainer.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">No employees found matching your criteria.</div>';
         return;
     }
 
-    try {
-        employeesToRender.forEach((emp, index) => {
-            if (!emp || typeof emp.id === 'undefined') { console.warn(`Skipping invalid employee data at index ${index}:`, emp); return; }
+    employees.forEach(emp => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col';
 
-            let statusText = emp.status || 'Active';
-            let statusClass = 'status-active';
-            const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
+        // Status Color Logic
+        let statusColor = 'bg-gray-100 text-gray-800';
+        if (emp.status === 'Active') statusColor = 'bg-green-100 text-green-800';
+        else if (emp.status === 'Salary Held') statusColor = 'bg-yellow-100 text-yellow-800';
+        else if (emp.status === 'Resigned') statusColor = 'bg-orange-100 text-orange-800';
+        else if (emp.status === 'Terminated') statusColor = 'bg-red-100 text-red-800';
+        else if (emp.status === 'Closed') statusColor = 'bg-gray-800 text-white';
 
-            if (statusText === 'Active' && isHeld) { statusText = 'Salary Held'; statusClass = 'status-held'; }
-            else if (statusText === 'Resigned') { statusClass = 'status-resigned'; }
-            else if (statusText === 'Terminated') { statusClass = 'status-terminated'; }
-            else if (statusText === 'Closed') { statusClass = 'status-closed'; }
-            else if (statusText !== 'Active') { statusText = 'Terminated'; statusClass = 'status-terminated'; }
+        // === MODIFICATION: Status Date Logic ===
+        let statusDisplay = emp.status;
+        if (emp.status === 'Salary Held' && emp.holdTimestamp) {
+            // Format: "Salary Held (Nov 22, 2025)"
+            statusDisplay += ` <span style="font-size: 0.75em; opacity: 0.8;">(${formatDateForDisplay(emp.holdTimestamp)})</span>`;
+        }
+        // =======================================
 
-
-            const card = document.createElement('div');
-            card.className = 'employee-card flex flex-col';
-            card.setAttribute('data-employee-row-id', emp.id);
-
-            // === MODIFICATION: Animation Delay Fix ===
-            // Use 'index' directly (0, 1, 2...) instead of 'startIndex + index'
-            // This ensures the new batch always cascades in from 0ms delay
-            card.style.setProperty('--card-index', index);
-
-
-            // --- Info Tags ---
-            let infoTagsHTML = '';
-
-            if ((statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.remarks) {
-                 infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800" title="Separation Remarks: ${emp.remarks}">Separation: ${emp.remarks.substring(0, 20)}...</span>`;
-            }
-            if (emp.lastTransferDate && emp.lastSubcenter) {
-                let displayDate = emp.lastTransferDate;
-                if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
-                infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-green-50 text-green-700" title="Transferred from ${emp.lastSubcenter} (${emp.lastTransferReason || ''})">Transfer: ${displayDate}</span>`;
-            }
-            if (statusText === 'Closed' && emp.fileClosingDate) {
-                 infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
-            }
-
-            card.innerHTML = `
-                <div class="card-content p-5 pb-16 flex-grow">
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
-                        <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
-                    </div>
-
-                    <div class="mb-4 space-y-1.5">
-                        <p class="text-sm text-gray-700">${emp.designation || 'N/A'}</p>
-                        <p class="text-sm text-gray-500">ID: ${emp.employeeId || 'N/A'}</p>
-
-                        <div class="flex items-center text-xs text-gray-600 pt-1">
-                            <i class="fas fa-map-marker-alt w-4 mr-1.5 text-gray-400"></i>
-                            <span>${emp.subCenter || 'N/A'}</span>
-                        </div>
-                        <div class="flex items-center text-xs text-gray-600">
-                            <i class="fas fa-calendar-alt w-4 mr-1.5 text-gray-400"></i>
-                            <span>Joined: ${formatDateForDisplay(emp.joiningDate)}</span>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap">
-                        ${infoTagsHTML}
-                    </div>
+        card.innerHTML = `
+            <div class="p-5 flex-grow flex flex-col items-center text-center">
+                <div class="mb-3">
+                    <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">
+                        ${statusDisplay}
+                    </span>
                 </div>
 
-                <div class="card-footer flex flex-wrap gap-1.5 justify-end">
-                    <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">${emp.name || 'No Name'}</h3>
+                <p class="text-sm text-gray-600 font-medium mb-1">${emp.designation || '-'}</p>
+                <p class="text-xs text-gray-500 mb-3">ID: ${emp.employeeId}</p>
 
-                    ${statusText !== 'Closed' ? `
-                        <button class="edit-btn btn-pill btn-pill-green" data-id="${emp.id}">Edit</button>
-                    ` : ''}
+                <div class="w-full border-t border-gray-100 my-2"></div>
 
-                    ${statusText === 'Active' || statusText === 'Salary Held' ? `
-                        <button class="toggle-hold-btn btn-pill ${isHeld ? 'btn-pill-green' : 'btn-pill-orange'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
-                        <button class="transfer-btn btn-pill btn-pill-green" data-id="${emp.id}">Transfer</button>
-                        <button class="resign-btn btn-pill btn-pill-yellow" data-id="${emp.id}">Resign</button>
-                        <button class="terminate-btn btn-pill btn-pill-red" data-id="${emp.id}">Terminate</button>
-                    ` : ''}
-
-                    ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
-                        <button class="close-file-btn btn-pill btn-pill-gray" data-id="${emp.id}">Close File</button>
-                    ` : ''}
+                <div class="w-full text-left text-sm space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500 text-xs">Project:</span>
+                        <span class="font-medium text-xs truncate ml-2" title="${emp.project || ''}">${emp.project || '-'}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500 text-xs">Office:</span>
+                        <span class="font-medium text-xs truncate ml-2" title="${emp.projectOffice || ''}">${emp.projectOffice || '-'}</span>
+                    </div>
+                     <div class="flex justify-between">
+                        <span class="text-gray-500 text-xs">Joined:</span>
+                        <span class="font-medium text-xs ml-2">${formatDateForDisplay(emp.joiningDate)}</span>
+                    </div>
                 </div>
-                `;
-            listContainer.appendChild(card);
-        });
-    } catch (error) {
-         console.error("Error during renderEmployeeList loop:", error);
-         listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Error rendering employee list: ${error.message}</p></div>`;
-         customAlert("Render Error", `Failed to display employee list: ${error.message}`);
-    }
+            </div>
+
+            <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-center space-x-3">
+                <button class="text-blue-600 hover:text-blue-800 p-1 tooltip-btn" data-action="view" data-id="${emp.employeeId}" title="View Details">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="text-green-600 hover:text-green-800 p-1 tooltip-btn" data-action="edit" data-id="${emp.employeeId}" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="text-orange-600 hover:text-orange-800 p-1 tooltip-btn" data-action="status" data-id="${emp.employeeId}" title="Change Status">
+                    <i class="fas fa-user-clock"></i>
+                </button>
+                <button class="text-purple-600 hover:text-purple-800 p-1 tooltip-btn" data-action="transfer" data-id="${emp.employeeId}" title="Transfer">
+                    <i class="fas fa-exchange-alt"></i>
+                </button>
+                <button class="text-gray-600 hover:text-gray-800 p-1 tooltip-btn" data-action="fileclose" data-id="${emp.employeeId}" title="File Close">
+                    <i class="fas fa-folder-minus"></i>
+                </button>
+                </div>
+        `;
+        listContainer.appendChild(card);
+    });
 }
 
+export function populateFilterDropdowns(filters) {
+    // This function logic remains handled by main.js or if exported here,
+    // it fills the <select> options for modals (not the main dashboard TomSelects).
+    const populate = (id, options) => {
+        const el = $(id);
+        if (!el) return;
+        // Keep placeholder
+        const placeholder = el.firstElementChild;
+        el.innerHTML = '';
+        if (placeholder) el.appendChild(placeholder);
 
-// Helper to populate a <datalist>
-function populateDataList(elementId, values) {
-    const datalist = $(elementId);
-    if (datalist) {
-        datalist.innerHTML = '';
-        values.forEach(val => {
-            const option = document.createElement('option');
-            option.value = val;
-            datalist.appendChild(option);
-        });
-    } else {
-        console.warn(`Datalist element with ID '${elementId}' not found.`);
-    }
-}
-
-// (This function is called from main.js)
-export function populateFilterDropdowns(filterData) {
-    if (!filterData) return;
-
-    const formatAndPopulate = (key, elementId) => {
-        if (filterData[key]) {
-            populateDataList(elementId, filterData[key]);
+        if (options && Array.isArray(options)) {
+            options.sort().forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                el.appendChild(option);
+            });
         }
     };
 
-    formatAndPopulate('designation', 'designation-list');
-    formatAndPopulate('project', 'project-list');
-    formatAndPopulate('projectOffice', 'projectOffice-list');
-    formatAndPopulate('reportProject', 'reportProject-list');
-    formatAndPopulate('subCenter', 'subCenter-list');
-
-    const identificationTypes = ['NID', 'Passport', 'Birth Certificate'];
-    populateDataList('identificationType-list', identificationTypes);
+    populate('empDesignation', filters.designation);
+    populate('empFunctionalRole', filters.functionalRole);
+    populate('empProject', filters.project);
+    populate('empProjectOffice', filters.projectOffice);
+    populate('empReportProject', filters.reportProject);
+    populate('empSubCenter', filters.subCenter);
+    populate('empType', filters.type);
 }
 
+export function setupEmployeeListEventListeners(refreshCallback, getEmployeesCallback) {
+    const listContainer = $('employee-list');
 
-export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
-     const listContainer = $('employee-list');
-    if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
+    listContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
 
-    listContainer.addEventListener('mousemove', (e) => {
-        const card = e.target.closest('.employee-card');
-        if (card) {
-            const rect = card.getBoundingClientRect();
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        if (!action || !id) return;
 
-            // Spotlight effect
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            card.style.setProperty('--mouse-x', `${x}px`);
-            card.style.setProperty('--mouse-y', `${y}px`);
-
-            // 3D Tilt effect
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            const mouseX = x - centerX;
-            const mouseY = y - centerY;
-
-            const rotateX = (mouseY / centerY) * -8; // Invert Y for natural tilt
-            const rotateY = (mouseX / centerX) * 8;
-
-            card.style.setProperty('--rotate-x', `${rotateX}deg`);
-            card.style.setProperty('--rotate-y', `${rotateY}deg`);
-        }
-    });
-
-    listContainer.addEventListener('mouseleave', (e) => {
-         const card = e.target.closest('.employee-card');
-         if(card) {
-             card.style.setProperty('--rotate-x', `0deg`);
-             card.style.setProperty('--rotate-y', `0deg`);
-         }
-    });
-
-    listContainer.addEventListener('click', async (e) => {
-        const target = e.target;
-        const actionButton = target.closest('.view-details-btn, .edit-btn, .toggle-hold-btn, .transfer-btn, .resign-btn, .terminate-btn, .close-file-btn');
-        const cardElement = target.closest('.employee-card');
-        if (!cardElement || !actionButton) return;
-
-        const localId = cardElement.dataset.employeeRowId;
-        if (!localId) { console.error("data-employee-row-id missing."); return; }
-
-        const allEmployees = getEmployeesFunc();
-        const employee = allEmployees.find(emp => String(emp.id) === String(localId));
+        // Find employee object
+        const employees = getEmployeesCallback();
+        const employee = employees.find(emp => String(emp.employeeId) === String(id));
 
         if (!employee) {
-            customAlert("Error", "Could not find employee data. The list might be out of date. Please refresh.");
+            console.error("Employee not found for ID:", id);
             return;
         }
 
-        const employeeSheetId = employee.employeeId;
-        if (!employeeSheetId) { customAlert("Error", "Employee ID missing."); return; }
-
-        // Handle Button Clicks
-        if (actionButton.classList.contains('view-details-btn')) {
-            if (typeof openViewDetailsModal === 'function') openViewDetailsModal(employee);
-        } else if (actionButton.classList.contains('edit-btn')) {
-            if (typeof openEmployeeModal === 'function') openEmployeeModal(employee, allEmployees);
-        } else if (actionButton.classList.contains('resign-btn')) {
-            if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Resigned');
-        } else if (actionButton.classList.contains('terminate-btn')) {
-            if (typeof openStatusChangeModal === 'function') openStatusChangeModal(employee, 'Terminated');
-        } else if (actionButton.classList.contains('toggle-hold-btn')) {
-            const isCurrentlyHeld = actionButton.dataset.held === 'true';
-            if (typeof openStatusChangeModal === 'function') {
-                openStatusChangeModal(employee, isCurrentlyHeld ? 'Unhold' : 'Hold');
-            }
-        } else if (actionButton.classList.contains('transfer-btn')) {
-            if (typeof openTransferModal === 'function') openTransferModal(employee);
-        } else if (actionButton.classList.contains('close-file-btn')) {
-            if (typeof openFileClosingModal === 'function') {
-                openFileClosingModal(employee);
-            }
+        if (action === 'view') {
+            openViewDetailsModal(employee);
+        } else if (action === 'edit') {
+            openEmployeeModal(employee); // Edit Mode
+        } else if (action === 'status') {
+            openStatusChangeModal(employee);
+        } else if (action === 'transfer') {
+            openTransferModal(employee);
+        } else if (action === 'fileclose') {
+            // === MODIFICATION: Handle File Close Click ===
+            openFileCloseModal(employee);
+            // ============================================
         }
     });
 }
