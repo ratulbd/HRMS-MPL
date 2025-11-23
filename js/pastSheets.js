@@ -1,8 +1,10 @@
 // js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
-import JSZip from 'jszip';
-import * as ExcelJS from 'exceljs';
+
+// REMOVED: import JSZip from 'jszip';
+// REMOVED: import * as ExcelJS from 'exceljs';
+// NOTE: Relying on global JSZip and ExcelJS variables loaded via index.html script tags.
 
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
@@ -358,7 +360,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             a.download = `Archive_${sheetObj.monthYear}.zip`;
             a.click();
 
-            // === NEW: Explicit Success Message ===
+            // === Explicit Success Message ===
             customAlert("Success", "Past salary sheet downloaded successfully.");
 
         } catch (error) {
