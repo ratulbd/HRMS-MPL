@@ -4,53 +4,11 @@ import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
-// === IMPORT ADDED: Import the open function for file closing ===
 import { openFileCloseModal } from './fileClosingModal.js';
-
-export function renderSkeletons(count = 6, append = false) {
-    const listContainer = $('employee-list');
-    if (!listContainer) return;
-
-    const skeletonHTML = `
-        <div class="bg-white rounded-lg shadow p-6 animate-pulse flex flex-col items-center space-y-4">
-            <div class="rounded-full bg-gray-200 h-24 w-24"></div>
-            <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div class="h-3 bg-gray-200 rounded w-1/2"></div>
-            <div class="flex space-x-2 mt-4 w-full justify-center">
-                <div class="h-8 bg-gray-200 rounded w-8"></div>
-                <div class="h-8 bg-gray-200 rounded w-8"></div>
-                <div class="h-8 bg-gray-200 rounded w-8"></div>
-            </div>
-        </div>
-    `;
-
-    if (!append) listContainer.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-        const div = document.createElement('div');
-        div.innerHTML = skeletonHTML;
-        listContainer.appendChild(div.firstElementChild);
-    }
-}
-
-export function removeSkeletons() {
-    const listContainer = $('employee-list');
-    if (!listContainer) return;
-    // Skeletons usually don't have a specific class identifying them exclusively vs content
-    // but in our flow, renderEmployeeList clears container or appends real data.
-    // If we appended skeletons, we might need to remove specifically them.
-    // For simplicity in this architecture, renderEmployeeList handles clearing if not append.
-    // If append=true was used, we assume the API call finished and we replace skeletons or just append data.
-    // A simple way to remove strictly skeletons is finding elements with 'animate-pulse':
-    const skeletons = listContainer.querySelectorAll('.animate-pulse');
-    skeletons.forEach(el => el.remove());
-}
 
 export function renderEmployeeList(employees, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) return;
-
-    // Remove existing skeletons before rendering new data
-    removeSkeletons();
 
     if (!append) {
         listContainer.innerHTML = '';
@@ -63,7 +21,8 @@ export function renderEmployeeList(employees, append = false) {
 
     employees.forEach(emp => {
         const card = document.createElement('div');
-        card.className = 'bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col';
+        // Reverted to standard styling
+        card.className = 'bg-white rounded-lg shadow overflow-hidden flex flex-col';
 
         // Status Color Logic
         let statusColor = 'bg-gray-100 text-gray-800';
@@ -73,13 +32,13 @@ export function renderEmployeeList(employees, append = false) {
         else if (emp.status === 'Terminated') statusColor = 'bg-red-100 text-red-800';
         else if (emp.status === 'Closed') statusColor = 'bg-gray-800 text-white';
 
-        // === MODIFICATION: Status Date Logic ===
+        // --- REQUEST 1: Status Date Display ---
         let statusDisplay = emp.status;
         if (emp.status === 'Salary Held' && emp.holdTimestamp) {
-            // Format: "Salary Held (Nov 22, 2025)"
-            statusDisplay += ` <span style="font-size: 0.75em; opacity: 0.8;">(${formatDateForDisplay(emp.holdTimestamp)})</span>`;
+            // Simple text addition as requested
+            statusDisplay += ` (${formatDateForDisplay(emp.holdTimestamp)})`;
         }
-        // =======================================
+        // --------------------------------------
 
         card.innerHTML = `
             <div class="p-5 flex-grow flex flex-col items-center text-center">
@@ -133,13 +92,11 @@ export function renderEmployeeList(employees, append = false) {
     });
 }
 
+// Keep this helper if your HTML relies on it for dropdowns
 export function populateFilterDropdowns(filters) {
-    // This function logic remains handled by main.js or if exported here,
-    // it fills the <select> options for modals (not the main dashboard TomSelects).
     const populate = (id, options) => {
         const el = $(id);
         if (!el) return;
-        // Keep placeholder
         const placeholder = el.firstElementChild;
         el.innerHTML = '';
         if (placeholder) el.appendChild(placeholder);
@@ -174,7 +131,6 @@ export function setupEmployeeListEventListeners(refreshCallback, getEmployeesCal
         const id = btn.dataset.id;
         if (!action || !id) return;
 
-        // Find employee object
         const employees = getEmployeesCallback();
         const employee = employees.find(emp => String(emp.employeeId) === String(id));
 
@@ -186,15 +142,14 @@ export function setupEmployeeListEventListeners(refreshCallback, getEmployeesCal
         if (action === 'view') {
             openViewDetailsModal(employee);
         } else if (action === 'edit') {
-            openEmployeeModal(employee); // Edit Mode
+            openEmployeeModal(employee);
         } else if (action === 'status') {
             openStatusChangeModal(employee);
         } else if (action === 'transfer') {
             openTransferModal(employee);
         } else if (action === 'fileclose') {
-            // === MODIFICATION: Handle File Close Click ===
+            // --- REQUEST 3: Open File Close Modal ---
             openFileCloseModal(employee);
-            // ============================================
         }
     });
-}
+}}
