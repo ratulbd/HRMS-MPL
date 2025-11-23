@@ -21,8 +21,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // FIX: Changed to 'getSalaryArchive' to fetch JSON-based row archives
-            // This matches the logic in _sheetActions.js: getSalaryArchive
+            // Fetch the archived JSON data (which contains the full employee objects)
             const sheets = await apiCall('getSalaryArchive');
             renderSheetList(sheets);
         } catch (error) {
@@ -38,7 +37,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             return;
         }
 
-        // 'sheets' is now an array of objects: { monthYear, timestamp, jsonData }
+        // Sort by date descending (assuming monthYear is YYYY-MM)
+        sheets.sort((a, b) => b.monthYear.localeCompare(a.monthYear));
+
         sheets.forEach(sheet => {
             const item = document.createElement('div');
             item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded border';
@@ -53,7 +54,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             dBtn.className = 'btn btn-sm btn-primary ml-2';
             dBtn.innerHTML = '<i class="fas fa-download mr-1"></i> ZIP';
 
-            // Pass the full sheet object (which includes jsonData) to the downloader
             dBtn.addEventListener('click', () => downloadSheetZip(sheet));
 
             btnDiv.appendChild(dBtn);
@@ -62,22 +62,46 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         });
     }
 
+    // Helper to format month for the Excel title
+    function getFormattedMonthYear(dateStr) {
+        const date = new Date(dateStr + "-01");
+        const month = date.toLocaleString('default', { month: 'long' });
+        const year = date.getFullYear();
+        return { full: `${month}-${year}`, quote: `${month}'${year}` };
+    }
+
+    function convertNumberToWords(amount) {
+        const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+        const b = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+        const numToWords = (n) => {
+            if ((n = n.toString()).length > 9) return 'overflow';
+            const n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n_array) return '';
+            let str = '';
+            str += (n_array[1] != 0) ? (a[Number(n_array[1])] + b[n_array[1][0]] + ' ' + a[n_array[1][1]]) + 'Crore ' : '';
+            str += (n_array[2] != 0) ? (a[Number(n_array[2])] + b[n_array[2][0]] + ' ' + a[n_array[2][1]]) + 'Lakh ' : '';
+            str += (n_array[3] != 0) ? (a[Number(n_array[3])] + b[n_array[3][0]] + ' ' + a[n_array[3][1]]) + 'Thousand ' : '';
+            str += (n_array[4] != 0) ? (a[Number(n_array[4])] + b[n_array[4][0]] + ' ' + a[n_array[4][1]]) + 'Hundred ' : '';
+            str += (n_array[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n_array[5])] + b[n_array[5][0]] + ' ' + a[n_array[5][1]]) + '' : '';
+            return str;
+        };
+        return numToWords(Math.floor(amount)) + "Only";
+    }
+
     async function downloadSheetZip(sheetObj) {
         try {
             customAlert("Please Wait", "Downloading archive...");
 
-            // The jsonData is already present in the sheetObj returned by getSalaryArchive
-            // No need to make another API call to 'getSheetData' (which was for sheet tabs).
-
             const employeesData = sheetObj.jsonData;
-
             if (!employeesData || !Array.isArray(employeesData) || employeesData.length === 0) {
                 throw new Error("Archive data is empty or invalid.");
             }
 
-            const zip = new JSZip(); // Uses global JSZip
+            const { full, quote } = getFormattedMonthYear(sheetObj.monthYear);
+            const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
+            const zip = new JSZip();
 
-            // Group: Project -> SubCenter
+            // 1. Group Data: Project -> SubCenter
             const projectGroups = {};
             employeesData.forEach(d => {
                 const p = d.reportProject || 'Unknown';
@@ -90,116 +114,268 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const getVal = (v) => (v !== undefined && v !== null) ? Number(v) : 0;
             const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
+            // 2. Generate Workbooks per Project
             for (const [project, subCenters] of Object.entries(projectGroups)) {
-                const workbook = new ExcelJS.Workbook(); // Uses global ExcelJS
-                const sheet = workbook.addWorksheet('Salary Sheet');
+                const workbook = new ExcelJS.Workbook();
 
-                // Columns Key Map
-                sheet.columns = [
-                    { key: 'sl', width: 6 }, { key: 'id', width: 10 }, { key: 'name', width: 22 }, { key: 'desig', width: 18 },
-                    { key: 'proj', width: 15 }, { key: 'off', width: 15 }, { key: 'rep', width: 15 }, { key: 'sub', width: 15 },
-                    { key: 'acc', width: 18 }, { key: 'bank', width: 15 }, { key: 'route', width: 10 },
-                    { key: 'td', width: 8 }, { key: 'hol', width: 8 }, { key: 'lv', width: 8 }, { key: 'lwp_d', width: 8 }, { key: 'act', width: 8 }, { key: 'net_p', width: 8 },
-                    { key: 'gr_sal', width: 12 }, { key: 'maint', width: 12 }, { key: 'lap', width: 12 }, { key: 'oth', width: 12 }, { key: 'arr', width: 12 },
-                    { key: 'food', width: 12 }, { key: 'stn', width: 12 }, { key: 'hard', width: 12 }, { key: 'gr_pay', width: 15 },
-                    { key: 'lunch', width: 12 }, { key: 'tds', width: 10 }, { key: 'bike', width: 12 }, { key: 'wel', width: 12 }, { key: 'loan', width: 12 },
-                    { key: 'veh', width: 12 }, { key: 'lwp_a', width: 12 }, { key: 'cpf', width: 10 }, { key: 'adj', width: 12 }, { key: 'att_ded', width: 12 },
-                    { key: 'tot_ded', width: 15 }, { key: 'net_pay', width: 15 }, { key: 'rem', width: 25 }
-                ];
+                /* ---------------- SALARY SHEET ---------------- */
+                const sheet = workbook.addWorksheet('Salary Sheet', {
+                    views: [{ state: 'frozen', ySplit: 4 }] // Freeze top 4 rows
+                });
 
-                // Title Rows
-                sheet.mergeCells('A1:AM1');
-                sheet.getCell('A1').value = "Metal Plus Limited";
-                sheet.getCell('A1').font = { bold: true, size: 16 };
-                sheet.getCell('A1').alignment = { horizontal: 'center' };
+                // Row 1: Company Title
+                sheet.mergeCells('A1:AQ1');
+                const r1 = sheet.getCell('A1');
+                r1.value = "Metal Plus Limited";
+                r1.font = { bold: true, size: 16, name: 'Calibri' };
+                r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                sheet.mergeCells('A2:AM2');
-                sheet.getCell('A2').value = `Salary Sheet for ${sheetObj.monthYear}`;
-                sheet.getCell('A2').font = { bold: true, size: 12 };
-                sheet.getCell('A2').alignment = { horizontal: 'center' };
+                // Row 2: Sheet Title
+                sheet.mergeCells('A2:AQ2');
+                const r2 = sheet.getCell('A2');
+                r2.value = `Salary Sheet-${project} for the Month of ${full}`;
+                r2.font = { bold: true, size: 12, name: 'Calibri' };
+                r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                // Headers
+                // Row 3: Merged Categories (The key part for matching format)
+                [
+                    { r: 'A3:J3',  t: 'Employee Information' },
+                    { r: 'K3:P3',  t: 'Attendance' },
+                    { r: 'Q3:T3',  t: 'Salary Structure' },
+                    { r: 'U3:AB3', t: 'Earnings & Benefits' },
+                    { r: 'AC3:AM3',t: 'Deductions' },
+                    { r: 'AN3:AQ3',t: 'Payment Information' },
+                ].forEach(m => {
+                    sheet.mergeCells(m.r);
+                    const cell = sheet.getCell(m.r.split(':')[0]);
+                    cell.value = m.t;
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } }; // Blue Header
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                });
+
+                // Row 4: Main Headers
                 const headers = [
-                    "SL", "ID", "Name", "Designation", "Project", "Project Office", "Report Project", "Sub Center",
-                    "Account No", "Bank Name", "Route No",
-                    "Total Working Days", "Holidays", "Availing Leave", "LWP", "Actual Present", "Net Present",
-                    "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent", "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Gross Payable Salary",
-                    "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF", "Others Adjustment", "Attendance Deduction", "Total Deduction",
-                    "Net Salary Payment", "Remarks"
+                    "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
+                    "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present",
+                    "Previous Salary","Basic","Others","Gross Salary",
+                    "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","Gross Payable Salary",
+                    "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
+                    "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
                 ];
                 const headerRow = sheet.addRow(headers);
-                headerRow.eachCell(cell => {
-                    cell.font = { bold: true };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-                    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-                    cell.alignment = { horizontal: 'center', wrapText: true };
+                headerRow.height = 65;
+                headerRow.eachCell((cell, colNumber) => {
+                    cell.font = { bold: true, size: 9 };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } }; // Grey Header
+                    cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    // Rotate attendance/money columns for compact fit
+                    cell.alignment = (colNumber >= 11 && colNumber <= 39)
+                        ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
+                        : { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
-                headerRow.height = 40;
 
+                // Set Column Widths
+                for (let c = 11; c <= 39; c++) sheet.getColumn(c).width = 11.18;
+                sheet.getColumn(42).width = 11.55;
+
+                // --- DATA BODY ---
                 let sl = 1;
-                for (const scName of Object.keys(subCenters).sort()) {
-                    // Subcenter Header
+                const sortedSubCenters = Object.keys(subCenters).sort();
+                let projectGrandTotal = 0;
+
+                for (const scName of sortedSubCenters) {
+                    const scEmployees = subCenters[scName];
+
+                    // Subcenter Header Row
                     const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    sheet.mergeCells(scRow.number, 1, scRow.number, 39);
-                    const scCell = scRow.getCell(1);
-                    scCell.font = { bold: true };
-                    scCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-                    scCell.alignment = { horizontal: 'left' };
-                    scCell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                    // Merge A-AQ? salarySheet.js does not merge explicitly in the snippet provided previously,
+                    // but usually subcenter headers span across.
+                    // However, salarySheet.js snippet looped 1-43 setting style. Let's match that.
+                    for (let i = 1; i <= 43; i++) {
+                        const c = scRow.getCell(i);
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } }; // Light Blue
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { vertical: 'middle', horizontal: i === 1 ? 'left' : 'center', wrapText: true };
+                        if (i === 1) c.font = { bold: true };
+                    }
 
-                    // Rows
-                    subCenters[scName].forEach(d => {
-                        // Map data
-                        // Note: Data coming from JSON archive might have different property names if we didn't normalize them.
-                        // But based on salarySheet.js, we saved the 'employees' object which has these keys.
+                    let scTotalNet = 0;
 
-                        // Safeguard for potentially missing 'att' or 'earn' objects if structure changed
+                    scEmployees.forEach(d => {
+                        // Access nested data safely (Archive should have full object)
                         const att = d.att || {};
                         const earn = d.earn || {};
                         const ded = d.ded || {};
 
-                        const row = sheet.addRow({
-                            sl: sl++,
-                            id: getStr(d.id || d.employeeId), name: getStr(d.name), desig: getStr(d.designation),
-                            proj: getStr(d.project), off: getStr(d.projectOffice), rep: getStr(d.reportProject), sub: getStr(d.subCenter),
-                            acc: getStr(d.finalAccountNo || d.accountNo || d.bankAccount),
-                            bank: '', route: '',
-                            td: getVal(att.totalDays ?? d.totalDays), hol: getVal(att.holidays ?? d.holidays), lv: getVal(att.leave ?? d.availingLeave),
-                            lwp_d: getVal(att.lwpDays ?? d.lwpDays), act: getVal(att.actualPresent ?? d.actualPresent), net_p: getVal(att.netPresent ?? d.netPresent),
+                        // Fallbacks for flat data if archive format was different in past
+                        const netPay = getVal(d.netPayment || d.netPay);
+                        scTotalNet += netPay;
+                        projectGrandTotal += netPay;
 
-                            gr_sal: getVal(earn.grossSalary ?? d.gross), maint: getVal(earn.maint ?? d.maint), lap: getVal(earn.laptop ?? d.laptop),
-                            oth: getVal(earn.others ?? d.others), arr: getVal(earn.arrear ?? d.arrear), food: getVal(earn.food ?? d.food),
-                            stn: getVal(earn.station ?? d.station), hard: getVal(earn.hardship ?? d.hardship),
-                            gr_pay: getVal(earn.grossPayable ?? d.grossPayable),
+                        const rowData = [
+                            sl++,
+                            getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
+                            getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
+                            // Attendance
+                            getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
+                            getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent),
+                            // Structure
+                            getVal(d.previousSalary), getVal(earn.grossSalary ?? d.gross), getVal(d.others), getVal(earn.grossSalary ?? d.gross),
+                            // Earnings
+                            getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.others ?? d.others),
+                            getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship),
+                            getVal(earn.grossPayable ?? d.grossPayable),
+                            // Deductions
+                            0, // Gratuity (Static 0 in logic)
+                            getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
+                            getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
+                            getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
+                            // Net
+                            netPay,
+                            getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
+                        ];
 
-                            lunch: getVal(ded.lunch ?? d.lunch), tds: getVal(ded.tds ?? d.tds), bike: getVal(ded.bike ?? d.bike),
-                            wel: getVal(ded.welfare ?? d.welfare), loan: getVal(ded.loan ?? d.loan), veh: getVal(ded.vehicle ?? d.vehicle),
-                            lwp_a: getVal(ded.lwp ?? d.lwpAmt), cpf: getVal(ded.cpf ?? d.cpf), adj: getVal(ded.adj ?? d.adj),
-                            att_ded: getVal(ded.attDed ?? d.attDed), tot_ded: getVal(ded.totalDeduction ?? d.totalDeduction),
-
-                            net_pay: getVal(d.netPayment),
-                            rem: getStr(d.remarksText || d.remarks)
+                        const r = sheet.addRow(rowData);
+                        r.eachCell((c, colNumber) => {
+                            c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                            c.alignment = (colNumber === 3 || colNumber === 43)
+                                ? { vertical: 'middle', horizontal: 'left', wrapText: true }
+                                : { vertical: 'middle', horizontal: 'center', wrapText: true };
+                            // Money columns formatting (K=17 to AN=40)
+                            if (colNumber >= 17 && colNumber <= 40) c.numFmt = accountingFmt0;
                         });
-                        row.eachCell({includeEmpty:true}, c => { c.border = {top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}} });
+                    });
+
+                    // Subcenter Total Row
+                    const totRow = sheet.addRow(new Array(43).fill(''));
+                    totRow.getCell(3).value = `Total for ${scName}`;
+                    const netPayCell = totRow.getCell(40);
+                    netPayCell.value = scTotalNet;
+                    netPayCell.numFmt = accountingFmt0;
+
+                    totRow.eachCell((c) => {
+                        c.font = { bold: true };
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; // Yellow Total
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     });
                 }
 
-                // Advice Sheet
-                const adviceSheet = workbook.addWorksheet('Advice');
-                adviceSheet.columns = [{header:'SL',key:'sl'},{header:'ID',key:'id'},{header:'Name',key:'name'},{header:'Account No',key:'acc'},{header:'Amount',key:'amt'},{header:'Remarks',key:'rem'}];
-                let asl = 1;
-                for (const scName of Object.keys(subCenters).sort()) {
-                    subCenters[scName].forEach(d => {
-                        adviceSheet.addRow({
-                            sl: asl++, id: getStr(d.id || d.employeeId), name: getStr(d.name),
-                            acc: getStr(d.finalAccountNo || d.accountNo || d.bankAccount),
-                            amt: getVal(d.netPayment || d.netPay), rem: ''
-                        });
+                /* ---------------- ADVICE SHEET ---------------- */
+                const adviceSheet = workbook.addWorksheet('Advice', {
+                    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+                });
+
+                // Consolidate Payouts
+                const consolidationMap = new Map();
+                const allProjectEmployees = Object.values(subCenters).flat();
+
+                // 1. Bank Users
+                allProjectEmployees.forEach(emp => {
+                    const acc = emp.finalAccountNo || emp.bankAccount;
+                    if (acc && acc.trim() !== '') {
+                        const key = String(emp.employeeId);
+                        if (!consolidationMap.has(key)) {
+                            consolidationMap.set(key, {
+                                id: emp.employeeId, name: emp.name, designation: emp.designation,
+                                account: acc, amount: 0
+                            });
+                        }
+                        consolidationMap.get(key).amount += getVal(emp.netPayment || emp.netPay);
+                    }
+                });
+
+                // 2. Cash/Holder Users -> Map to Holder
+                allProjectEmployees.forEach(emp => {
+                    const acc = emp.finalAccountNo || emp.bankAccount;
+                    if (!acc || acc.trim() === '') {
+                        if (emp.holderId && consolidationMap.has(emp.holderId)) {
+                            consolidationMap.get(emp.holderId).amount += getVal(emp.netPayment || emp.netPay);
+                        }
+                    }
+                });
+
+                // Letter Header Construction
+                const writeTextRow = (rIdx, text, bold=false, size=11, merge=true) => {
+                    const cell = adviceSheet.getRow(rIdx).getCell(1);
+                    cell.value = text;
+                    cell.font = { name: 'Calibri', size, bold };
+                    cell.alignment = { vertical: 'top', wrapText: true };
+                    if (merge) adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
+                };
+
+                const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
+                const totalLetterAmount = allProjectEmployees.reduce((sum, e) => sum + getVal(e.netPayment || e.netPay), 0);
+                const totalAmountWords  = convertNumberToWords(totalLetterAmount);
+
+                writeTextRow(1,  `Ref: MPL/TELECOM/Salary/${full}`, true);
+                writeTextRow(2,  `Date: ${today}`, true);
+                writeTextRow(4,  "To");
+                writeTextRow(5,  "The Manager");
+                writeTextRow(6,  "Dutch Bangla Bank Ltd.");
+                writeTextRow(7,  "Banani Branch");
+                writeTextRow(9,  `Subject: Salary expenses disbursement for the Month of ${quote}.`, true);
+                writeTextRow(11, "Dear sir,");
+
+                adviceSheet.mergeCells(13, 1, 17, 6);
+                const paraCell = adviceSheet.getCell('A13');
+                paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
+                paraCell.font = { name: 'Calibri', size: 11 };
+                paraCell.alignment = { wrapText: true, vertical: 'top' };
+
+                writeTextRow(19, "Thanking You,", false);
+                writeTextRow(21, "Engr. Sadid Jamil", true);
+                writeTextRow(22, "Managing Director", false);
+                writeTextRow(24, "Engr. Aminul Islam", true);
+                writeTextRow(25, "Chairman", false);
+
+                // Table Header (Row 40)
+                const adviceHeader = adviceSheet.getRow(40);
+                adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
+                adviceHeader.height = 24;
+                adviceHeader.eachCell((c) => {
+                    c.font = { bold: true };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+                });
+
+                // Column Widths
+                adviceSheet.getColumn(1).width = 6;
+                adviceSheet.getColumn(2).width = 12;
+                adviceSheet.getColumn(3).width = 28;
+                adviceSheet.getColumn(4).width = 18;
+                adviceSheet.getColumn(5).width = 20;
+                adviceSheet.getColumn(6).width = 15;
+
+                // Advice Data Rows
+                let advSl = 1;
+                const finalAdviceList = Array.from(consolidationMap.values())
+                    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+                finalAdviceList.forEach(item => {
+                    const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
+                    r.eachCell((c, colNumber) => {
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
+                        if (colNumber === 6) c.numFmt = accountingFmt0;
                     });
-                }
+                });
+
+                // Advice Total Row
+                const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
+                advTotRow.getCell(6).numFmt = accountingFmt0;
+                advTotRow.eachCell((c) => {
+                    c.font = { bold: true };
+                    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                });
 
                 const buffer = await workbook.xlsx.writeBuffer();
-                zip.file(`${project.replace(/[^a-z0-9]/gi,'_')}.xlsx`, buffer);
+                const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+                zip.file(`${safeName}_${sheetObj.monthYear}.xlsx`, buffer);
             }
 
             const blob = await zip.generateAsync({type:"blob"});
