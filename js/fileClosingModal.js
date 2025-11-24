@@ -1,70 +1,73 @@
-// js/fileClosingModal.js
-import { $, customAlert, closeModal } from './utils.js';
-import { apiCall } from './apiClient.js';
+// netlify/functions/lib/_employeeActions.js
 
-// === MODIFICATION: Exported function to open the modal ===
-export function openFileCloseModal(employee) {
-    const modal = $('fileCloseModal');
-    const form = $('fileCloseForm');
+// ... [Existing functions: getEmployees, saveEmployee, updateStatus, etc. remain unchanged]
 
-    if (!modal || !form) {
-        console.error("File Close Modal elements not found.");
-        return;
+async function closeFile(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, helpers, { employeeId, date, remarks }) {
+    if (!employeeId || !date || !remarks) throw new Error("Missing required fields: employeeId, date, remarks.");
+
+    const getSheetHeadersFunc = helpers.getSheetHeaders;
+    const findEmployeeRowFunc = helpers.findEmployeeRow;
+
+    // 1. Find Row
+    const rowIndex = await findEmployeeRowFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME, HEADER_MAPPING, getSheetHeadersFunc, employeeId);
+    if (rowIndex === -1) throw new Error(`Employee ID ${employeeId} not found.`);
+
+    // 2. Get Headers to find column indices
+    const headers = await getSheetHeadersFunc(sheets, SPREADSHEET_ID, EMPLOYEE_SHEET_NAME);
+
+    const statusColIndex = headers.indexOf(HEADER_MAPPING.status);
+    const closeDateColIndex = headers.indexOf(HEADER_MAPPING.fileClosingDate);
+    const remarksColIndex = headers.indexOf(HEADER_MAPPING.fileClosingRemarks); // Using specific FileClosingRemarks column if exists, or mapped to remarks
+
+    if (statusColIndex === -1) throw new Error("Status column not found.");
+    // If specific closing columns don't exist, ensure you have them in your sheet or map them to generic ones
+    if (closeDateColIndex === -1) throw new Error("File Closing Date column not found in header mapping.");
+
+    // 3. Update Employee Sheet
+    const updates = [];
+
+    // Update Status to "File Closed"
+    const statusColLetter = helpers.getColumnLetter(statusColIndex);
+    updates.push({ range: `${EMPLOYEE_SHEET_NAME}!${statusColLetter}${rowIndex}`, values: [['File Closed']] });
+
+    // Update Closing Date
+    const dateColLetter = helpers.getColumnLetter(closeDateColIndex);
+    updates.push({ range: `${EMPLOYEE_SHEET_NAME}!${dateColLetter}${rowIndex}`, values: [[date]] });
+
+    // Update Remarks (if mapped)
+    if (remarksColIndex !== -1) {
+        const remColLetter = helpers.getColumnLetter(remarksColIndex);
+        updates.push({ range: `${EMPLOYEE_SHEET_NAME}!${remColLetter}${rowIndex}`, values: [[remarks]] });
     }
 
-    // Reset form
-    form.reset();
+    // Execute Batch Update
+    await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        resource: { valueInputOption: 'USER_ENTERED', data: updates }
+    });
 
-    // Set hidden ID and display name
-    $('fileCloseEmpId').value = employee.employeeId;
-    $('fileCloseEmpNameDisplay').textContent = `${employee.name} (${employee.employeeId})`;
+    // 4. Log to FileClosing_Log
+    // Headers: Timestamp, EmployeeID, ClosingDate, Remarks
+    const logHeaders = ['Timestamp', 'Employee ID', 'Closing Date', 'Remarks'];
+    const logData = [employeeId, date, remarks];
 
-    // Show modal
-    modal.classList.remove('hidden');
+    await helpers.logEvent(sheets, SPREADSHEET_ID, 'FileClosing_Log', logHeaders, logData, null, helpers.ensureSheetAndHeaders);
+
+    return { statusCode: 200, body: JSON.stringify({ message: 'File closed successfully.' }) };
 }
-// =========================================================
 
-export function setupFileCloseModal(refreshCallback) {
-    const modal = $('fileCloseModal');
-    const form = $('fileCloseForm');
-    const cancelBtn = $('cancelFileCloseModal');
-
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            modal.classList.add('hidden');
-        });
-    }
-
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const empId = $('fileCloseEmpId').value;
-            const closeDate = $('fileCloseDate').value;
-            const remarks = $('fileCloseRemarks').value;
-
-            if (!closeDate || !remarks) {
-                customAlert("Error", "Date and Remarks are required.");
-                return;
-            }
-
-            try {
-                // API Call to 'closeFile' action
-                await apiCall('closeFile', 'POST', {
-                    employeeId: empId,
-                    date: closeDate,
-                    remarks: remarks
-                });
-
-                customAlert("Success", "Employee file closed successfully.");
-                modal.classList.add('hidden');
-
-                if (refreshCallback) refreshCallback(false); // Refresh list
-
-            } catch (error) {
-                console.error(error);
-                customAlert("Error", error.message || "Failed to close file.");
-            }
-        });
-    }
-}
+// Ensure closeFile is exported
+module.exports = {
+    // ... other exports
+    closeFile,
+    getEmployees: require('./_employeeActions').getEmployees, // Assuming this file structure
+    saveEmployee: require('./_employeeActions').saveEmployee,
+    updateStatus: require('./_employeeActions').updateStatus,
+    getSubCenters: require('./_employeeActions').getSubCenters,
+    getProjects: require('./_employeeActions').getProjects,
+    getProjectOffices: require('./_employeeActions').getProjectOffices,
+    getReportProjects: require('./_employeeActions').getReportProjects,
+    transferEmployee: require('./_employeeActions').transferEmployee,
+    logRejoin: require('./_employeeActions').logRejoin,
+    getLogData: require('./_employeeActions').getLogData
+};
