@@ -1,292 +1,425 @@
 // js/main.js
-import { $, debounce, customAlert } from './utils.js';
-import { apiCall } from './apiClient.js';
-import { setupEmployeeForm } from './employeeForm.js';
-import { setupStatusChangeModal } from './statusChange.js';
-import { setupViewDetailsModal } from './viewDetails.js';
-import { setupTransferModal } from './transferModal.js';
-import { setupSalarySheetModal } from './salarySheet.js';
-import { setupPastSheetsModal } from './pastSheets.js';
-import { setupLogin } from './login.js';
-import { setupFileCloseModal } from './fileClosingModal.js';
 
-// State
-let allEmployees = [];
-let currentPage = 1;
-const limit = 30;
-let totalCount = 0;
-let isLoading = false;
-let currentFilters = {
-    name: '',
-    status: 'Active,Salary Held,Resigned,Terminated', // Default statuses
-    designation: '',
-    functionalRole: '',
-    type: '',
-    project: '',
-    projectOffice: '',
-    reportProject: '',
-    subCenter: ''
-};
-
-// DOM Elements
-const searchInput = $('searchInput');
-const loadMoreBtn = $('loadMoreBtn');
-const totalCountDisplay = $('totalCountDisplay');
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM loaded. Initializing app modules...");
-    initializeAppModules();
-});
+// --- Authentication Check ---
+const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
+    console.log("User not logged in. Redirecting to login page.");
+    window.location.href = '/login.html';
+}
+// --- End Authentication Check ---
 
 async function initializeAppModules() {
-    try {
-        // Dynamic import to handle potential circular dependencies or loading order
-        const {
-            renderEmployeeList,
-            populateFilterDropdowns,
-            setupEmployeeListEventListeners
-        } = await import('./employeeList.js');
+    console.log("DOM loaded. Initializing app modules...");
 
-        // Store functions in a closure or pass them where needed
-        window.renderEmployeeList = renderEmployeeList;
-        window.populateFilterDropdowns = populateFilterDropdowns;
-        window.setupEmployeeListEventListeners = setupEmployeeListEventListeners;
+    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
+    const { apiCall } = await import('./apiClient.js');
 
-        // Check Auth
-        const user = localStorage.getItem('hrms_user');
-        if (!user) {
-            setupLogin(initializeApp); // Show login, pass init callback
-        } else {
-            initializeApp();
-        }
-    } catch (error) {
-        console.error("Failed to load modules:", error);
-    }
-}
+    // === MODIFICATION: Imported new skeleton functions ===
+    const {
+        renderEmployeeList,
+        renderSkeletons, // <-- NEW
+        removeSkeletons, // <-- NEW
+        populateFilterDropdowns,
+        setupEmployeeListEventListeners
+    } = await import('./employeeList.js');
+    // === END MODIFICATION ===
 
-async function initializeApp() {
-    console.log("Initializing HRMS App (Modular & Authenticated)...");
-    $('loginSection').classList.add('hidden');
-    $('appSection').classList.remove('hidden');
+    const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
+    const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
+    const { setupFileCloseModal } = await import('./fileClosingModal.js');
+    const { setupBulkUploadModal } = await import('./bulkUpload.js');
+    const { setupSalarySheetModal } = await import('./salarySheet.js');
+    const { setupPastSheetsModal } = await import('./pastSheets.js');
+    const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
+    const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
-    // Update User Info in UI
-    const userObj = JSON.parse(localStorage.getItem('hrms_user'));
-    if (userObj) {
-        const userNameDisplay = $('userNameDisplay');
-        if (userNameDisplay) userNameDisplay.textContent = userObj.username;
-    }
+    // === MODIFICATION: New Pagination & Filter State ===
+    let mainLocalEmployees = []; // Still needed for edit/duplicate checks and modal data
 
-    // Setup Modals
-    setupEmployeeForm(getStoredEmployees, fetchAndRenderEmployees); // Pass fetch as refresh callback
-    setupStatusChangeModal(fetchAndRenderEmployees);
-    setupViewDetailsModal();
-    setupTransferModal(fetchAndRenderEmployees);
-    setupSalarySheetModal(getStoredEmployees);
-    setupPastSheetsModal(getStoredEmployees, 'pastSheetsBtn');
-    setupFileCloseModal(fetchAndRenderEmployees); // Setup the new File Close modal
-
-    // Setup List Event Listeners (Delegation)
-    if (window.setupEmployeeListEventListeners) {
-        window.setupEmployeeListEventListeners(fetchAndRenderEmployees, getStoredEmployees);
-    }
-
-    // Initial Fetch
-    await fetchAndRenderEmployees(true); // reset page to 1
-
-    // Setup Filters
-    setupFilterListeners();
-
-    // Setup Logout
-    $('logoutBtn').addEventListener('click', () => {
-        localStorage.removeItem('hrms_user');
-        location.reload();
-    });
-}
-
-function getStoredEmployees() {
-    return allEmployees;
-}
-
-async function fetchAndRenderEmployees(reset = false) {
-    if (isLoading) return;
-    isLoading = true;
-
-    if (reset) {
-        currentPage = 1;
-        allEmployees = [];
-        // Clear list immediately to show loading state if desired, or keep old data until new arrives
-        const list = $('employee-list');
-        if(list) list.innerHTML = '<div class="col-span-full text-center py-4">Loading...</div>';
-    }
-
-    // Prepare Params
-    const params = {
-        page: currentPage,
-        limit: limit,
-        ...currentFilters
+    // Default filter: Hide "Closed" employees, as requested
+    let currentFilters = {
+        name: '',
+        status: ['Active', 'Salary Held', 'Resigned', 'Terminated'],
+        designation: [],
+        functionalRole: [],
+        type: [],
+        project: [],
+        projectOffice: [],
+        reportProject: [],
+        subCenter: []
     };
+    let tomSelects = {};
 
-    // Handle "All Statuses" logic
-    if (currentFilters.status === 'All') {
-        params.status = ''; // Send empty to API to get all
+    // Pagination state
+    let currentPage = 1;
+    let totalPages = 1;
+    let isLoading = false;
+    let hasMorePages = true;
+    let allFiltersLoaded = false; // Flag to stop reloading dropdowns
+
+    // === END MODIFICATION ===
+
+    // State Accessor
+    const getMainLocalEmployees = () => mainLocalEmployees;
+
+    // --- Helper function to populate Tom Select instances ---
+    function updateTomSelectFilterOptions(filterData) {
+        if (!filterData) return;
+
+        const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
+
+        const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated', 'Closed']);
+
+        const updateOptions = (instance, newOptions) => {
+            if (instance) {
+                const currentVal = instance.getValue(); // Save current selection
+                instance.clearOptions();
+                instance.addOptions(newOptions);
+                instance.setValue(currentVal, true); // Restore selection silently
+            }
+        };
+
+        updateOptions(tomSelects.status, statusOptions);
+        updateOptions(tomSelects.designation, formatOptions(filterData.designation));
+        updateOptions(tomSelects.functionalRole, formatOptions(filterData.functionalRole));
+        updateOptions(tomSelects.type, formatOptions(filterData.type));
+        updateOptions(tomSelects.project, formatOptions(filterData.project));
+        updateOptions(tomSelects.projectOffice, formatOptions(filterData.projectOffice));
+        updateOptions(tomSelects.reportProject, formatOptions(filterData.reportProject));
+        updateOptions(tomSelects.subCenter, formatOptions(filterData.subCenter));
     }
 
-    try {
-        // === FIX: Removed renderSkeletons() call ===
+    // === MODIFICATION: Main Fetch Function with Skeleton Support ===
+    async function fetchAndRenderEmployees(isLoadMore = false) {
+        if (isLoading) return;
+        isLoading = true;
 
-        const data = await apiCall('getEmployees', 'GET', null, params);
+        if (isLoadMore && !hasMorePages) {
+            isLoading = false;
+            return; // No more pages to load
+        }
 
-        // === FIX: Removed removeSkeletons() call ===
+        const countDisplay = $('filterCountDisplay');
+        const listContainer = $('employee-list');
 
-        if (data && data.employees) {
-            if (reset) allEmployees = data.employees;
-            else allEmployees = [...allEmployees, ...data.employees];
-
-            // Update Global Store/Cache if needed
-            // ...
-
-            if (window.renderEmployeeList) {
-                window.renderEmployeeList(data.employees, !reset); // append if not reset
-            }
-
-            totalCount = data.totalCount;
-            if (totalCountDisplay) totalCountDisplay.textContent = `Showing ${allEmployees.length} of ${totalCount} employees`;
-
-            // Handle Load More Button
-            if (allEmployees.length < totalCount) {
-                loadMoreBtn.classList.remove('hidden');
-            } else {
-                loadMoreBtn.classList.add('hidden');
-            }
-
-            // Populate Filters (only on first load or explicit refresh to keep options available)
-            if (reset && data.filters && window.populateFilterDropdowns) {
-                window.populateFilterDropdowns(data.filters);
-            }
-
+        // Show Skeletons instead of plain text
+        if (isLoadMore) {
             currentPage++;
+            if (countDisplay) countDisplay.textContent = 'Loading more employees...';
+            renderSkeletons(3, true); // Append 3 skeleton cards at the bottom
+        } else {
+            currentPage = 1;
+            hasMorePages = true;
+            if (countDisplay) countDisplay.textContent = 'Loading employees...';
+            renderSkeletons(6, false); // Clear list and show 6 skeleton cards
         }
-    } catch (error) {
-        console.error("Fetch error:", error);
-        const list = $('employee-list');
-        if(list && reset) list.innerHTML = '<div class="col-span-full text-center text-red-500">Failed to load data.</div>';
-    } finally {
-        isLoading = false;
-    }
-}
 
-function setupFilterListeners() {
-    // Search Input
-    searchInput.addEventListener('input', debounce(() => {
-        currentFilters.name = searchInput.value.trim();
-        fetchAndRenderEmployees(true);
-    }, 500));
-
-    // Load More
-    loadMoreBtn.addEventListener('click', () => {
-        fetchAndRenderEmployees(false);
-    });
-
-    // Helper for Selects
-    const bindSelect = (id, filterKey) => {
-        const el = $(id);
-        if (!el) return;
-        el.addEventListener('change', () => {
-            currentFilters[filterKey] = el.value;
-            fetchAndRenderEmployees(true);
-        });
-    };
-
-    // Status Filters (TomSelect or standard select)
-    // Assuming standard selects for now based on previous code structure
-    // If using TomSelect, event listeners might differ slightly.
-
-    // Bind all filter dropdowns
-    const filterMap = {
-        'filterStatus': 'status',
-        'empDesignation': 'designation', // Note: ID matches populate function
-        'empFunctionalRole': 'functionalRole',
-        'empType': 'type',
-        'empProject': 'project',
-        'empProjectOffice': 'projectOffice',
-        'empReportProject': 'reportProject',
-        'empSubCenter': 'subCenter'
-    };
-
-    for (const [id, key] of Object.entries(filterMap)) {
-        const el = $(id);
-        if (el) {
-            el.addEventListener('change', () => {
-                // Special case for status 'All'
-                if (key === 'status' && el.value === 'All') {
-                    currentFilters[key] = '';
-                } else {
-                    currentFilters[key] = el.value;
-                }
-                fetchAndRenderEmployees(true);
-            });
-        }
-    }
-
-    // Reset Filters
-    const resetBtn = document.querySelector('.reset-filters-btn') || $('resetFiltersBtn'); // Adjust selector if needed
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            // Reset UI
-            searchInput.value = '';
-            Object.keys(filterMap).forEach(id => {
-                const el = $(id);
-                if (el) el.value = (id === 'filterStatus') ? 'Active,Salary Held,Resigned,Terminated' : '';
-            });
-
-            // Reset State
-            currentFilters = {
-                name: '',
-                status: 'Active,Salary Held,Resigned,Terminated',
-                designation: '',
-                functionalRole: '',
-                type: '',
-                project: '',
-                projectOffice: '',
-                reportProject: '',
-                subCenter: ''
-            };
-
-            fetchAndRenderEmployees(true);
-        });
-    }
-
-    // Background Fetch for complete list (for Salary Sheet generation)
-    // This ensures we have all employees for local calculations if needed
-    // or just rely on backend paging.
-    // If salary sheet needs ALL data, we might trigger a background load:
-    setTimeout(async () => {
-        try {
-            const allData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
-            if (allData && allData.employees) {
-                console.log(`Background fetch complete: ${allData.employees.length} employees loaded for modals.`);
-                // Update the modal-specific list if separate from the main view list
-                // or simply let getStoredEmployees return what's available.
-                // For Salary Sheet generation, usually we want the full list.
-                // Here we update a separate cache or append to allEmployees carefully?
-                // Actually, for 'generateSalarySheet', we probably want a fresh full pull or use this cache.
-                // Let's simply store it in a separate variable if needed, or just update allEmployees if we weren't paging.
-                // Since we ARE paging, mixing full list into allEmployees breaks the list view.
-                // Let's store it on window for the salary generator to grab.
-                window.fullEmployeeListCache = allData.employees;
+        // Prepare API parameters
+        const params = {
+            page: currentPage,
+            limit: 30,
+            ...currentFilters
+        };
+        // Convert array filters to comma-separated strings for the API
+        for (const key in params) {
+            if (Array.isArray(params[key])) {
+                params[key] = params[key].join(',');
             }
-        } catch (e) {
-            console.warn("Background fetch failed", e);
         }
-    }, 2000);
+
+        try {
+            const response = await apiCall('getEmployees', 'GET', null, params);
+
+            if (!response || !response.employees) {
+                throw new Error("Invalid API response format.");
+            }
+
+            const { employees, totalPages, totalCount, filters } = response;
+
+            // Render the new batch of employees
+            // (This function will internally remove the skeletons first)
+            renderEmployeeList(employees, isLoadMore);
+
+            // Update pagination state
+            hasMorePages = currentPage < totalPages;
+
+            // Update filter dropdowns *only on the first load*
+            if (!allFiltersLoaded) {
+                populateFilterDropdowns(filters); // For modals
+                updateTomSelectFilterOptions(filters); // For dashboard
+                allFiltersLoaded = true;
+            }
+
+            if (countDisplay) {
+                countDisplay.textContent = `Showing ${listContainer.children.length} of ${totalCount} employees.`;
+            }
+
+            // --- Background load of ALL employees for modal/edit logic ---
+            if (currentPage === 1) {
+                apiCall('getEmployees', 'GET', null, { limit: 5000 }) // Fetch all
+                    .then(fullResponse => {
+                        mainLocalEmployees = fullResponse.employees || [];
+                        console.log(`Background fetch complete: ${mainLocalEmployees.length} employees loaded for modals.`);
+                    });
+            }
+
+        } catch (error) {
+             removeSkeletons(); // Clean up skeletons on error
+             customAlert("Error", `Failed to load employee data: ${error.message}`);
+             if(countDisplay) countDisplay.textContent = 'Error loading data.';
+             if(listContainer && !isLoadMore) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+        } finally {
+            isLoading = false;
+        }
+    }
+    // === END MODIFICATION ===
+
+    // === MODIFICATION: Setup Filter Listeners ---
+    function setupFilterListeners() {
+        const tomSelectConfig = {
+            plugins: ['remove_button'],
+        };
+
+        const nameInput = $('filterName');
+        if (nameInput) {
+            // Use debounce to prevent API call on every keystroke
+            let debounceTimer;
+            nameInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    currentFilters.name = e.target.value;
+                    fetchAndRenderEmployees(false); // New search
+                }, 300); // 300ms delay
+            });
+        }
+
+        const filterMap = {
+            'filterStatus': 'status',
+            'filterDesignation': 'designation',
+            'filterFunctionalRole': 'functionalRole',
+            'filterType': 'type',
+            'filterProject': 'project',
+            'filterProjectOffice': 'projectOffice',
+            'filterReportProject': 'reportProject',
+            'filterSubCenter': 'subCenter'
+        };
+
+        for (const [elementId, filterKey] of Object.entries(filterMap)) {
+            const el = $(elementId);
+            if (el) {
+                tomSelects[filterKey] = new TomSelect(el, tomSelectConfig);
+                tomSelects[filterKey].on('change', (values) => {
+                    currentFilters[filterKey] = values;
+                    fetchAndRenderEmployees(false); // New search
+                });
+            } else {
+                console.warn(`Filter element with ID '${elementId}' not found.`);
+            }
+        }
+
+        // Set default filter values in the UI
+        if(tomSelects.status) {
+            tomSelects.status.setValue(currentFilters.status, true); // Set default silently
+        }
+
+        const resetBtn = $('resetFiltersBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                // Reset to default (hiding 'Closed')
+                currentFilters = {
+                    name: '',
+                    status: ['Active', 'Salary Held', 'Resigned', 'Terminated'],
+                    designation: [], functionalRole: [], type: [],
+                    project: [], projectOffice: [], reportProject: [], subCenter: []
+                };
+                if (nameInput) nameInput.value = '';
+                for (const key in tomSelects) {
+                    if (tomSelects[key]) {
+                        // Reset to default, not just clear
+                        const defaultVal = (key === 'status') ? currentFilters.status : [];
+                        tomSelects[key].setValue(defaultVal, false); // Set default with event
+                    }
+                }
+                // Manually trigger render after all values are set
+                fetchAndRenderEmployees(false);
+            });
+        } else {
+             console.warn("Reset Filters button (#resetFiltersBtn) not found.");
+        }
+    }
+    // === END MODIFICATION ===
+
+    // --- MODIFICATION: Infinite Scroll Listener ---
+    function setupInfiniteScroll() {
+        window.addEventListener('scroll', () => {
+            // Check if near bottom, not loading, and has more pages
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 &&
+                !isLoading &&
+                hasMorePages) {
+                console.log("Loading more employees...");
+                fetchAndRenderEmployees(true); // Load more
+            }
+        });
+    }
+    // --- END MODIFICATION ---
+
+    // --- MODIFICATION: This function now exports XLSX and uses friendly headers ---
+    async function handleExportData() {
+         // This now has to fetch all data, as mainLocalEmployees might be stale
+         try {
+            const fullData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
+            const employeesToExport = fullData.employees;
+
+            if (!employeesToExport || employeesToExport.length === 0) {
+                customAlert("No Data", "No employees to export.");
+                return;
+            }
+
+            const headers = [
+                "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
+                "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
+                "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
+                "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
+                "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
+                "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
+                "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
+                "Separation Date", "Remarks", "Last Transfer Date", "Last Subcenter", "Last Transfer Reason",
+                "File Close Date", "File Close Remarks"
+            ];
+
+            const headerKeys = [
+                "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
+                "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
+                "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
+                "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
+                "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
+                "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
+                "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
+                "separationDate", "remarks", "lastTransferDate", "lastSubcenter", "lastTransferReason",
+                "fileClosingDate", "fileClosingRemarks" // Fixed key names
+            ];
+
+            // Map data to objects with friendly headers as keys
+            const dataToExport = employeesToExport.map(emp => {
+                const newRow = {};
+                headerKeys.forEach((key, index) => {
+                    const headerName = headers[index];
+                    let value = emp[key] ?? '';
+                    if (key === 'salaryHeld') {
+                        value = (value === true || String(value).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+                    }
+                    newRow[headerName] = value;
+                });
+                return newRow;
+            });
+
+            // Use the new XLSX downloader
+            await downloadXLSX(dataToExport, "employee_data_export.xlsx", "Employees");
+
+         } catch (error) {
+             customAlert("Error", `Failed to export data: ${error.message}`);
+         }
+    }
+    // --- END MODIFICATION ---
+
+    // --- ADDITION: Helper function to download log reports (now using XLSX) ---
+    async function handleLogReportDownload(logName, apiAction, fileName) {
+        try {
+            const logData = await apiCall(apiAction);
+            if (!logData || logData.length === 0) {
+                customAlert("No Data", `No data found for the ${logName}.`);
+                return;
+            }
+            // Directly pass the JSON data to the XLSX downloader
+            await downloadXLSX(logData, fileName, logName);
+            closeModal('reportModal');
+        } catch (error) {
+            customAlert("Error", `Failed to download ${logName}: ${error.message}`);
+        }
+    }
+
+     function setupGlobalListeners() {
+         const reportBtn = $('reportBtn');
+         if (reportBtn) {
+             reportBtn.addEventListener('click', () => openModal('reportModal'));
+         } else {
+             console.warn("Report button (#reportBtn) not found.");
+         }
+
+         const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
+         const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
+         const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
+         const logoutBtn = $('logoutBtn');
+         if (logoutBtn) {
+             logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
+         } else { console.warn("Logout button (#logoutBtn) not found."); }
+     }
+
+    // --- Initialize Application ---
+    function initializeApp() {
+        console.log("Initializing HRMS App (Modular & Authenticated)...");
+        setupFilterListeners();
+        setupGlobalListeners();
+        setupInfiniteScroll();
+
+        const reportModal = $('reportModal');
+        if (reportModal) {
+            $('cancelReportModal').addEventListener('click', () => closeModal('reportModal'));
+            $('downloadEmployeeDatabase').addEventListener('click', () => {
+                handleExportData(); // Use the new async version
+                closeModal('reportModal');
+            });
+            // --- MODIFICATION: Updated to use XLSX filenames ---
+            $('downloadHoldLog').addEventListener('click', () => {
+                handleLogReportDownload('Hold Log', 'getHoldLog', 'salary_hold_log.xlsx');
+            });
+            $('downloadSeparationLog').addEventListener('click', () => {
+                handleLogReportDownload('Separation Log', 'getSeparationLog', 'separation_log.xlsx');
+            });
+            $('downloadTransferLog').addEventListener('click', () => {
+                handleLogReportDownload('Transfer Log', 'getTransferLog', 'transfer_log.xlsx');
+            });
+            $('downloadFileCloseLog').addEventListener('click', () => {
+                handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
+            });
+        }
+
+        // Setup module-specific listeners
+        // Note: We pass the *full* list getter to these functions for modal operations
+        if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
+        if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
+        if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
+        if (typeof setupFileCloseModal === 'function') setupFileCloseModal(fetchAndRenderEmployees);
+        if (typeof setupBulkUploadModal === 'function') setupBulkUploadModal(fetchAndRenderEmployees, getMainLocalEmployees);
+        if (typeof setupSalarySheetModal === 'function') setupSalarySheetModal(getMainLocalEmployees);
+        if (typeof setupPastSheetsModal === 'function') {
+            setupPastSheetsModal(getMainLocalEmployees, 'pastSalarySheetsBtn');
+        }
+        if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
+        if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
+
+        // Initial data load (Page 1)
+        fetchAndRenderEmployees(false);
+    }
+
+    // --- Run ---
+    try {
+        initializeApp();
+    } catch (err) {
+        console.error("Failed to initialize app:", err);
+        const appDiv = $('app');
+        const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
+        if (appDiv) {
+            appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
+        } else {
+            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg}. (Fatal: #app container not found)</div>`;
+        }
+    }
 }
 
-// Override getStoredEmployees to prefer full cache if available (for Salary Sheet)
-const originalGetStored = getStoredEmployees;
-window.getEmployeesForExport = function() {
-    return window.fullEmployeeListCache || allEmployees;
-};
-// Update salary sheet setup to use this new getter
-// (Note: You might need to update the call in initializeApp if you want strict correctness,
-// but passing getStoredEmployees usually works if user scrolled enough,
-// otherwise window.fullEmployeeListCache is safer).
+// --- Run the initialization ---
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAppModules);
+} else {
+    initializeAppModules();
+}

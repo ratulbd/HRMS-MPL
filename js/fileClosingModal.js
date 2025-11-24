@@ -1,69 +1,73 @@
-import { $, customAlert } from './utils.js';
+// js/fileClosingModal.js
+import { $, openModal, closeModal, customAlert, formatDateForInput } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// === FIX: Added 'export' keyword here ===
-export function openFileCloseModal(employee) {
-    const modal = $('fileCloseModal');
-    const form = $('fileCloseForm');
+let mainFetchEmployeesFunc = null;
 
-    if (!modal || !form) {
-        console.error("File Close Modal elements not found.");
+export function openFileClosingModal(employee) {
+    const form = $('fileClosingForm');
+    if (!form) {
+        console.error("File closing form not found");
         return;
     }
-
-    // Reset form
     form.reset();
 
-    // Set hidden ID and display name
-    const idField = $('fileCloseEmpId');
-    const nameDisplay = $('fileCloseEmpNameDisplay');
+    // Set employee ID in hidden field
+    $('fileClosingEmployeeId').value = employee.employeeId;
 
-    if (idField) idField.value = employee.employeeId;
-    if (nameDisplay) nameDisplay.textContent = `${employee.name} (${employee.employeeId})`;
+    // Set modal title
+    const titleEl = $('fileClosingModalTitle');
+    if (titleEl) {
+        titleEl.textContent = `Close File for ${employee.name} (${employee.employeeId})`;
+    }
 
-    // Show modal
-    modal.classList.remove('hidden');
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    $('fileClosingDate').value = today;
+    
+    // Clear remarks
+    $('fileClosingRemarks').value = '';
+
+    openModal('fileClosingModal');
 }
 
-export function setupFileCloseModal(refreshCallback) {
-    const modal = $('fileCloseModal');
-    const form = $('fileCloseForm');
-    const cancelBtn = $('cancelFileCloseModal');
+export function setupFileCloseModal(fetchEmployeesFunc) {
+    mainFetchEmployeesFunc = fetchEmployeesFunc; // Store the main fetch function
+    const form = $('fileClosingForm');
+    const cancelBtn = $('cancelFileClosingModal');
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            modal.classList.add('hidden');
-        });
+        cancelBtn.addEventListener('click', () => closeModal('fileClosingModal'));
     }
 
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const employeeId = $('fileClosingEmployeeId').value;
+            const fileClosingDate = $('fileClosingDate').value;
+            const fileClosingRemarks = $('fileClosingRemarks').value;
 
-            const empId = $('fileCloseEmpId').value;
-            const closeDate = $('fileCloseDate').value;
-            const remarks = $('fileCloseRemarks').value;
-
-            if (!closeDate || !remarks) {
-                customAlert("Error", "Date and Remarks are required.");
+            if (!employeeId || !fileClosingDate || !fileClosingRemarks) {
+                customAlert("Validation Error", "Please fill in all fields (Date and Remarks).");
                 return;
             }
 
             try {
+                // Call the new 'closeFile' API action
                 await apiCall('closeFile', 'POST', {
-                    employeeId: empId,
-                    date: closeDate,
-                    remarks: remarks
+                    employeeId: employeeId,
+                    fileClosingDate: fileClosingDate,
+                    fileClosingRemarks: fileClosingRemarks
                 });
-
-                customAlert("Success", "Employee file closed successfully.");
-                modal.classList.add('hidden');
-
-                if (refreshCallback) refreshCallback(false);
-
+                
+                customAlert("Success", "Employee file has been closed.");
+                closeModal('fileClosingModal');
+                
+                if (mainFetchEmployeesFunc) {
+                    mainFetchEmployeesFunc(); // Refresh the employee list
+                }
             } catch (error) {
-                console.error(error);
-                customAlert("Error", error.message || "Failed to close file.");
+                customAlert("Error", `Failed to close file: ${error.message}`);
             }
         });
     }
