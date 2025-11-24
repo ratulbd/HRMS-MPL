@@ -1,4 +1,3 @@
-// js/employeeList.js
 import { $, formatDateForDisplay } from './utils.js';
 import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
@@ -152,4 +151,4 @@ export function setupEmployeeListEventListeners(refreshCallback, getEmployeesCal
             openFileCloseModal(employee);
         }
     });
-}}
+}
