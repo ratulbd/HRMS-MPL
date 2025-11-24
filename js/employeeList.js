@@ -3,7 +3,7 @@ import { openEmployeeModal } from './employeeForm.js';
 import { openStatusChangeModal } from './statusChange.js';
 import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
-import { openFileCloseModal } from './fileClosingModal.js';
+import { openFileCloseModal } from './fileClosingModal.js'; // Now this import will work
 
 export function renderEmployeeList(employees, append = false) {
     const listContainer = $('employee-list');
@@ -20,6 +20,7 @@ export function renderEmployeeList(employees, append = false) {
 
     employees.forEach(emp => {
         const card = document.createElement('div');
+        // Standard design (no animations)
         card.className = 'bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col';
 
         // Status Color Logic
@@ -30,12 +31,12 @@ export function renderEmployeeList(employees, append = false) {
         else if (emp.status === 'Terminated') statusColor = 'bg-red-100 text-red-800';
         else if (emp.status === 'File Closed') statusColor = 'bg-gray-800 text-white';
 
-        // --- LOGIC: Status Date Display ---
+        // --- LOGIC: Status Date Display (Requested) ---
         let statusDateHTML = '';
         if (emp.status === 'Salary Held' && emp.holdTimestamp) {
-            statusDateHTML = `<div class="text-xs text-gray-500 mt-1 font-medium">${formatDateForDisplay(emp.holdTimestamp)}</div>`;
+            statusDateHTML = `<div class="text-xs text-gray-500 mt-1 font-medium">(${formatDateForDisplay(emp.holdTimestamp)})</div>`;
         }
-        // ----------------------------------
+        // ----------------------------------------------
 
         card.innerHTML = `
             <div class="p-5 flex-grow flex flex-col items-center text-center">
