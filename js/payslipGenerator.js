@@ -25,25 +25,20 @@ async function loadLogo() {
 export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
     const zip = new JSZip();
     let count = 0;
-
-    // Load logo once to reuse
     const logoData = await loadLogo();
 
-    // Iterate through salary data
     for (const record of salaryData) {
         if (!record.employeeId) continue;
 
-        // Use the record itself as it contains the archived snapshot of details
-        // Fallback to employeeDB if needed, but archive is safer for historical accuracy
         const project = record.project || 'Unknown Project';
         const subCenter = record.subCenter || 'Unknown SubCenter';
         const name = record.name || 'Unknown Name';
         const id = record.employeeId;
 
         // Generate PDF Blob
-        const pdfBlob = await createPayslipPDF(record, monthYear, subCenter, logoData);
+        const pdfBlob = await createStandardPayslip(record, monthYear, subCenter, logoData);
 
-        // Add to ZIP: Project/SubCenter/ID_Name.pdf
+        // Folder Structure: Project -> SubCenter -> ID_Name.pdf
         const folderName = `${sanitize(project)}/${sanitize(subCenter)}`;
         const fileName = `${id}_${sanitize(name)}.pdf`;
 
@@ -51,10 +46,7 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
         count++;
     }
 
-    if (count === 0) {
-        throw new Error("No valid salary records found to generate payslips.");
-    }
-
+    if (count === 0) throw new Error("No valid salary records found.");
     return await zip.generateAsync({ type: "blob" });
 }
 
@@ -63,206 +55,223 @@ function sanitize(str) {
 }
 
 /**
- * Creates a single Payslip PDF matching Form-38 layout.
+ * Creates a Standard Professional Payslip PDF
  */
-async function createPayslipPDF(salaryRecord, monthYear, subCenter, logoData) {
+async function createStandardPayslip(data, monthYear, subCenter, logoData) {
     const doc = new jspdf.jsPDF();
+    const width = doc.internal.pageSize.getWidth();
+    const height = doc.internal.pageSize.getHeight();
 
-    // --- Header ---
+    // --- 1. HEADER SECTION ---
     if (logoData) {
-        doc.addImage(logoData, 'PNG', 14, 5, 25, 12);
+        doc.addImage(logoData, 'PNG', 15, 10, 30, 15); // Logo
     }
 
-    // Company Name
-    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("Metal Plus Limited", 105, 10, { align: "center" });
+    doc.setFontSize(16);
+    doc.setTextColor(22, 101, 49); // Dark Green Brand Color
+    doc.text("Metal Plus Limited", 50, 18);
 
-    // Address
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(60, 60, 60);
+    doc.text("House-07, Road-10, Baridhara J Block, Dhaka -1212", 50, 24);
+
+    // Title Box (Right Side)
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(140, 10, 55, 18, 2, 2, 'F');
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("PAY SLIP", 167.5, 17, { align: "center" });
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("House-07, Road-10, Baridhara J Block, Dhaka -1212", 105, 16, { align: "center" });
+    doc.text(monthYear, 167.5, 24, { align: "center" });
 
-    // Form Name
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.text("Bangladesh Labor Law, Form-38", 105, 21, { align: "center" });
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 32, 195, 32);
 
-    // Separator Line 1
-    doc.setLineWidth(0.2);
-    doc.line(10, 24, 200, 24);
+    // --- 2. EMPLOYEE INFO GRID ---
+    const startY = 38;
+    const col1 = 15;
+    const col2 = 80;
+    const col3 = 130;
 
-    // --- Title Row ---
     doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-
-    // Circle (Project Office)
-    const circle = salaryRecord.projectOffice || "N/A";
-
-    doc.text(`Pay Slip- ${monthYear}`, 14, 29);
-    doc.text(`Circle: ${circle}`, 90, 29);
-    doc.text(`Sub Center: ${subCenter}`, 150, 29);
-
-    // Separator Line 2
-    doc.line(10, 32, 200, 32);
-
-    // --- Data Extraction Helpers ---
-    // Ensure we are reading from the nested objects if they exist, or flat props
-    const earn = salaryRecord.earn || {};
-    const ded = salaryRecord.ded || {};
-    const att = salaryRecord.att || {};
-
-    const formatMoney = (val) => {
-        if (val === undefined || val === null || val === 0 || val === "0") return "";
-        return Number(val).toFixed(0) + "/-";
-    };
-
-    // Specific helper for fields where 0 should show as "0/-" (like LWP, WF)
-    const formatMoneyZero = (val) => {
-        const num = Number(val || 0);
-        return num.toFixed(0) + "/-";
-    };
-
-    // --- Values ---
-    const idNo = salaryRecord.employeeId || "";
-    const nameStr = salaryRecord.name || "";
-    const designation = salaryRecord.designation || "";
-    const doj = formatDateForDisplay(salaryRecord.joiningDate) || "";
-
-    const totalDays = att.totalDays || "30/31";
-    const holidays = att.holidays || "0";
-    // Net present usually equals Days Worked for pay calculation
-    const netPresent = att.netPresent || salaryRecord.daysPresent || "0";
-    const actualPresent = att.actualPresent || salaryRecord.daysPresent || "0";
-    const lwpVal = att.lwpDays || 0;
-
-    // Earnings
-    // Note: 'salary' in record is usually Gross. Basic is calculated or stored.
-    // If Basic isn't explicitly in 'earn', assume 60% of Gross (standard structure in your sheet logic)
-    const grossVal = earn.grossSalary || salaryRecord.salary || 0;
-    const basicVal = grossVal * 0.6;
-
-    const basicSalary = formatMoney(basicVal);
-    const others = formatMoney(grossVal * 0.4); // 40% is others
-
-    // Deductions & Loans
-    const subVehicle = formatMoney(ded.vehicle);
-    const bikeLoan = formatMoney(ded.bike);
-    const subLunch = formatMoney(ded.lunch);
-    const othersLoan = formatMoney(ded.loan);
-    const wf = formatMoneyZero(ded.welfare); // WF usually shows even if small
-    const cpf = formatMoney(ded.cpf);
-    const tds = formatMoney(ded.tds);
-
-    const totalDeduct = formatMoneyZero(ded.totalDeduction || salaryRecord.deduction);
-    const grossSalaryStr = formatMoneyZero(grossVal);
-    const netDisbursable = formatMoneyZero(salaryRecord.netPayment || salaryRecord.netSalary);
-
-    // --- Table Rendering ---
-    const startY = 40;
-    const col1X = 14;
-    const col2X = 110;
-    const lineHeight = 6;
-
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-
-    // Helper to draw row
-    const drawRow = (label1, val1, label2, val2, y) => {
-        // Col 1
-        doc.text(label1, col1X, y);
-        doc.text(String(val1), col1X + 40, y);
-
-        // Col 2
-        doc.text(label2, col2X, y);
-        doc.text(String(val2), col2X + 40, y);
-    };
-
-    let currentY = startY;
 
     // Row 1
-    drawRow("ID No. :", idNo, "OT Hours :", "", currentY);
-    currentY += lineHeight;
+    doc.setFont("helvetica", "bold"); doc.text("Employee ID:", col1, startY);
+    doc.setFont("helvetica", "normal"); doc.text(String(data.employeeId), col1 + 25, startY);
+
+    doc.setFont("helvetica", "bold"); doc.text("Designation:", col2, startY);
+    doc.setFont("helvetica", "normal"); doc.text(String(data.designation || "N/A"), col2 + 25, startY);
 
     // Row 2
-    drawRow("Name :", nameStr, "OT Rate :", "", currentY);
-    currentY += lineHeight;
+    doc.setFont("helvetica", "bold"); doc.text("Name:", col1, startY + 6);
+    doc.setFont("helvetica", "normal"); doc.text(String(data.name), col1 + 25, startY + 6);
+
+    doc.setFont("helvetica", "bold"); doc.text("Date of Joining:", col2, startY + 6);
+    doc.setFont("helvetica", "normal"); doc.text(formatDateForDisplay(data.joiningDate), col2 + 25, startY + 6);
 
     // Row 3
-    drawRow("Designation :", designation, "Net Present :", netPresent, currentY);
-    currentY += lineHeight;
+    doc.setFont("helvetica", "bold"); doc.text("Sub Center:", col1, startY + 12);
+    doc.setFont("helvetica", "normal"); doc.text(String(subCenter), col1 + 25, startY + 12);
 
-    // Row 4
-    drawRow("DOJ :", doj, "Actual Present :", actualPresent, currentY);
-    currentY += lineHeight;
+    doc.setFont("helvetica", "bold"); doc.text("Bank Account:", col2, startY + 12);
+    doc.setFont("helvetica", "normal"); doc.text(String(data.finalAccountNo || data.bankAccount || "N/A"), col2 + 25, startY + 12);
 
-    // Row 5
-    // LWP shows "0/-" if 0
-    drawRow("Total Working days :", totalDays, "LWP :", formatMoneyZero(lwpVal), currentY);
-    currentY += lineHeight;
+    // --- 3. ATTENDANCE STRIP ---
+    const attY = startY + 20;
+    doc.setFillColor(245, 248, 245); // Very light green
+    doc.rect(15, attY, 180, 12, 'F');
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(15, attY, 180, 12, 'S');
 
-    // Row 6
-    drawRow("Leave", "", "Subsidize Vehicle", subVehicle, currentY);
-    currentY += lineHeight;
+    const att = data.att || {};
+    const attData = [
+        { l: "Total Days", v: att.totalDays || "0" },
+        { l: "Holidays", v: att.holidays || "0" },
+        { l: "Worked", v: att.netPresent || "0" },
+        { l: "Leave", v: att.leave || "0" },
+        { l: "LWP", v: att.lwpDays || "0" }
+    ];
 
-    // Row 7
-    drawRow("Holidays :", holidays, "Motor Bike Loan", bikeLoan, currentY);
-    currentY += lineHeight;
+    let attX = 20;
+    attData.forEach(item => {
+        doc.setFont("helvetica", "bold"); doc.text(item.l, attX, attY + 5);
+        doc.setFont("helvetica", "normal"); doc.text(String(item.v), attX, attY + 9);
+        attX += 35;
+    });
 
-    // Row 8
-    drawRow("Basic Salary :", basicSalary, "Ttl Absent days :", "", currentY);
-    currentY += lineHeight;
+    // --- 4. EARNINGS & DEDUCTIONS TABLES ---
+    const tblY = attY + 18;
+    const colWidth = 88;
+    const centerLine = 105;
 
-    // Row 9
-    drawRow("House Rent :", "", "Days worked :", netPresent, currentY);
-    currentY += lineHeight;
+    // Headers
+    doc.setFillColor(22, 101, 49); // Brand Green
+    doc.setTextColor(255, 255, 255);
+    doc.rect(15, tblY, colWidth, 7, 'F'); // Earn Header
+    doc.rect(centerLine + 2, tblY, colWidth, 7, 'F'); // Ded Header
 
-    // Row 10
-    drawRow("Medical :", "", "Sub Lunch", subLunch, currentY);
-    currentY += lineHeight;
-
-    // Row 11
-    drawRow("Convenes :", "", "Others Loan", othersLoan, currentY);
-    currentY += lineHeight;
-
-    // Row 12
-    drawRow("Food & Station Allowance :", "", "Advance :", "", currentY);
-    currentY += lineHeight;
-
-    // Row 13
-    drawRow("Others :", others, "WF :", wf, currentY);
-    currentY += lineHeight;
-
-    // Row 14
-    drawRow("Arrear", "", "CPF", cpf, currentY);
-    currentY += lineHeight;
-
-    // Row 15
-    drawRow("Other Allowances", "", "Station Allowance", "", currentY);
-    currentY += lineHeight;
-
-    // Row 16
-    drawRow("Attendance Bonus :", "", "TDS", tds, currentY);
-    currentY += lineHeight;
-
-    // Row 17
-    drawRow("OT Allowanced :", "", "Total Deduct :", totalDeduct, currentY);
-    currentY += lineHeight;
-
-    // Row 18 (Totals)
-    currentY += 2;
     doc.setFont("helvetica", "bold");
+    doc.text("EARNINGS", 15 + (colWidth/2), tblY + 5, { align: "center" });
+    doc.text("DEDUCTIONS", centerLine + 2 + (colWidth/2), tblY + 5, { align: "center" });
 
-    // Draw lines for emphasis on totals
-    doc.line(col1X, currentY - 4, 90, currentY - 4);
-    doc.line(col2X, currentY - 4, 190, currentY - 4);
+    // Extract Data
+    const earn = data.earn || {};
+    const ded = data.ded || {};
+    const fMoney = (val) => val ? Number(val).toLocaleString('en-IN') : "0";
 
-    drawRow("Gross Salary :", grossSalaryStr, "Net Disbursable :", netDisbursable, currentY);
+    const earnRows = [
+        { l: "Basic Salary", v: (earn.grossSalary || data.salary || 0) * 0.6 }, // 60% Basic logic
+        { l: "House Rent & Others", v: (earn.grossSalary || data.salary || 0) * 0.4 }, // 40% Others
+        { l: "Maintenance Allow.", v: earn.maint },
+        { l: "Laptop Rent", v: earn.laptop },
+        { l: "Other Allowance", v: earn.others },
+        { l: "Food Allowance", v: earn.food },
+        { l: "Station Allowance", v: earn.station },
+        { l: "Hardship Allowance", v: earn.hardship },
+        { l: "Arrears", v: earn.arrear }
+    ].filter(r => r.v > 0);
+
+    const dedRows = [
+        { l: "TDS / Tax", v: ded.tds },
+        { l: "Provident Fund (CPF)", v: ded.cpf },
+        { l: "Welfare Fund", v: ded.welfare },
+        { l: "Subsidized Lunch", v: ded.lunch },
+        { l: "Vehicle/Bike Loan", v: (ded.vehicle || 0) + (ded.bike || 0) },
+        { l: "Salary/Other Loan", v: ded.loan },
+        { l: "Adjustments", v: ded.adj },
+        { l: "Absent Deduction", v: ded.attDed }
+    ].filter(r => r.v > 0);
+
+    // Draw Rows
+    let currentY = tblY + 12;
+    doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
 
-    // Bottom Line
-    currentY += 4;
-    doc.line(10, currentY, 200, currentY);
+    const maxRows = Math.max(earnRows.length, dedRows.length);
+
+    for (let i = 0; i < maxRows; i++) {
+        // Earnings Side
+        if (earnRows[i]) {
+            doc.text(earnRows[i].l, 17, currentY);
+            doc.text(fMoney(earnRows[i].v), 15 + colWidth - 2, currentY, { align: "right" });
+        }
+        // Deductions Side
+        if (dedRows[i]) {
+            doc.text(dedRows[i].l, centerLine + 4, currentY);
+            doc.text(fMoney(dedRows[i].v), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
+        }
+        // Light line
+        doc.setDrawColor(240, 240, 240);
+        doc.line(15, currentY + 2, 15 + colWidth, currentY + 2);
+        doc.line(centerLine + 2, currentY + 2, centerLine + 2 + colWidth, currentY + 2);
+
+        currentY += 7;
+    }
+
+    // --- 5. TOTALS SECTION ---
+    currentY += 5;
+    doc.setDrawColor(100, 100, 100);
+    doc.line(15, currentY, 195, currentY); // Top Line
+    currentY += 7;
+
+    const grossTotal = earn.grossPayable || ((earn.grossSalary || 0) + (earn.maint||0) + (earn.others||0));
+    const dedTotal = ded.totalDeduction || 0;
+    const netPay = data.netPayment || data.netSalary || (grossTotal - dedTotal);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Earnings:", 60, currentY, { align: "right" });
+    doc.text(fMoney(grossTotal), 15 + colWidth - 2, currentY, { align: "right" });
+
+    doc.text("Total Deductions:", 155, currentY, { align: "right" });
+    doc.text(fMoney(dedTotal), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
+
+    // Net Pay Highlight
+    currentY += 10;
+    doc.setFillColor(240, 255, 240); // Light Mint
+    doc.setDrawColor(22, 101, 49);
+    doc.roundedRect(15, currentY, 180, 15, 2, 2, 'FD');
+
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text("NET SALARY PAYABLE", 25, currentY + 10);
+
+    doc.setFontSize(14);
+    doc.setTextColor(22, 101, 49);
+    doc.text(`BDT ${fMoney(netPay)}`, 190, currentY + 10, { align: "right" });
+
+    // Amount in words (simplified)
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    // Note: Actual number-to-words is complex in JS without a library,
+    // placeholder used or rely on backend passed value if available.
+    doc.text("* Computer generated document.", 15, currentY + 22);
+
+
+    // --- 6. FOOTER (Green Bar + Corporate Office) ---
+    // Mimicking the attached image footer
+    const footerY = 275;
+
+    // Green Bar
+    doc.setFillColor(75, 107, 62); // Corporate Olive/Green
+    doc.rect(0, footerY, 210, 22, 'F'); // Full width bar
+
+    // Corporate Office Text
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0); // Black text above the bar like the image
+    doc.text("Metal Plus Limited", 15, footerY - 8);
+
+    doc.setFontSize(8);
+    doc.text("Corporate Office:", 15, footerY - 4);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+    doc.text("PBL Tower (12th & 14th Floor), 17 North C/A. Gulshan Circle-2, Dhaka-1212, Bangladesh.", 15, footerY);
+    doc.text("Phone: +880-2-9884549. www.metalplusltdbd.com", 15, footerY + 4);
 
     return doc.output('blob');
 }
