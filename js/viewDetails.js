@@ -10,7 +10,9 @@ function keyToLabel(key) {
     key = key.replace('tds', 'TDS');
     key = key.replace('lwp', 'LWP');
     key = key.replace('cpf', 'CPF');
-    
+    key = key.replace('holdTimestamp', 'Salary Hold Date'); // REQ 2: Specific Label
+    key = key.replace('remarks', 'Reason / Remarks'); // REQ 2: Specific Label for clarity
+
     // Replace underscores with spaces, handle camelCase by inserting space before uppercase letters
     let label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
     // Uppercase first letter of each word
@@ -28,20 +30,15 @@ export function openViewDetailsModal(employee) {
         return;
     }
 
-    // === FIX: Removed history keys from the excluded list ===
     // List of keys to EXCLUDE from dynamic display
     const excludedKeys = [
         'id', // Internal row ID
         'originalEmployeeId', // Internal edit logic key
-        // Explicitly excluded fields (now shown on main card)
-        'status', 'salaryHeld', 'holdTimestamp'
-        // 'separationDate', // REMOVED - Show in details
-        // 'remarks', // REMOVED - Show in details
-        // 'lastTransferDate', // REMOVED - Show in details
-        // 'lastSubcenter', // REMOVED - Show in details
-        // 'lastTransferReason' // REMOVED - Show in details
+        'status',
+        'salaryHeld',
+        // 'holdTimestamp' // REQ 2: REMOVED from exclusion so it shows
     ];
-    
+
     // --- MODIFICATION: List of all keys that should be formatted as currency ---
     const currencyKeys = [
         'previousSalary', 'basic', 'others', 'salary', 'motobikeCarMaintenance', 'laptopRent',
@@ -69,9 +66,9 @@ export function openViewDetailsModal(employee) {
         let value = employee[key];
         let displayValue = value;
 
-        // === FIX: Added history dates to the date formatting condition ===
         // Apply Specific Formatting
-        if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate") && value) {
+        // REQ 2: Added 'holdTimestamp' to date formatting
+        if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate" || key === "holdTimestamp") && value) {
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                  displayValue = formatDateForDisplay(value);
              } else {
@@ -86,6 +83,9 @@ export function openViewDetailsModal(employee) {
 
         // Ensure N/A for empty/null/undefined values AFTER potential formatting
         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
+
+        // REQ 2: Only show hold info if relevant (optional, but cleaner)
+        if (key === 'holdTimestamp' && displayValue === 'N/A') continue;
 
         html += `
             <div class="border-b border-gray-200 pb-2">

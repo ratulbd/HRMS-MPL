@@ -92,9 +92,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
             card.className = 'employee-card flex flex-col';
             card.setAttribute('data-employee-row-id', emp.id);
 
-            // === MODIFICATION: Animation Delay Fix ===
-            // Use 'index' directly (0, 1, 2...) instead of 'startIndex + index'
-            // This ensures the new batch always cascades in from 0ms delay
+            // Use 'index' directly for animation delay
             card.style.setProperty('--card-index', index);
 
 
@@ -113,11 +111,21 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
+            // --- REQ 2: Salary Held Date below status ---
+            let statusHtml = `
+                <div class="flex flex-col items-end">
+                    <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
+                    ${(statusText === 'Salary Held' && emp.holdTimestamp)
+                        ? `<span class="text-xs text-red-600 mt-1 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Held: ${formatDateForDisplay(emp.holdTimestamp)}</span>`
+                        : ''}
+                </div>
+            `;
+
             card.innerHTML = `
                 <div class="card-content p-5 pb-16 flex-grow">
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
-                        <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
+                        ${statusHtml}
                     </div>
 
                     <div class="mb-4 space-y-1.5">
@@ -154,7 +162,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                     ` : ''}
 
                     ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
-                        <button class="close-file-btn btn-pill btn-pill-gray" data-id="${emp.id}">Close File</button>
+                        <button class="close-file-btn btn-pill btn-pill-gray border-gray-300 hover:bg-gray-200" data-id="${emp.id}">Close File</button>
                     ` : ''}
                 </div>
                 `;
