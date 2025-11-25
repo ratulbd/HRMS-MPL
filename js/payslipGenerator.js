@@ -29,22 +29,19 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
     // Load logo once to reuse
     const logoData = await loadLogo();
 
-    // Helper to find employee details
-    const getEmpDetails = (id) => employeeDB.find(e => String(e.employeeId) === String(id));
-
     // Iterate through salary data
     for (const record of salaryData) {
         if (!record.employeeId) continue;
 
-        const empDetails = getEmpDetails(record.employeeId);
-
-        const project = empDetails?.project || 'Unknown Project';
-        const subCenter = empDetails?.subCenter || 'Unknown SubCenter';
-        const name = record.name || empDetails?.name || 'Unknown Name';
+        // Use the record itself as it contains the archived snapshot of details
+        // Fallback to employeeDB if needed, but archive is safer for historical accuracy
+        const project = record.project || 'Unknown Project';
+        const subCenter = record.subCenter || 'Unknown SubCenter';
+        const name = record.name || 'Unknown Name';
         const id = record.employeeId;
 
         // Generate PDF Blob
-        const pdfBlob = await createPayslipPDF(record, empDetails, monthYear, subCenter, logoData);
+        const pdfBlob = await createPayslipPDF(record, monthYear, subCenter, logoData);
 
         // Add to ZIP: Project/SubCenter/ID_Name.pdf
         const folderName = `${sanitize(project)}/${sanitize(subCenter)}`;
@@ -62,34 +59,31 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
 }
 
 function sanitize(str) {
-    return str.replace(/[^a-z0-9]/gi, '_').trim();
+    return (str || '').replace(/[^a-z0-9]/gi, '_').trim();
 }
 
 /**
  * Creates a single Payslip PDF matching Form-38 layout.
  */
-async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, logoData) {
-    // Landscape or Portrait? Form 38 is usually Portrait, but the data is wide.
-    // Sticking to Portrait A4 as per typical payslips, but adjusting fonts/positions.
+async function createPayslipPDF(salaryRecord, monthYear, subCenter, logoData) {
     const doc = new jspdf.jsPDF();
 
     // --- Header ---
-
-    // 1. Logo (Top Left)
     if (logoData) {
-        // x, y, width, height
         doc.addImage(logoData, 'PNG', 14, 5, 25, 12);
     }
 
-    // 2. Company Info (Centered)
-    doc.setFontSize(14); // Slightly larger for Company Name
+    // Company Name
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("Metal Plus Limited", 105, 10, { align: "center" });
 
+    // Address
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text("House-07, Road-10, Baridhara J Block, Dhaka -1212", 105, 16, { align: "center" });
 
+    // Form Name
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
     doc.text("Bangladesh Labor Law, Form-38", 105, 21, { align: "center" });
@@ -98,14 +92,13 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     doc.setLineWidth(0.2);
     doc.line(10, 24, 200, 24);
 
-    // --- Title Row (Month, Circle, Subcenter) ---
-    // Increased Y position to avoid overlap with header
+    // --- Title Row ---
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
 
-    const circle = empDetails?.projectOffice || "N/A";
+    // Circle (Project Office)
+    const circle = salaryRecord.projectOffice || "N/A";
 
-    // Y=29 for this row
     doc.text(`Pay Slip- ${monthYear}`, 14, 29);
     doc.text(`Circle: ${circle}`, 90, 29);
     doc.text(`Sub Center: ${subCenter}`, 150, 29);
@@ -113,36 +106,59 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     // Separator Line 2
     doc.line(10, 32, 200, 32);
 
-    // --- Data Preparation ---
-    const basic = parseFloat(empDetails?.basic || 0);
-    const gross = parseFloat(salaryRecord.salary || empDetails?.salary || 0);
+    // --- Data Extraction Helpers ---
+    // Ensure we are reading from the nested objects if they exist, or flat props
+    const earn = salaryRecord.earn || {};
+    const ded = salaryRecord.ded || {};
+    const att = salaryRecord.att || {};
 
+    const formatMoney = (val) => {
+        if (val === undefined || val === null || val === 0 || val === "0") return "";
+        return Number(val).toFixed(0) + "/-";
+    };
+
+    // Specific helper for fields where 0 should show as "0/-" (like LWP, WF)
+    const formatMoneyZero = (val) => {
+        const num = Number(val || 0);
+        return num.toFixed(0) + "/-";
+    };
+
+    // --- Values ---
     const idNo = salaryRecord.employeeId || "";
     const nameStr = salaryRecord.name || "";
-    const designation = empDetails?.designation || "";
-    const doj = formatDateForDisplay(empDetails?.joiningDate) || "";
+    const designation = salaryRecord.designation || "";
+    const doj = formatDateForDisplay(salaryRecord.joiningDate) || "";
 
-    // Attendance logic
-    const totalDays = salaryRecord.att?.totalDays || "30/31";
-    const holidays = salaryRecord.att?.holidays || "0";
-    const netPresent = salaryRecord.att?.netPresent || salaryRecord.daysPresent || "0";
-    const actualPresent = salaryRecord.att?.actualPresent || salaryRecord.daysPresent || "0";
-    const lwp = salaryRecord.att?.lwpDays || "0";
-    const daysWorked = netPresent; // Usually mapped to net present for pay calculation
+    const totalDays = att.totalDays || "30/31";
+    const holidays = att.holidays || "0";
+    // Net present usually equals Days Worked for pay calculation
+    const netPresent = att.netPresent || salaryRecord.daysPresent || "0";
+    const actualPresent = att.actualPresent || salaryRecord.daysPresent || "0";
+    const lwpVal = att.lwpDays || 0;
 
-    // Money logic
-    const basicSalary = basic.toFixed(0) + "/-";
-    const others = parseFloat(empDetails?.others || 0).toFixed(0) + "/-";
-    const grossSalaryStr = gross.toFixed(0) + "/-";
+    // Earnings
+    // Note: 'salary' in record is usually Gross. Basic is calculated or stored.
+    // If Basic isn't explicitly in 'earn', assume 60% of Gross (standard structure in your sheet logic)
+    const grossVal = earn.grossSalary || salaryRecord.salary || 0;
+    const basicVal = grossVal * 0.6;
 
-    const wfAmount = Math.round(basic * 0.01);
-    const wf = wfAmount + "/-";
+    const basicSalary = formatMoney(basicVal);
+    const others = formatMoney(grossVal * 0.4); // 40% is others
 
-    const totalDeduct = (salaryRecord.deduction || 0);
-    const netDisbursable = (salaryRecord.netSalary || 0).toFixed(0) + "/-";
+    // Deductions & Loans
+    const subVehicle = formatMoney(ded.vehicle);
+    const bikeLoan = formatMoney(ded.bike);
+    const subLunch = formatMoney(ded.lunch);
+    const othersLoan = formatMoney(ded.loan);
+    const wf = formatMoneyZero(ded.welfare); // WF usually shows even if small
+    const cpf = formatMoney(ded.cpf);
+    const tds = formatMoney(ded.tds);
 
-    // --- Table Structure ---
-    // Moved startY down to 40 to completely clear the header area (Fixing Overlap)
+    const totalDeduct = formatMoneyZero(ded.totalDeduction || salaryRecord.deduction);
+    const grossSalaryStr = formatMoneyZero(grossVal);
+    const netDisbursable = formatMoneyZero(salaryRecord.netPayment || salaryRecord.netSalary);
+
+    // --- Table Rendering ---
     const startY = 40;
     const col1X = 14;
     const col2X = 110;
@@ -181,15 +197,16 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     currentY += lineHeight;
 
     // Row 5
-    drawRow("Total Working days :", totalDays, "LWP :", `${lwp}/-`, currentY);
+    // LWP shows "0/-" if 0
+    drawRow("Total Working days :", totalDays, "LWP :", formatMoneyZero(lwpVal), currentY);
     currentY += lineHeight;
 
     // Row 6
-    drawRow("Leave", "", "Subsidize Vehicle", "", currentY);
+    drawRow("Leave", "", "Subsidize Vehicle", subVehicle, currentY);
     currentY += lineHeight;
 
     // Row 7
-    drawRow("Holidays :", holidays, "Motor Bike Loan", "", currentY);
+    drawRow("Holidays :", holidays, "Motor Bike Loan", bikeLoan, currentY);
     currentY += lineHeight;
 
     // Row 8
@@ -197,15 +214,15 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     currentY += lineHeight;
 
     // Row 9
-    drawRow("House Rent :", "", "Days worked :", daysWorked, currentY);
+    drawRow("House Rent :", "", "Days worked :", netPresent, currentY);
     currentY += lineHeight;
 
     // Row 10
-    drawRow("Medical :", "", "Sub Lunch", "", currentY);
+    drawRow("Medical :", "", "Sub Lunch", subLunch, currentY);
     currentY += lineHeight;
 
     // Row 11
-    drawRow("Convenes :", "", "Others Loan", "", currentY);
+    drawRow("Convenes :", "", "Others Loan", othersLoan, currentY);
     currentY += lineHeight;
 
     // Row 12
@@ -217,7 +234,7 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     currentY += lineHeight;
 
     // Row 14
-    drawRow("Arrear", "", "CPF", "", currentY);
+    drawRow("Arrear", "", "CPF", cpf, currentY);
     currentY += lineHeight;
 
     // Row 15
@@ -225,17 +242,18 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     currentY += lineHeight;
 
     // Row 16
-    drawRow("Attendance Bonus :", "", "TDS", "", currentY);
+    drawRow("Attendance Bonus :", "", "TDS", tds, currentY);
     currentY += lineHeight;
 
     // Row 17
-    drawRow("OT Allowanced :", "", "Total Deduct :", totalDeduct.toFixed(0) + "/-", currentY);
+    drawRow("OT Allowanced :", "", "Total Deduct :", totalDeduct, currentY);
     currentY += lineHeight;
 
     // Row 18 (Totals)
-    currentY += 2; // Extra gap before totals
+    currentY += 2;
     doc.setFont("helvetica", "bold");
-    // Draw lines above totals for emphasis
+
+    // Draw lines for emphasis on totals
     doc.line(col1X, currentY - 4, 90, currentY - 4);
     doc.line(col2X, currentY - 4, 190, currentY - 4);
 
@@ -245,8 +263,6 @@ async function createPayslipPDF(salaryRecord, empDetails, monthYear, subCenter, 
     // Bottom Line
     currentY += 4;
     doc.line(10, currentY, 200, currentY);
-
-    // REMOVED: Signature section as requested.
 
     return doc.output('blob');
 }
