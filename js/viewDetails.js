@@ -38,7 +38,7 @@ export async function openViewDetailsModal(employee) {
         'originalEmployeeId', // Internal edit logic key
         'status',
         'salaryHeld',
-        // 'holdTimestamp' // We handle this manually below
+        // 'holdTimestamp' // Skipped in loop logic below to move position
     ];
 
     const currencyKeys = [
@@ -60,7 +60,7 @@ export async function openViewDetailsModal(employee) {
 
             if (Array.isArray(logs)) {
                 // Filter logs for this employee
-                // REQ FIX: Handle Capitalized Keys from Console Log ("Employee ID")
+                // Handle Capitalized Keys from Console Log ("Employee ID")
                 const empLogs = logs.filter(l => {
                     const logId = l.employeeId || l['Employee ID'] || l['employeeid'];
                     return String(logId) === String(employee.employeeId);
@@ -69,7 +69,7 @@ export async function openViewDetailsModal(employee) {
                 // Get the latest log entry
                 if (empLogs.length > 0) {
                      const latestLog = empLogs[empLogs.length - 1];
-                     // REQ FIX: Handle Capitalized "Remarks" key
+                     // Handle Capitalized "Remarks" key
                      holdLogRemarks = latestLog.remarks || latestLog.reason || latestLog.Remarks || latestLog['Hold Reason'];
                 }
             }
@@ -93,9 +93,9 @@ export async function openViewDetailsModal(employee) {
             continue;
         }
 
-        // REQ: "Salary Hold Date ... should be visible if and only Current status is salary held"
+        // REQ: Move Salary Hold Date to the end (skip here)
         if (key === 'holdTimestamp') {
-            if (!isHeld) continue;
+            continue;
         }
 
         const label = keyToLabel(key);
@@ -103,7 +103,7 @@ export async function openViewDetailsModal(employee) {
         let displayValue = value;
 
         // Apply Specific Formatting
-        if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate" || key === "holdTimestamp") && value) {
+        if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate") && value) {
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                  displayValue = formatDateForDisplay(value);
              } else {
@@ -117,9 +117,6 @@ export async function openViewDetailsModal(employee) {
         // Ensure N/A for empty/null/undefined values
         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
 
-        // Hide hold timestamp if N/A (double check, though the isHeld check above handles most cases)
-        if (key === 'holdTimestamp' && displayValue === 'N/A') continue;
-
         html += `
             <div class="border-b border-gray-200 pb-2">
                 <dt class="text-sm font-medium text-gray-500">${label}</dt>
@@ -127,8 +124,23 @@ export async function openViewDetailsModal(employee) {
             </div>`;
     }
 
-    // === INJECT HOLD REMARKS ===
-    // REQ: "Hold Remarks should be visible if and only Current status is salary held"
+    // === INJECT SALARY HOLD DATE (Manually moved to end) ===
+    if (isHeld && employee.holdTimestamp) {
+        let displayDate = employee.holdTimestamp;
+        // Apply date formatting
+        if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
+            displayDate = formatDateForDisplay(displayDate);
+        }
+        if (displayDate && displayDate !== 'N/A') {
+             html += `
+                <div class="border-b border-gray-200 pb-2">
+                    <dt class="text-sm font-medium text-gray-500">Salary Hold Date</dt>
+                    <dd class="mt-1 text-sm text-gray-900">${displayDate}</dd>
+                </div>`;
+        }
+    }
+
+    // === INJECT HOLD REMARKS (Last Item) ===
     if (isHeld && holdLogRemarks) {
         html += `
             <div class="border-b border-gray-200 pb-2 bg-red-50 p-2 rounded col-span-1 md:col-span-3">
