@@ -12,8 +12,8 @@ function keyToLabel(key) {
     key = key.replace('cpf', 'CPF');
     key = key.replace('holdTimestamp', 'Salary Hold Date');
 
-    // Replace 'remarks' from sheet with 'General Remarks' to avoid confusion with Hold Remarks
-    if (key === 'remarks') return 'General Remarks';
+    // REQ: Rename 'remarks' to 'Separation Remarks'
+    if (key === 'remarks') return 'Separation Remarks';
 
     // Replace underscores with spaces, handle camelCase by inserting space before uppercase letters
     let label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
@@ -38,7 +38,7 @@ export async function openViewDetailsModal(employee) {
         'originalEmployeeId', // Internal edit logic key
         'status',
         'salaryHeld',
-        // 'holdTimestamp' // REQ 2: REMOVED from exclusion so it shows
+        // 'holdTimestamp' // We handle this manually below
     ];
 
     const currencyKeys = [
@@ -48,24 +48,29 @@ export async function openViewDetailsModal(employee) {
         'othersAdjustment', 'totalDeduction', 'netSalaryPayment', 'mobileLimit'
     ];
 
+    // Check if status is Salary Held
+    const isHeld = (employee.status === 'Salary Held' || String(employee.salaryHeld).toLowerCase() === 'true');
+
     // === NEW LOGIC: Fetch Hold Remarks from Log if Held ===
     let holdLogRemarks = null;
-    const isHeld = (employee.status === 'Salary Held' || String(employee.salaryHeld).toLowerCase() === 'true');
 
     if (isHeld) {
         try {
-            // Note: apiCall will trigger the global loading spinner
             const logs = await apiCall('getHoldLog');
 
-            // Filter logs for this employee
             if (Array.isArray(logs)) {
-                const empLogs = logs.filter(l => String(l.employeeId) === String(employee.employeeId));
+                // Filter logs for this employee
+                // REQ FIX: Handle Capitalized Keys from Console Log ("Employee ID")
+                const empLogs = logs.filter(l => {
+                    const logId = l.employeeId || l['Employee ID'] || l['employeeid'];
+                    return String(logId) === String(employee.employeeId);
+                });
 
-                // Get the latest log entry (assuming append order)
+                // Get the latest log entry
                 if (empLogs.length > 0) {
                      const latestLog = empLogs[empLogs.length - 1];
-                     // Check 'remarks' or 'reason' key depending on log structure
-                     holdLogRemarks = latestLog.remarks || latestLog.reason;
+                     // REQ FIX: Handle Capitalized "Remarks" key
+                     holdLogRemarks = latestLog.remarks || latestLog.reason || latestLog.Remarks || latestLog['Hold Reason'];
                 }
             }
         } catch (e) {
@@ -88,6 +93,11 @@ export async function openViewDetailsModal(employee) {
             continue;
         }
 
+        // REQ: "Salary Hold Date ... should be visible if and only Current status is salary held"
+        if (key === 'holdTimestamp') {
+            if (!isHeld) continue;
+        }
+
         const label = keyToLabel(key);
         let value = employee[key];
         let displayValue = value;
@@ -107,7 +117,7 @@ export async function openViewDetailsModal(employee) {
         // Ensure N/A for empty/null/undefined values
         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
 
-        // Hide hold timestamp if N/A
+        // Hide hold timestamp if N/A (double check, though the isHeld check above handles most cases)
         if (key === 'holdTimestamp' && displayValue === 'N/A') continue;
 
         html += `
@@ -118,10 +128,11 @@ export async function openViewDetailsModal(employee) {
     }
 
     // === INJECT HOLD REMARKS ===
+    // REQ: "Hold Remarks should be visible if and only Current status is salary held"
     if (isHeld && holdLogRemarks) {
         html += `
             <div class="border-b border-gray-200 pb-2 bg-red-50 p-2 rounded col-span-1 md:col-span-3">
-                <dt class="text-sm font-bold text-red-700">Hold Reason (From Log)</dt>
+                <dt class="text-sm font-bold text-red-700">Hold Remarks</dt>
                 <dd class="mt-1 text-sm text-gray-900">${holdLogRemarks}</dd>
             </div>`;
     }
