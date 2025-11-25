@@ -1,8 +1,8 @@
 // js/viewDetails.js
 import { $, openModal, closeModal, formatDateForDisplay } from './utils.js';
+import { apiCall } from './apiClient.js';
 
 // --- MODIFICATION: Improved keyToLabel to handle more cases ---
-// Helper to convert camelCase/snake_case keys to Title Case Labels
 function keyToLabel(key) {
     if (!key) return '';
     // Handle specific acronyms first
@@ -10,8 +10,10 @@ function keyToLabel(key) {
     key = key.replace('tds', 'TDS');
     key = key.replace('lwp', 'LWP');
     key = key.replace('cpf', 'CPF');
-    key = key.replace('holdTimestamp', 'Salary Hold Date'); // REQ 2: Specific Label
-    key = key.replace('remarks', 'Reason / Remarks'); // REQ 2: Specific Label for clarity
+    key = key.replace('holdTimestamp', 'Salary Hold Date');
+
+    // Replace 'remarks' from sheet with 'General Remarks' to avoid confusion with Hold Remarks
+    if (key === 'remarks') return 'General Remarks';
 
     // Replace underscores with spaces, handle camelCase by inserting space before uppercase letters
     let label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1');
@@ -22,7 +24,7 @@ function keyToLabel(key) {
 // --- END MODIFICATION ---
 
 
-export function openViewDetailsModal(employee) {
+export async function openViewDetailsModal(employee) {
     const contentEl = $('viewDetailsContent');
     const modal = $('viewDetailsModal');
     if (!contentEl || !modal) {
@@ -39,14 +41,38 @@ export function openViewDetailsModal(employee) {
         // 'holdTimestamp' // REQ 2: REMOVED from exclusion so it shows
     ];
 
-    // --- MODIFICATION: List of all keys that should be formatted as currency ---
     const currencyKeys = [
         'previousSalary', 'basic', 'others', 'salary', 'motobikeCarMaintenance', 'laptopRent',
         'othersAllowance', 'arrear', 'foodAllowance', 'stationAllowance', 'hardshipAllowance', 'grandTotal', 'gratuity',
         'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund', 'salaryOthersLoan', 'subsidizedVehicle', 'lwp', 'cpf',
         'othersAdjustment', 'totalDeduction', 'netSalaryPayment', 'mobileLimit'
     ];
-    // --- END MODIFICATION ---
+
+    // === NEW LOGIC: Fetch Hold Remarks from Log if Held ===
+    let holdLogRemarks = null;
+    const isHeld = (employee.status === 'Salary Held' || String(employee.salaryHeld).toLowerCase() === 'true');
+
+    if (isHeld) {
+        try {
+            // Note: apiCall will trigger the global loading spinner
+            const logs = await apiCall('getHoldLog');
+
+            // Filter logs for this employee
+            if (Array.isArray(logs)) {
+                const empLogs = logs.filter(l => String(l.employeeId) === String(employee.employeeId));
+
+                // Get the latest log entry (assuming append order)
+                if (empLogs.length > 0) {
+                     const latestLog = empLogs[empLogs.length - 1];
+                     // Check 'remarks' or 'reason' key depending on log structure
+                     holdLogRemarks = latestLog.remarks || latestLog.reason;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch hold logs:", e);
+        }
+    }
+    // === END NEW LOGIC ===
 
     let html = '<dl class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">';
 
@@ -62,12 +88,11 @@ export function openViewDetailsModal(employee) {
             continue;
         }
 
-        const label = keyToLabel(key); // Generate label from key
+        const label = keyToLabel(key);
         let value = employee[key];
         let displayValue = value;
 
         // Apply Specific Formatting
-        // REQ 2: Added 'holdTimestamp' to date formatting
         if ((key === "joiningDate" || key === "dob" || key === "separationDate" || key === "lastTransferDate" || key === "fileClosingDate" || key === "holdTimestamp") && value) {
              if (!String(value).match(/^\d{2}-[A-Z]{3}-\d{2}/)) {
                  displayValue = formatDateForDisplay(value);
@@ -75,16 +100,14 @@ export function openViewDetailsModal(employee) {
                  displayValue = value;
              }
         }
-        // --- MODIFICATION: Use the currencyKeys array for formatting ---
         else if (currencyKeys.includes(key) && (value || value === 0)) {
             displayValue = `৳${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
-        // --- END MODIFICATION ---
 
-        // Ensure N/A for empty/null/undefined values AFTER potential formatting
+        // Ensure N/A for empty/null/undefined values
         displayValue = (displayValue === null || displayValue === undefined || String(displayValue).trim() === '') ? 'N/A' : displayValue;
 
-        // REQ 2: Only show hold info if relevant (optional, but cleaner)
+        // Hide hold timestamp if N/A
         if (key === 'holdTimestamp' && displayValue === 'N/A') continue;
 
         html += `
@@ -93,6 +116,16 @@ export function openViewDetailsModal(employee) {
                 <dd class="mt-1 text-sm text-gray-900">${displayValue}</dd>
             </div>`;
     }
+
+    // === INJECT HOLD REMARKS ===
+    if (isHeld && holdLogRemarks) {
+        html += `
+            <div class="border-b border-gray-200 pb-2 bg-red-50 p-2 rounded col-span-1 md:col-span-3">
+                <dt class="text-sm font-bold text-red-700">Hold Reason (From Log)</dt>
+                <dd class="mt-1 text-sm text-gray-900">${holdLogRemarks}</dd>
+            </div>`;
+    }
+
     html += '</dl>';
     contentEl.innerHTML = html;
     openModal('viewDetailsModal');
