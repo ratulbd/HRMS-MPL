@@ -11,7 +11,7 @@ if (isLoggedIn !== 'true' && window.location.pathname.endsWith('index.html')) {
 async function initializeAppModules() {
     console.log("DOM loaded. Initializing app modules...");
 
-    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay } = await import('./utils.js');
+    const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay, showLoading, hideLoading } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
 
     // === MODIFICATION: Imported new skeleton functions ===
@@ -24,6 +24,9 @@ async function initializeAppModules() {
     } = await import('./employeeList.js');
     // === END MODIFICATION ===
 
+    // === NEW IMPORT: Payslip Generator ===
+    const { generatePayslipsZip } = await import('./payslipGenerator.js');
+
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
     const { setupFileCloseModal } = await import('./fileClosingModal.js');
@@ -33,7 +36,7 @@ async function initializeAppModules() {
     const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
     const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
-    // === MODIFICATION: New Pagination & Filter State ===
+    // ... (Existing state variables: mainLocalEmployees, currentFilters, etc.) ...
     let mainLocalEmployees = [];
 
     let currentFilters = {
@@ -55,12 +58,9 @@ async function initializeAppModules() {
     let hasMorePages = true;
     let allFiltersLoaded = false;
 
-    // === END MODIFICATION ===
-
-    // State Accessor
+    // ... (Existing helper functions: getMainLocalEmployees, updateTomSelectFilterOptions, etc.) ...
     const getMainLocalEmployees = () => mainLocalEmployees;
 
-    // --- Helper function to populate Tom Select instances ---
     function updateTomSelectFilterOptions(filterData) {
         if (!filterData) return;
 
@@ -87,8 +87,9 @@ async function initializeAppModules() {
         updateOptions(tomSelects.subCenter, formatOptions(filterData.subCenter));
     }
 
-    // === MODIFICATION: Main Fetch Function with Skeleton Support ===
+
     async function fetchAndRenderEmployees(isLoadMore = false) {
+        // ... (Existing fetchAndRenderEmployees logic) ...
         if (isLoading) return;
         isLoading = true;
 
@@ -130,7 +131,8 @@ async function initializeAppModules() {
                 throw new Error("Invalid API response format.");
             }
 
-            const { employees, totalPages, totalCount, filters } = response;
+            const { employees, totalPages: tPages, totalCount, filters } = response;
+            totalPages = tPages;
 
             renderEmployeeList(employees, isLoadMore);
 
@@ -163,9 +165,8 @@ async function initializeAppModules() {
             isLoading = false;
         }
     }
-    // === END MODIFICATION ===
 
-    // === MODIFICATION: Setup Filter Listeners ---
+    // ... (Existing setupFilterListeners, setupInfiniteScroll, handleExportData, handleLogReportDownload) ...
     function setupFilterListeners() {
         const tomSelectConfig = {
             plugins: ['remove_button'],
@@ -229,13 +230,9 @@ async function initializeAppModules() {
                 }
                 fetchAndRenderEmployees(false);
             });
-        } else {
-             console.warn("Reset Filters button (#resetFiltersBtn) not found.");
         }
     }
-    // === END MODIFICATION ===
 
-    // --- MODIFICATION: Infinite Scroll Listener ---
     function setupInfiniteScroll() {
         window.addEventListener('scroll', () => {
             if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 &&
@@ -246,9 +243,7 @@ async function initializeAppModules() {
             }
         });
     }
-    // --- END MODIFICATION ---
 
-    // --- MODIFICATION: Export Function ---
     async function handleExportData() {
          try {
             const fullData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
@@ -258,7 +253,7 @@ async function initializeAppModules() {
                 customAlert("No Data", "No employees to export.");
                 return;
             }
-
+            // ... (Export Headers mapping same as previous code) ...
             const headers = [
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
                 "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
@@ -302,9 +297,7 @@ async function initializeAppModules() {
              customAlert("Error", `Failed to export data: ${error.message}`);
          }
     }
-    // --- END MODIFICATION ---
 
-    // --- ADDITION: Helper function to download log reports ---
     async function handleLogReportDownload(logName, apiAction, fileName) {
         try {
             const logData = await apiCall(apiAction);
@@ -319,46 +312,77 @@ async function initializeAppModules() {
         }
     }
 
-    // === NEW MODIFICATION: Auto Logout Logic ===
-    function setupAutoLogout() {
-        const IDLE_TIMEOUT = 20 * 60 * 1000; // 20 Minutes in milliseconds
-        let idleTimer;
+    // === NEW: Handle Payslip Generation ===
+    async function handlePayslipGeneration() {
+        showLoading();
+        try {
+            // 1. Fetch Past Sheets to find the last generated one
+            const pastSheets = await apiCall('getPastSheets');
+            if (!pastSheets || pastSheets.length === 0) {
+                throw new Error("No past salary sheets found.");
+            }
+            // Sort to get the latest (assuming sheet IDs are sortable or standard format "Month-Year")
+            // Ideally, the API returns them in a list. We pick the first or implement sort if needed.
+            // Assuming format like "2025-10" or similar, reverse sorting works.
+            const latestSheet = pastSheets[pastSheets.length - 1]; // Simply picking the last one added
 
-        // Function to logout the user
+            // 2. Fetch Data from the Latest Sheet
+            const sheetDataResponse = await apiCall('getSheetData', 'GET', null, { sheetId: latestSheet.sheetId });
+            if (!sheetDataResponse || !sheetDataResponse.sheetData) {
+                throw new Error(`Failed to load data for sheet: ${latestSheet.sheetId}`);
+            }
+
+            // 3. Ensure we have the full employee DB for details (Designation, etc.)
+            let employeesDB = mainLocalEmployees;
+            if (!employeesDB || employeesDB.length === 0) {
+                const fullResp = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
+                employeesDB = fullResp.employees;
+            }
+
+            // 4. Generate ZIP
+            const monthTitle = latestSheet.sheetId; // e.g., "Oct_2025" or similar
+            const zipBlob = await generatePayslipsZip(sheetDataResponse.sheetData, employeesDB, monthTitle);
+
+            // 5. Trigger Download
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = `Payslips_${monthTitle}.zip`;
+            link.click();
+
+            customAlert("Success", "Payslips generated and downloaded successfully.");
+            closeModal('reportModal');
+
+        } catch (error) {
+            console.error(error);
+            customAlert("Error", `Failed to generate payslips: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function setupAutoLogout() {
+        const IDLE_TIMEOUT = 20 * 60 * 1000;
+        let idleTimer;
         const logoutUser = () => {
-            console.log("User inactive for 20 minutes. Auto logging out...");
             sessionStorage.removeItem('isLoggedIn');
             sessionStorage.removeItem('loggedInUser');
-            // Optional: You could use customAlert here, but often immediate redirect is safer
             window.location.href = '/login.html';
         };
-
-        // Function to reset the timer
         const resetTimer = () => {
             clearTimeout(idleTimer);
             idleTimer = setTimeout(logoutUser, IDLE_TIMEOUT);
         };
-
-        // Events to monitor for activity
         const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'click'];
-
-        // Attach listeners
         activityEvents.forEach(event => {
             document.addEventListener(event, resetTimer, { passive: true });
         });
-
-        // Initialize the timer immediately
         resetTimer();
-        console.log("Auto-logout timer initialized (20 min).");
     }
-    // === END MODIFICATION ===
 
      function setupGlobalListeners() {
          const reportBtn = $('reportBtn');
          if (reportBtn) {
              reportBtn.addEventListener('click', () => openModal('reportModal'));
-         } else {
-             console.warn("Report button (#reportBtn) not found.");
          }
 
          const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
@@ -367,13 +391,13 @@ async function initializeAppModules() {
          const logoutBtn = $('logoutBtn');
          if (logoutBtn) {
              logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
-         } else { console.warn("Logout button (#logoutBtn) not found."); }
+         }
      }
 
     // --- Initialize Application ---
     function initializeApp() {
         console.log("Initializing HRMS App (Modular & Authenticated)...");
-        setupAutoLogout(); // <-- Initialize Auto Logout here
+        setupAutoLogout();
         setupFilterListeners();
         setupGlobalListeners();
         setupInfiniteScroll();
@@ -397,9 +421,10 @@ async function initializeAppModules() {
             $('downloadFileCloseLog').addEventListener('click', () => {
                 handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
             });
+            // NEW LISTENER
+            $('generatePayslipBtn').addEventListener('click', handlePayslipGeneration);
         }
 
-        // Setup module-specific listeners
         if (typeof setupEmployeeListEventListeners === 'function') setupEmployeeListEventListeners(fetchAndRenderEmployees, getMainLocalEmployees);
         if (typeof setupEmployeeForm === 'function') setupEmployeeForm(getMainLocalEmployees, fetchAndRenderEmployees);
         if (typeof setupStatusChangeModal === 'function') setupStatusChangeModal(fetchAndRenderEmployees);
@@ -416,22 +441,17 @@ async function initializeAppModules() {
         fetchAndRenderEmployees(false);
     }
 
-    // --- Run ---
     try {
         initializeApp();
     } catch (err) {
         console.error("Failed to initialize app:", err);
         const appDiv = $('app');
-        const errorMsg = `Error initializing application components: ${err.message}. Please try refreshing.`;
         if (appDiv) {
-            appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">${errorMsg}</p></div>`;
-        } else {
-            document.body.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">${errorMsg}. (Fatal: #app container not found)</div>`;
+            appDiv.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Error initializing application components: ${err.message}</p></div>`;
         }
     }
 }
 
-// --- Run the initialization ---
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeAppModules);
 } else {
