@@ -14,7 +14,6 @@ async function initializeAppModules() {
     const { $, openModal, closeModal, customAlert, customConfirm, handleConfirmAction, handleConfirmCancel, downloadXLSX, formatDateForInput, formatDateForDisplay, showLoading, hideLoading } = await import('./utils.js');
     const { apiCall } = await import('./apiClient.js');
 
-    // === MODIFICATION: Imported new skeleton functions ===
     const {
         renderEmployeeList,
         renderSkeletons,
@@ -22,9 +21,8 @@ async function initializeAppModules() {
         populateFilterDropdowns,
         setupEmployeeListEventListeners
     } = await import('./employeeList.js');
-    // === END MODIFICATION ===
 
-    // === NEW IMPORT: Payslip Generator ===
+    // === Payslip Generator ===
     const { generatePayslipsZip } = await import('./payslipGenerator.js');
 
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
@@ -36,7 +34,6 @@ async function initializeAppModules() {
     const { setupViewDetailsModal, openViewDetailsModal } = await import('./viewDetails.js');
     const { setupTransferModal, openTransferModal } = await import('./transferModal.js');
 
-    // ... (Existing state variables: mainLocalEmployees, currentFilters, etc.) ...
     let mainLocalEmployees = [];
 
     let currentFilters = {
@@ -58,14 +55,12 @@ async function initializeAppModules() {
     let hasMorePages = true;
     let allFiltersLoaded = false;
 
-    // ... (Existing helper functions: getMainLocalEmployees, updateTomSelectFilterOptions, etc.) ...
     const getMainLocalEmployees = () => mainLocalEmployees;
 
     function updateTomSelectFilterOptions(filterData) {
         if (!filterData) return;
 
         const formatOptions = (arr) => arr.map(val => ({ value: val, text: val }));
-
         const statusOptions = formatOptions(['Active', 'Salary Held', 'Resigned', 'Terminated', 'Closed']);
 
         const updateOptions = (instance, newOptions) => {
@@ -89,7 +84,6 @@ async function initializeAppModules() {
 
 
     async function fetchAndRenderEmployees(isLoadMore = false) {
-        // ... (Existing fetchAndRenderEmployees logic) ...
         if (isLoading) return;
         isLoading = true;
 
@@ -166,7 +160,6 @@ async function initializeAppModules() {
         }
     }
 
-    // ... (Existing setupFilterListeners, setupInfiniteScroll, handleExportData, handleLogReportDownload) ...
     function setupFilterListeners() {
         const tomSelectConfig = {
             plugins: ['remove_button'],
@@ -253,7 +246,6 @@ async function initializeAppModules() {
                 customAlert("No Data", "No employees to export.");
                 return;
             }
-            // ... (Export Headers mapping same as previous code) ...
             const headers = [
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
                 "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
@@ -312,36 +304,50 @@ async function initializeAppModules() {
         }
     }
 
-    // === NEW: Handle Payslip Generation ===
+    // === MODIFICATION: Updated handlePayslipGeneration to use SalaryArchive ===
     async function handlePayslipGeneration() {
         showLoading();
         try {
-            // 1. Fetch Past Sheets to find the last generated one
-            const pastSheets = await apiCall('getPastSheets');
-            if (!pastSheets || pastSheets.length === 0) {
-                throw new Error("No past salary sheets found.");
-            }
-            // Sort to get the latest (assuming sheet IDs are sortable or standard format "Month-Year")
-            // Ideally, the API returns them in a list. We pick the first or implement sort if needed.
-            // Assuming format like "2025-10" or similar, reverse sorting works.
-            const latestSheet = pastSheets[pastSheets.length - 1]; // Simply picking the last one added
+            // 1. Fetch Archives instead of "Past Sheets" (because we save as JSON now)
+            const archives = await apiCall('getSalaryArchive');
 
-            // 2. Fetch Data from the Latest Sheet
-            const sheetDataResponse = await apiCall('getSheetData', 'GET', null, { sheetId: latestSheet.sheetId });
-            if (!sheetDataResponse || !sheetDataResponse.sheetData) {
-                throw new Error(`Failed to load data for sheet: ${latestSheet.sheetId}`);
+            if (!archives || archives.length === 0) {
+                throw new Error("No past salary records found in archive.");
             }
 
-            // 3. Ensure we have the full employee DB for details (Designation, etc.)
-            let employeesDB = mainLocalEmployees;
-            if (!employeesDB || employeesDB.length === 0) {
-                const fullResp = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
-                employeesDB = fullResp.employees;
+            // 2. Sort by timestamp descending to get the latest
+            archives.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const latestArchive = archives[0];
+            const monthTitle = latestArchive.monthYear; // e.g., "2025-12" or "Dec,25"
+            const rawData = latestArchive.jsonData;
+
+            if (!Array.isArray(rawData)) {
+                 throw new Error("Corrupted data in salary archive.");
             }
+
+            // 3. Map Data for Payslip Generator
+            // Payslip generator expects properties like: salary(gross), daysPresent, netSalary
+            // Archive data (from salarySheet.js) has: earn.grossSalary, att.netPresent, netPayment
+            const salaryDataForPdf = rawData.map(emp => {
+                const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
+                const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
+                const ded = emp.ded?.totalDeduction ?? emp.deduction ?? 0;
+                const net = emp.netPayment ?? emp.netSalary ?? 0;
+
+                return {
+                    ...emp,
+                    salary: gross,
+                    daysPresent: days,
+                    deduction: ded,
+                    netSalary: net,
+                    employeeId: emp.employeeId,
+                    name: emp.name
+                };
+            });
 
             // 4. Generate ZIP
-            const monthTitle = latestSheet.sheetId; // e.g., "Oct_2025" or similar
-            const zipBlob = await generatePayslipsZip(sheetDataResponse.sheetData, employeesDB, monthTitle);
+            const zipBlob = await generatePayslipsZip(salaryDataForPdf, salaryDataForPdf, monthTitle);
 
             // 5. Trigger Download
             const link = document.createElement("a");
@@ -359,6 +365,7 @@ async function initializeAppModules() {
             hideLoading();
         }
     }
+    // === END MODIFICATION ===
 
     function setupAutoLogout() {
         const IDLE_TIMEOUT = 20 * 60 * 1000;
@@ -386,7 +393,7 @@ async function initializeAppModules() {
          }
 
          const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
-         const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmCancel);
+         const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmAction);
          const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
          const logoutBtn = $('logoutBtn');
          if (logoutBtn) {
@@ -394,7 +401,6 @@ async function initializeAppModules() {
          }
      }
 
-    // --- Initialize Application ---
     function initializeApp() {
         console.log("Initializing HRMS App (Modular & Authenticated)...");
         setupAutoLogout();
@@ -421,7 +427,8 @@ async function initializeAppModules() {
             $('downloadFileCloseLog').addEventListener('click', () => {
                 handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
             });
-            // NEW LISTENER
+
+            // Generate Payslip Listener
             $('generatePayslipBtn').addEventListener('click', handlePayslipGeneration);
         }
 
@@ -437,7 +444,6 @@ async function initializeAppModules() {
         if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
         if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
 
-        // Initial data load (Page 1)
         fetchAndRenderEmployees(false);
     }
 
