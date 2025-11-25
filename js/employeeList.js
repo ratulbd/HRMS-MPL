@@ -21,7 +21,6 @@ export function renderSkeletons(count = 3, append = false) {
     // Create dummy skeleton cards
     for (let i = 0; i < count; i++) {
         const skel = document.createElement('div');
-        // 'fade-out-target' can be used if you want to animate them out later
         skel.className = 'skeleton-card';
         skel.innerHTML = `
             <div class="skeleton-pulse sk-title"></div>
@@ -111,7 +110,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                  infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
-            // --- REQ 2: Salary Held Date below status ---
+            // --- Status and Date Stacking ---
             let statusHtml = `
                 <div class="flex flex-col items-end">
                     <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
@@ -121,6 +120,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
                 </div>
             `;
 
+            // --- REQ: Added Functional Role and Project ---
             card.innerHTML = `
                 <div class="card-content p-5 pb-16 flex-grow">
                     <div class="flex justify-between items-start mb-3">
@@ -129,13 +129,22 @@ export function renderEmployeeList(employeesToRender, append = false) {
                     </div>
 
                     <div class="mb-4 space-y-1.5">
-                        <p class="text-sm text-gray-700">${emp.designation || 'N/A'}</p>
-                        <p class="text-sm text-gray-500">ID: ${emp.employeeId || 'N/A'}</p>
+                        <p class="text-sm font-medium text-gray-900">${emp.designation || 'N/A'}</p>
 
-                        <div class="flex items-center text-xs text-gray-600 pt-1">
+                        <p class="text-xs text-gray-600">${emp.functionalRole || 'N/A'}</p>
+
+                        <p class="text-xs text-gray-500">ID: ${emp.employeeId || 'N/A'}</p>
+
+                        <div class="flex items-center text-xs text-gray-600 pt-2">
+                            <i class="fas fa-briefcase w-4 mr-1.5 text-gray-400"></i>
+                            <span>${emp.project || 'N/A'}</span>
+                        </div>
+
+                        <div class="flex items-center text-xs text-gray-600">
                             <i class="fas fa-map-marker-alt w-4 mr-1.5 text-gray-400"></i>
                             <span>${emp.subCenter || 'N/A'}</span>
                         </div>
+
                         <div class="flex items-center text-xs text-gray-600">
                             <i class="fas fa-calendar-alt w-4 mr-1.5 text-gray-400"></i>
                             <span>Joined: ${formatDateForDisplay(emp.joiningDate)}</span>
