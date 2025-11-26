@@ -2,6 +2,9 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
+// ... (setupPastSheetsModal, loadPastSheets, renderSheetList, getFormattedMonthYear remain unchanged)
+// ... Keeping them short for brevity, assume standard implementation ...
+
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
     const modal = $('viewSheetsModal');
@@ -34,10 +37,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             listContainer.innerHTML = '<div class="text-center py-4 text-gray-500">No past salary sheets found.</div>';
             return;
         }
-
-        // Sort by date descending
         sheets.sort((a, b) => b.monthYear.localeCompare(a.monthYear));
-
         sheets.forEach(sheet => {
             const item = document.createElement('div');
             item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded border';
@@ -51,9 +51,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const dBtn = document.createElement('button');
             dBtn.className = 'btn btn-sm btn-primary ml-2';
             dBtn.innerHTML = '<i class="fas fa-download mr-1"></i> ZIP';
-
             dBtn.addEventListener('click', () => downloadSheetZip(sheet));
-
             btnDiv.appendChild(dBtn);
             item.appendChild(btnDiv);
             listContainer.appendChild(item);
@@ -61,49 +59,52 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     }
 
     function getFormattedMonthYear(dateStr) {
-        // === FIX: Handle "MMM-YY" (Nov-25) format which JS parses as Year 2001 ===
         let date;
         const shortYearMatch = dateStr.match(/^([A-Za-z]+)[^A-Za-z0-9](\d{2})$/);
-
         if (shortYearMatch) {
             const monthStr = shortYearMatch[1];
             const yearVal = parseInt(shortYearMatch[2], 10);
-            const fullYear = 2000 + yearVal; // Assume 20xx
+            const fullYear = 2000 + yearVal;
             date = new Date(`${monthStr} 01, ${fullYear}`);
         } else {
-            // Standard YYYY-MM format
             date = new Date(dateStr + "-01");
         }
-
-        if (isNaN(date.getTime())) {
-             date = new Date(dateStr); // Fallback
-        }
-
-        if (isNaN(date.getTime())) {
-            return { full: dateStr, quote: dateStr };
-        }
-
+        if (isNaN(date.getTime())) date = new Date(dateStr);
+        if (isNaN(date.getTime())) return { full: dateStr, quote: dateStr };
         const month = date.toLocaleString('default', { month: 'long' });
         const year = date.getFullYear();
         return { full: `${month}-${year}`, quote: `${month}'${year}` };
     }
 
     function convertNumberToWords(amount) {
-        const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
-        const b = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-        const numToWords = (n) => {
-            if ((n = n.toString()).length > 9) return 'overflow';
-            const n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-            if (!n_array) return '';
-            let str = '';
-            str += (n_array[1] != 0) ? (a[Number(n_array[1])] + b[n_array[1][0]] + ' ' + a[n_array[1][1]]) + 'Crore ' : '';
-            str += (n_array[2] != 0) ? (a[Number(n_array[2])] + b[n_array[2][0]] + ' ' + a[n_array[2][1]]) + 'Lakh ' : '';
-            str += (n_array[3] != 0) ? (a[Number(n_array[3])] + b[n_array[3][0]] + ' ' + a[n_array[3][1]]) + 'Thousand ' : '';
-            str += (n_array[4] != 0) ? (a[Number(n_array[4])] + b[n_array[4][0]] + ' ' + a[n_array[4][1]]) + 'Hundred ' : '';
-            str += (n_array[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n_array[5])] + b[n_array[5][0]] + ' ' + a[n_array[5][1]]) + '' : '';
-            return str;
+        const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+        const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        if (amount === 0) return "Zero";
+
+        const numToString = (n) => {
+            let str = "";
+            if (n > 99) { str += units[Math.floor(n / 100)] + " Hundred "; n %= 100; }
+            if (n > 19) { str += tens[Math.floor(n / 10)] + " "; n %= 10; }
+            if (n > 9) { str += teens[n - 10] + " "; n = 0; }
+            if (n > 0) { str += units[n] + " "; }
+            return str.trim();
         };
-        return numToWords(Math.floor(amount)) + "Only";
+
+        const convert = (num) => {
+            if (num === 0) return "";
+            let words = "";
+            const crore = Math.floor(num / 10000000); num %= 10000000;
+            if (crore > 0) words += numToString(crore) + " Crore ";
+            const lakh = Math.floor(num / 100000); num %= 100000;
+            if (lakh > 0) words += numToString(lakh) + " Lakh ";
+            const thousand = Math.floor(num / 1000); num %= 1000;
+            if (thousand > 0) words += numToString(thousand) + " Thousand ";
+            if (num > 0) words += numToString(num);
+            return words.trim();
+        };
+        return convert(Math.floor(amount)) + " Only";
     }
 
     async function downloadSheetZip(sheetMeta) {
@@ -167,15 +168,16 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     views: [{ state: 'frozen', ySplit: 4 }]
                 });
 
+                // Merged headers similar to salarySheet.js logic (copying that structure)
                 // Row 1
-                sheet.mergeCells('A1:AQ1');
+                sheet.mergeCells('A1:AS1');
                 const r1 = sheet.getCell('A1');
                 r1.value = "Metal Plus Limited";
                 r1.font = { bold: true, size: 16, name: 'Calibri' };
                 r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
                 // Row 2
-                sheet.mergeCells('A2:AQ2');
+                sheet.mergeCells('A2:AS2');
                 const r2 = sheet.getCell('A2');
                 r2.value = `Salary Sheet-${project} for the Month of ${full}`;
                 r2.font = { bold: true, size: 12, name: 'Calibri' };
@@ -184,11 +186,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 // Row 3
                 [
                     { r: 'A3:J3',  t: 'Employee Information' },
-                    { r: 'K3:P3',  t: 'Attendance' },
-                    { r: 'Q3:T3',  t: 'Salary Structure' },
-                    { r: 'U3:AB3', t: 'Earnings & Benefits' },
-                    { r: 'AC3:AM3',t: 'Deductions' },
-                    { r: 'AN3:AQ3',t: 'Payment Information' },
+                    { r: 'K3:Q3',  t: 'Attendance' },
+                    { r: 'R3:U3',  t: 'Salary Structure' },
+                    { r: 'V3:AD3', t: 'Earnings & Benefits' },
+                    { r: 'AE3:AO3',t: 'Deductions' },
+                    { r: 'AP3:AS3',t: 'Payment Information' },
                 ].forEach(m => {
                     sheet.mergeCells(m.r);
                     const cell = sheet.getCell(m.r.split(':')[0]);
@@ -202,9 +204,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 // Row 4 Headers
                 const headers = [
                     "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
-                    "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present",
+                    "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
                     "Previous Salary","Basic","Others","Gross Salary",
-                    "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","Gross Payable Salary",
+                    "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
                     "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
                     "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
                 ];
@@ -214,13 +216,27 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.font = { bold: true, size: 9 };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    cell.alignment = (colNumber >= 11 && colNumber <= 39)
+                    cell.alignment = (colNumber >= 11 && colNumber <= 41)
                         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
                         : { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
 
-                for (let c = 11; c <= 39; c++) sheet.getColumn(c).width = 11.18;
-                sheet.getColumn(42).width = 11.55;
+                // REQ: Widths
+                sheet.getColumn(3).width = 25;
+                sheet.getColumn(4).width = 14.5;
+                sheet.getColumn(5).width = 14.5;
+                sheet.getColumn(6).width = 13.09;
+                sheet.getColumn(7).width = 11;
+                sheet.getColumn(8).width = 11;
+                sheet.getColumn(9).width = 11;
+                sheet.getColumn(10).width = 11;
+                sheet.getColumn(43).width = 21.5;
+                sheet.getColumn(45).width = 21.5;
+
+                for (let c = 11; c <= 41; c++) {
+                    if(![3,4,5,6,7,8,9,10,43,45].includes(c)) sheet.getColumn(c).width = 11.18;
+                }
+                sheet.getColumn(44).width = 11.55;
 
                 let sl = 1;
                 const sortedSubCenters = Object.keys(subCenters).sort();
@@ -230,7 +246,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     const scEmployees = subCenters[scName];
 
                     const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    for (let i = 1; i <= 43; i++) {
+                    for (let i = 1; i <= 45; i++) {
                         const c = scRow.getCell(i);
                         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -249,24 +265,14 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         scTotalNet += netPay;
                         projectGrandTotal += netPay;
 
-                        // === FIX: Correct Mapping for Basic and Others ===
                         const rowData = [
                             sl++,
                             getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
                             getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
                             getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
-                            getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent),
-                            getVal(d.previousSalary),
-                            getVal(earn.basic ?? d.basic),   // CORRECTED: Use Basic
-                            getVal(earn.others ?? d.others), // CORRECTED: Use Others
-                            getVal(earn.grossSalary ?? d.gross), // Gross
-
-                            getVal(earn.maint ?? d.maint),
-                            getVal(earn.laptop ?? d.laptop),
-                            getVal(earn.othersAll ?? d.othersAllowance), // CORRECTED: Use Others Allowance
-                            getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship),
-                            getVal(earn.grossPayable ?? d.grossPayable),
-
+                            getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
+                            getVal(d.previousSalary), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
+                            getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.othersAll ?? d.othersAllowance), getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship), getVal(earn.otAmount), getVal(earn.grossPayable ?? d.grossPayable),
                             0,
                             getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
@@ -276,18 +282,21 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         ];
 
                         const r = sheet.addRow(rowData);
+                        r.getCell(1).alignment = { wrapText: false, vertical: 'middle', horizontal: 'center' };
                         r.eachCell((c, colNumber) => {
                             c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                            c.alignment = (colNumber === 3 || colNumber === 43)
-                                ? { vertical: 'middle', horizontal: 'left', wrapText: true }
-                                : { vertical: 'middle', horizontal: 'center', wrapText: true };
-                            if (colNumber >= 17 && colNumber <= 40) c.numFmt = accountingFmt0;
+                            if (colNumber !== 1) {
+                                c.alignment = (colNumber === 3 || colNumber === 45)
+                                    ? { vertical: 'middle', horizontal: 'left', wrapText: true }
+                                    : { vertical: 'middle', horizontal: 'center', wrapText: true };
+                            }
+                            if (colNumber >= 18 && colNumber <= 42) c.numFmt = accountingFmt0;
                         });
                     });
 
-                    const totRow = sheet.addRow(new Array(43).fill(''));
+                    const totRow = sheet.addRow(new Array(45).fill(''));
                     totRow.getCell(3).value = `Total for ${scName}`;
-                    const netPayCell = totRow.getCell(40);
+                    const netPayCell = totRow.getCell(42);
                     netPayCell.value = scTotalNet;
                     netPayCell.numFmt = accountingFmt0;
 
@@ -301,7 +310,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 /* ---------------- ADVICE SHEET ---------------- */
                 const adviceSheet = workbook.addWorksheet('Advice', {
-                    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+                    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitles: { rows: '40:40' } }
                 });
 
                 const consolidationMap = new Map();
@@ -358,10 +367,32 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 paraCell.alignment = { wrapText: true, vertical: 'top' };
 
                 writeTextRow(19, "Thanking You,", false);
-                writeTextRow(21, "Engr. Sadid Jamil", true);
-                writeTextRow(22, "Managing Director", false);
-                writeTextRow(24, "Engr. Aminul Islam", true);
-                writeTextRow(25, "Chairman", false);
+
+                adviceSheet.mergeCells(24, 1, 24, 2);
+                adviceSheet.mergeCells(25, 1, 25, 2);
+
+                adviceSheet.mergeCells(24, 5, 24, 6);
+                adviceSheet.mergeCells(25, 5, 25, 6);
+
+                const sigRowName = adviceSheet.getRow(24);
+                const sigRowTitle = adviceSheet.getRow(25);
+
+                const setSigStyle = (cell, bold) => {
+                    cell.font = { name: 'Calibri', size: 11, bold: bold };
+                    cell.alignment = { horizontal: 'left', vertical: 'top' };
+                };
+
+                sigRowName.getCell(1).value = "Engr. Sadid Jamil";
+                setSigStyle(sigRowName.getCell(1), true);
+
+                sigRowTitle.getCell(1).value = "Managing Director";
+                setSigStyle(sigRowTitle.getCell(1), false);
+
+                sigRowName.getCell(5).value = "Engr. Aminul Islam";
+                setSigStyle(sigRowName.getCell(5), true);
+
+                sigRowTitle.getCell(5).value = "Chairman";
+                setSigStyle(sigRowTitle.getCell(5), false);
 
                 const adviceHeader = adviceSheet.getRow(40);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];

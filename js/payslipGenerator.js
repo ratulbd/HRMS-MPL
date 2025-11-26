@@ -1,8 +1,7 @@
 // js/payslipGenerator.js
 import { formatDateForDisplay } from './utils.js';
 
-// Helper: Load AND Resize logo to reduce file size significantly
-// Preserves aspect ratio to prevent distortion
+// Helper: Load AND Resize logo - Improved quality settings
 async function loadLogo() {
     try {
         const response = await fetch('/assets/logo.png');
@@ -12,8 +11,8 @@ async function loadLogo() {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                // Resize to 150px width, maintain aspect ratio
-                const targetWidth = 150;
+                // Increased width to 350px for better clarity (was 120px)
+                const targetWidth = 350;
                 const scale = targetWidth / img.width;
                 const targetHeight = img.height * scale;
 
@@ -21,13 +20,13 @@ async function loadLogo() {
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
                 const ctx = canvas.getContext('2d');
+                // Use high quality smoothing
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-                // Return high quality PNG
                 resolve({
-                    data: canvas.toDataURL('image/png', 1.0),
-                    w: targetWidth,
-                    h: targetHeight,
+                    data: canvas.toDataURL('image/png', 1.0), // Max quality
                     ratio: targetWidth / targetHeight
                 });
             };
@@ -90,20 +89,17 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     // --- 1. HEADER SECTION ---
     if (logoObj) {
-        // Render logo with correct aspect ratio
-        // Fixed height of 15mm, calculate width
         const logoH = 15;
         const logoW = logoH * logoObj.ratio;
         doc.addImage(logoObj.data, 'PNG', 15, 10, logoW, logoH);
     } else {
-        // Fallback text if logo fails
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.setTextColor(22, 101, 49);
         doc.text("Metal Plus Limited", 15, 20);
     }
 
-    // Title Box (Right Side)
+    // Title Box
     doc.setFillColor(245, 245, 245);
     doc.setDrawColor(220, 220, 220);
     doc.roundedRect(140, 10, 55, 18, 1, 1, 'FD');
@@ -136,13 +132,21 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         doc.text(String(val), x + 30, y);
     };
 
+    const att = data.att || {};
+    const earn = data.earn || {};
+
+    // Row 1
     drawLabelVal("Employee ID:", data.employeeId, col1, startY);
     drawLabelVal("Designation:", data.designation || "N/A", col2, startY);
 
+    // Row 2
     drawLabelVal("Name:", data.name, col1, startY + 6);
     drawLabelVal("Joining Date:", formatDateForDisplay(data.joiningDate), col2, startY + 6);
 
+    // Row 3
     drawLabelVal("Sub Center:", subCenter, col1, startY + 12);
+    // REQ: OT Hours shown in this section
+    drawLabelVal("OT Hours:", att.otHours || "0", col2, startY + 12);
 
     // --- 3. ATTENDANCE STRIP ---
     const attY = startY + 20;
@@ -150,8 +154,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     doc.setDrawColor(22, 101, 49);
     doc.rect(15, attY, 180, 14, 'FD');
 
-    const att = data.att || {};
-    // Use nullish coalescing to show 0 if undefined
     const attData = [
         { l: "Total Days", v: att.totalDays ?? "0" },
         { l: "Holidays", v: att.holidays ?? "0" },
@@ -189,23 +191,22 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     doc.text("EARNINGS", 15 + (colWidth/2), tblY + 5, { align: "center" });
     doc.text("DEDUCTIONS", centerLine + 2 + (colWidth/2), tblY + 5, { align: "center" });
 
-    // --- DATA EXTRACTION (NO CALCULATION) ---
-    const earn = data.earn || {};
     const ded = data.ded || {};
     const fMoney = (val) => (val !== undefined && val !== null) ? Number(val).toLocaleString('en-IN') : "0";
 
-    // Direct mapping from source object
+    // REQ: Show all sections even if value is 0
     const earnRows = [
-        { l: "Basic Salary", v: earn.basic }, // No calculation, direct from data
-        { l: "House Rent & Others", v: earn.others }, // No calculation
+        { l: "Basic Salary", v: earn.basic },
+        { l: "House Rent & Others", v: earn.others },
         { l: "Maintenance Allow.", v: earn.maint },
         { l: "Laptop Rent", v: earn.laptop },
         { l: "Other Allowance", v: earn.othersAll || earn.othersAllowance },
         { l: "Food Allowance", v: earn.food },
         { l: "Station Allowance", v: earn.station },
         { l: "Hardship Allowance", v: earn.hardship },
-        { l: "Arrears", v: earn.arrear }
-    ].filter(r => r.v > 0);
+        { l: "Arrears", v: earn.arrear },
+        { l: "OT Amount", v: earn.otAmount } // REQ: Added OT Amount
+    ];
 
     const dedRows = [
         { l: "TDS / Tax", v: ded.tds },
@@ -216,7 +217,7 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         { l: "Salary/Other Loan", v: ded.loan },
         { l: "Adjustments", v: ded.adj },
         { l: "Absent Deduction", v: ded.attDed }
-    ].filter(r => r.v > 0);
+    ];
 
     let currentY = tblY + 12;
     doc.setTextColor(0, 0, 0);
@@ -226,10 +227,15 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     const maxRows = Math.max(earnRows.length, dedRows.length);
 
     for (let i = 0; i < maxRows; i++) {
+        // Earnings Side
         if (earnRows[i]) {
             doc.text(earnRows[i].l, 17, currentY);
             doc.text(fMoney(earnRows[i].v), 15 + colWidth - 2, currentY, { align: "right" });
+        } else {
+            // Blank line if ded rows > earn rows
         }
+
+        // Deductions Side
         if (dedRows[i]) {
             doc.text(dedRows[i].l, centerLine + 4, currentY);
             doc.text(fMoney(dedRows[i].v), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
@@ -251,7 +257,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     doc.line(15, currentY, 195, currentY);
     currentY += 7;
 
-    // Calculate Totals directly from the displayed rows for accuracy
     const totalEarnCalc = earnRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
     const totalDedCalc = dedRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
     const netPay = data.netPayment || (totalEarnCalc - totalDedCalc);
@@ -277,30 +282,25 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     doc.setTextColor(22, 101, 49);
     doc.text(`BDT ${fMoney(netPay)}`, 190, currentY + 9, { align: "right" });
 
-    // --- 6. FOOTER (Identical to Reference Image) ---
-
-    const footerBarHeight = 15; // Green bar height
-    const footerBarY = pageHeight - footerBarHeight; // Y position of green bar
-
-    // Address Block (Sits in white space ABOVE green bar)
-    // Reference image shows text block left aligned
+    // --- 6. FOOTER ---
+    const footerBarHeight = 15;
+    const footerBarY = pageHeight - footerBarHeight;
     const addressBlockY = footerBarY - 18;
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0); // Black
+    doc.setTextColor(0, 0, 0);
     doc.text("Metal Plus Limited", 15, addressBlockY);
 
     doc.setFontSize(9);
     doc.text("Corporate Office:", 15, addressBlockY + 5);
 
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 60, 60); // Dark Grey
+    doc.setTextColor(60, 60, 60);
     doc.text("PBL Tower (12th & 14th floor), 17 North C/A. Gulshan Circle-2, Dhaka-1212, Bangladesh. Phone: +880-2-9884549.", 15, addressBlockY + 10);
     doc.text("www.metalplusltdbd.com", 15, addressBlockY + 14);
 
-    // Green Bar (Decorative Solid Strip at Bottom)
-    doc.setFillColor(75, 107, 62); // Corporate Olive/Green #4B6B3E approx
+    doc.setFillColor(75, 107, 62);
     doc.rect(0, footerBarY, pageWidth, footerBarHeight, 'F');
 
     return doc.output('blob');
