@@ -304,11 +304,11 @@ async function initializeAppModules() {
         }
     }
 
-    // === MODIFICATION: Updated handlePayslipGeneration to use CHUNKED FETCHING ===
+    // === MODIFICATION: Fixed Loading Spinner Logic ===
     async function handlePayslipGeneration() {
-        showLoading();
+        showLoading(); // START Spinner
         try {
-            // 1. Fetch Metadata ONLY first
+            // 1. Fetch Metadata
             const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
 
             if (!archivesMeta || archivesMeta.length === 0) {
@@ -321,7 +321,7 @@ async function initializeAppModules() {
             const latestMeta = archivesMeta[0];
             const monthTitle = latestMeta.monthYear;
 
-            // 3. Fetch FULL data using chunking loop (FIX FOR 502 ERROR)
+            // 3. Fetch FULL data (Chunked)
             console.log(`Fetching full data for: ${monthTitle} in chunks...`);
 
             let allRawData = [];
@@ -353,7 +353,6 @@ async function initializeAppModules() {
                         offset += LIMIT;
                     }
                 } else {
-                    // Legacy format fallback
                     allRawData = [batchData];
                     hasMore = false;
                 }
@@ -363,7 +362,7 @@ async function initializeAppModules() {
                  throw new Error("Corrupted or empty data in salary archive.");
             }
 
-            // 4. Map Data for Payslip Generator
+            // 4. Map Data
             const salaryDataForPdf = allRawData.map(emp => {
                 const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
                 const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
@@ -382,6 +381,7 @@ async function initializeAppModules() {
             });
 
             // 5. Generate ZIP
+            // This might take time, spinner is still running
             const zipBlob = await generatePayslipsZip(salaryDataForPdf, salaryDataForPdf, monthTitle);
 
             // 6. Trigger Download
@@ -390,15 +390,21 @@ async function initializeAppModules() {
             link.download = `Payslips_${monthTitle}.zip`;
             link.click();
 
+            // === FIX: Hide Loading AFTER download trigger and BEFORE Alert ===
+            hideLoading(); // STOP Spinner
+
             customAlert("Success", "Payslips generated and downloaded successfully.");
             closeModal('reportModal');
 
         } catch (error) {
             console.error(error);
-            customAlert("Error", `Failed to generate payslips: ${error.message}`);
-        } finally {
+
+            // === FIX: Hide Loading on Error ===
             hideLoading();
+
+            customAlert("Error", `Failed to generate payslips: ${error.message}`);
         }
+        // REMOVED: 'finally' block to prevent premature spinner removal
     }
     // === END MODIFICATION ===
 

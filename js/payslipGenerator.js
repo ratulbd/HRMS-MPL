@@ -2,6 +2,7 @@
 import { formatDateForDisplay } from './utils.js';
 
 // Helper: Load AND Resize logo to reduce file size significantly
+// Preserves aspect ratio to prevent distortion
 async function loadLogo() {
     try {
         const response = await fetch('/assets/logo.png');
@@ -11,14 +12,24 @@ async function loadLogo() {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                // Resize image to small dimension (e.g., width 150px) to save MBs
+                // Resize to 150px width, maintain aspect ratio
+                const targetWidth = 150;
+                const scale = targetWidth / img.width;
+                const targetHeight = img.height * scale;
+
                 const canvas = document.createElement('canvas');
-                const scale = 150 / img.width;
-                canvas.width = 150;
-                canvas.height = img.height * scale;
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/png', 0.8)); // 0.8 quality
+                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+                // Return high quality PNG
+                resolve({
+                    data: canvas.toDataURL('image/png', 1.0),
+                    w: targetWidth,
+                    h: targetHeight,
+                    ratio: targetWidth / targetHeight
+                });
             };
             img.onerror = () => resolve(null);
             img.src = URL.createObjectURL(blob);
@@ -29,19 +40,14 @@ async function loadLogo() {
     }
 }
 
-/**
- * Generates payslips for all employees based on the salary sheet data.
- * Segregates by Project and SubCenter into a ZIP file.
- */
 export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
     const zip = new JSZip();
     let count = 0;
-    const logoData = await loadLogo();
+    const logoObj = await loadLogo();
 
     for (const record of salaryData) {
         if (!record.employeeId) continue;
 
-        // Yield to UI thread every 20 records to keep spinner moving
         if (count % 20 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
@@ -51,10 +57,8 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
         const name = record.name || 'Unknown Name';
         const id = record.employeeId;
 
-        // Generate PDF Blob
-        const pdfBlob = await createStandardPayslip(record, monthYear, subCenter, logoData);
+        const pdfBlob = await createStandardPayslip(record, monthYear, subCenter, logoObj);
 
-        // Folder: Project -> SubCenter -> ID_Name.pdf
         const folderName = `${sanitize(project)}/${sanitize(subCenter)}`;
         const fileName = `${id}_${sanitize(name)}.pdf`;
 
@@ -64,11 +68,10 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
 
     if (count === 0) throw new Error("No valid salary records found.");
 
-    // Generate ZIP with Compression
     return await zip.generateAsync({
         type: "blob",
         compression: "DEFLATE",
-        compressionOptions: { level: 6 } // Balanced compression
+        compressionOptions: { level: 6 }
     });
 }
 
@@ -79,39 +82,39 @@ function sanitize(str) {
 /**
  * Creates a Standard Professional Payslip PDF
  */
-async function createStandardPayslip(data, monthYear, subCenter, logoData) {
-    // Enable PDF compression to reduce file size
+async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     const doc = new jspdf.jsPDF({ compress: true });
 
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
 
     // --- 1. HEADER SECTION ---
-    if (logoData) {
-        doc.addImage(logoData, 'PNG', 15, 10, 30, 15); // Logo
+    if (logoObj) {
+        // Render logo with correct aspect ratio
+        // Fixed height of 15mm, calculate width
+        const logoH = 15;
+        const logoW = logoH * logoObj.ratio;
+        doc.addImage(logoObj.data, 'PNG', 15, 10, logoW, logoH);
+    } else {
+        // Fallback text if logo fails
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(22, 101, 49);
+        doc.text("Metal Plus Limited", 15, 20);
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(22, 101, 49); // Dark Green
-    doc.text("Metal Plus Limited", 50, 18);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(60, 60, 60);
-    // Shortened address line to fit better if needed, or matched exactly
-    doc.text("House-07, Road-10, Baridhara J Block, Dhaka -1212", 50, 24);
 
     // Title Box (Right Side)
     doc.setFillColor(245, 245, 245);
     doc.setDrawColor(220, 220, 220);
     doc.roundedRect(140, 10, 55, 18, 1, 1, 'FD');
-    doc.setFontSize(11);
+
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
     doc.text("PAY SLIP", 167.5, 17, { align: "center" });
-    doc.setFontSize(9);
+
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     doc.text(monthYear, 167.5, 24, { align: "center" });
 
     doc.setDrawColor(200, 200, 200);
@@ -133,32 +136,28 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
         doc.text(String(val), x + 30, y);
     };
 
-    // Row 1
     drawLabelVal("Employee ID:", data.employeeId, col1, startY);
     drawLabelVal("Designation:", data.designation || "N/A", col2, startY);
 
-    // Row 2
     drawLabelVal("Name:", data.name, col1, startY + 6);
     drawLabelVal("Joining Date:", formatDateForDisplay(data.joiningDate), col2, startY + 6);
 
-    // Row 3
     drawLabelVal("Sub Center:", subCenter, col1, startY + 12);
-    // Optional: Bank Account
-    // drawLabelVal("Bank Acc:", data.finalAccountNo || "N/A", col2, startY + 12);
 
     // --- 3. ATTENDANCE STRIP ---
     const attY = startY + 20;
-    doc.setFillColor(245, 248, 245); // Very light green
-    doc.setDrawColor(22, 101, 49); // Dark Green Border
+    doc.setFillColor(245, 248, 245);
+    doc.setDrawColor(22, 101, 49);
     doc.rect(15, attY, 180, 14, 'FD');
 
     const att = data.att || {};
+    // Use nullish coalescing to show 0 if undefined
     const attData = [
-        { l: "Total Days", v: att.totalDays || "0" },
-        { l: "Holidays", v: att.holidays || "0" },
-        { l: "Worked", v: att.netPresent || "0" },
-        { l: "Leave", v: att.leave || "0" },
-        { l: "LWP", v: att.lwpDays || "0" }
+        { l: "Total Days", v: att.totalDays ?? "0" },
+        { l: "Holidays", v: att.holidays ?? "0" },
+        { l: "Worked", v: att.netPresent ?? "0" },
+        { l: "Leave", v: att.leave ?? "0" },
+        { l: "LWP", v: att.lwpDays ?? "0" }
     ];
 
     let attX = 22;
@@ -180,28 +179,28 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
     const colWidth = 88;
     const centerLine = 105;
 
-    // Headers
-    doc.setFillColor(22, 101, 49); // Brand Green
+    doc.setFillColor(22, 101, 49);
     doc.setTextColor(255, 255, 255);
-    doc.rect(15, tblY, colWidth, 7, 'F'); // Earn Header
-    doc.rect(centerLine + 2, tblY, colWidth, 7, 'F'); // Ded Header
+    doc.rect(15, tblY, colWidth, 7, 'F');
+    doc.rect(centerLine + 2, tblY, colWidth, 7, 'F');
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("EARNINGS", 15 + (colWidth/2), tblY + 5, { align: "center" });
     doc.text("DEDUCTIONS", centerLine + 2 + (colWidth/2), tblY + 5, { align: "center" });
 
-    // Extract Data
+    // --- DATA EXTRACTION (NO CALCULATION) ---
     const earn = data.earn || {};
     const ded = data.ded || {};
-    const fMoney = (val) => val ? Number(val).toLocaleString('en-IN') : "0";
+    const fMoney = (val) => (val !== undefined && val !== null) ? Number(val).toLocaleString('en-IN') : "0";
 
+    // Direct mapping from source object
     const earnRows = [
-        { l: "Basic Salary", v: (earn.grossSalary || data.salary || 0) * 0.6 },
-        { l: "House Rent & Others", v: (earn.grossSalary || data.salary || 0) * 0.4 },
+        { l: "Basic Salary", v: earn.basic }, // No calculation, direct from data
+        { l: "House Rent & Others", v: earn.others }, // No calculation
         { l: "Maintenance Allow.", v: earn.maint },
         { l: "Laptop Rent", v: earn.laptop },
-        { l: "Other Allowance", v: earn.others },
+        { l: "Other Allowance", v: earn.othersAll || earn.othersAllowance },
         { l: "Food Allowance", v: earn.food },
         { l: "Station Allowance", v: earn.station },
         { l: "Hardship Allowance", v: earn.hardship },
@@ -219,7 +218,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
         { l: "Absent Deduction", v: ded.attDed }
     ].filter(r => r.v > 0);
 
-    // Draw Rows
     let currentY = tblY + 12;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
@@ -228,23 +226,20 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
     const maxRows = Math.max(earnRows.length, dedRows.length);
 
     for (let i = 0; i < maxRows; i++) {
-        // Earnings Side
         if (earnRows[i]) {
             doc.text(earnRows[i].l, 17, currentY);
             doc.text(fMoney(earnRows[i].v), 15 + colWidth - 2, currentY, { align: "right" });
         }
-        // Deductions Side
         if (dedRows[i]) {
             doc.text(dedRows[i].l, centerLine + 4, currentY);
             doc.text(fMoney(dedRows[i].v), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
         }
 
-        // Dotted Line
         doc.setDrawColor(220, 220, 220);
         doc.setLineDash([1, 1], 0);
         doc.line(15, currentY + 2, 15 + colWidth, currentY + 2);
         doc.line(centerLine + 2, currentY + 2, centerLine + 2 + colWidth, currentY + 2);
-        doc.setLineDash([]); // Reset
+        doc.setLineDash([]);
 
         currentY += 7;
     }
@@ -253,23 +248,23 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
     currentY += 5;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.3);
-    doc.line(15, currentY, 195, currentY); // Solid Line
+    doc.line(15, currentY, 195, currentY);
     currentY += 7;
 
-    const grossTotal = earn.grossPayable || ((earn.grossSalary || 0) + (earn.maint||0) + (earn.others||0));
-    const dedTotal = ded.totalDeduction || 0;
-    const netPay = data.netPayment || data.netSalary || (grossTotal - dedTotal);
+    // Calculate Totals directly from the displayed rows for accuracy
+    const totalEarnCalc = earnRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
+    const totalDedCalc = dedRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
+    const netPay = data.netPayment || (totalEarnCalc - totalDedCalc);
 
     doc.setFont("helvetica", "bold");
     doc.text("Total Earnings:", 60, currentY, { align: "right" });
-    doc.text(fMoney(grossTotal), 15 + colWidth - 2, currentY, { align: "right" });
+    doc.text(fMoney(totalEarnCalc), 15 + colWidth - 2, currentY, { align: "right" });
 
     doc.text("Total Deductions:", 155, currentY, { align: "right" });
-    doc.text(fMoney(dedTotal), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
+    doc.text(fMoney(totalDedCalc), centerLine + 2 + colWidth - 2, currentY, { align: "right" });
 
-    // Net Pay Highlight Box
     currentY += 10;
-    doc.setFillColor(240, 255, 240); // Light Mint
+    doc.setFillColor(240, 255, 240);
     doc.setDrawColor(22, 101, 49);
     doc.setLineWidth(0.4);
     doc.roundedRect(15, currentY, 180, 14, 2, 2, 'FD');
@@ -282,35 +277,31 @@ async function createStandardPayslip(data, monthYear, subCenter, logoData) {
     doc.setTextColor(22, 101, 49);
     doc.text(`BDT ${fMoney(netPay)}`, 190, currentY + 9, { align: "right" });
 
-    // --- 6. FOOTER (Minimal Margin / Overlap Fix) ---
-    // According to image_76bfd2.png:
-    // "Corporate Office:" and Address are in WHITE space ABOVE the green bar.
-    // The Green Bar contains Phone/Web in WHITE text.
+    // --- 6. FOOTER (Identical to Reference Image) ---
 
-    // Bottom of A4 is ~297mm.
-    const footerH = 12; // Height of green bar
-    const footerY = pageHeight - footerH; // Start of green bar (approx 285)
+    const footerBarHeight = 15; // Green bar height
+    const footerBarY = pageHeight - footerBarHeight; // Y position of green bar
 
-    // 1. Corporate Office Text (Black/Grey) - Sitting above the green bar
-    const addressY = footerY - 14;
+    // Address Block (Sits in white space ABOVE green bar)
+    // Reference image shows text block left aligned
+    const addressBlockY = footerBarY - 18;
 
-    doc.setFontSize(8);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    doc.text("Corporate Office:", 15, addressY);
+    doc.setTextColor(0, 0, 0); // Black
+    doc.text("Metal Plus Limited", 15, addressBlockY);
+
+    doc.setFontSize(9);
+    doc.text("Corporate Office:", 15, addressBlockY + 5);
 
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 60, 60);
-    doc.text("PBL Tower (12th & 14th Floor), 17 North C/A. Gulshan Circle-2, Dhaka-1212, Bangladesh.", 15, addressY + 4);
+    doc.setTextColor(60, 60, 60); // Dark Grey
+    doc.text("PBL Tower (12th & 14th floor), 17 North C/A. Gulshan Circle-2, Dhaka-1212, Bangladesh. Phone: +880-2-9884549.", 15, addressBlockY + 10);
+    doc.text("www.metalplusltdbd.com", 15, addressBlockY + 14);
 
-    // 2. Green Bar (Full Width)
-    doc.setFillColor(75, 107, 62); // The Olive/Green from image
-    doc.rect(0, footerY, pageWidth, footerH, 'F');
-
-    // 3. Text Inside Green Bar (White)
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.text("Phone: +880-2-9884549. www.metalplusltdbd.com", 15, footerY + 8);
+    // Green Bar (Decorative Solid Strip at Bottom)
+    doc.setFillColor(75, 107, 62); // Corporate Olive/Green #4B6B3E approx
+    doc.rect(0, footerBarY, pageWidth, footerBarHeight, 'F');
 
     return doc.output('blob');
 }
