@@ -1,6 +1,6 @@
 // js/salarySheet.js
 import { $, customAlert, closeModal } from './utils.js';
-import { apiCall } from './apiClient.js'; // <--- IMPORT ADDED
+import { apiCall } from './apiClient.js';
 
 // Relying on global Papa, JSZip, and ExcelJS loaded via index.html script tags
 
@@ -39,7 +39,6 @@ export function setupSalarySheetModal(getEmployeesFunc) {
       }
 
       try {
-        // Basic guards (libraries must be present)
         if (typeof Papa === 'undefined' || typeof ExcelJS === 'undefined' || typeof JSZip === 'undefined') {
           throw new Error("Required libs (PapaParse, ExcelJS, JSZip) are not loaded.");
         }
@@ -57,10 +56,8 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 
         customAlert("Processing", "Generating report project-wise sheets...");
 
-        // This calculates the final netPayment and mutates the employees array
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
 
-        // --- MISSING LOGIC ADDED HERE ---
         customAlert("Processing", "Archiving data for record keeping...");
         const archiveData = {
           monthYear: monthVal,
@@ -68,9 +65,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
           jsonData: employees // Send the full calculated employee data array
         };
 
-        // This triggers the backend logic in _sheetActions.js
         await apiCall('saveSalaryArchive', 'POST', archiveData);
-        // --------------------------------
 
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipContent);
@@ -192,17 +187,31 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const actualPresent = getVal(attRow['actual present']);
     const netPresent    = getVal(attRow['net present']);
 
-    const grossSalary = getVal(emp.salary);
+    // === MODIFICATION: Use Basic & Others directly from Employee Sheet ===
+    const grossSalary  = getVal(emp.salary);
+    const basicSalary  = getVal(emp.basic);
+    const othersSalary = getVal(emp.others);
+
     const earnings = {
+      basic:    basicSalary,
+      others:   othersSalary,
       maint:    getVal(emp.motobikeCarMaintenance),
       laptop:   getVal(emp.laptopRent),
-      others:   getVal(emp.othersAllowance),
+      othersAll: getVal(emp.othersAllowance), // Renamed key to avoid collision with salary 'others'
       arrear:   getVal(emp.arrear),
       food:     getVal(emp.foodAllowance),
       station:  getVal(emp.stationAllowance),
       hardship: getVal(emp.hardshipAllowance),
     };
-    const grossPayable = grossSalary + Object.values(earnings).reduce((a, b) => a + b, 0);
+
+    // Gross Payable = Gross Salary + Allowances (excluding basic/others since they are part of Gross)
+    // Wait, Gross Salary usually SUMS Basic + Others.
+    // Allowances like Laptop Rent are usually EXTRA.
+    // Formula: Gross Payable = Gross Salary + (Maint + Laptop + OthersAll + Arrear + Food + Station + Hardship)
+    // Basic and Others are components OF Gross Salary, not additions TO it.
+
+    const additionalAllowances = earnings.maint + earnings.laptop + earnings.othersAll + earnings.arrear + earnings.food + earnings.station + earnings.hardship;
+    const grossPayable = grossSalary + additionalAllowances;
 
     const deductions = {
       lunch:   getVal(emp.subsidizedLunch),
@@ -350,8 +359,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           sl++, d.employeeId, d.name, d.designation, d.functionalRole, d.joiningDate,
           d.project, d.projectOffice, d.reportProject, d.subCenter,
           d.att.totalDays, d.att.holidays, d.att.leave, d.att.lwpDays, d.att.actualPresent, d.att.netPresent,
-          d.previousSalary || 0, (d.earn.grossSalary || 0) * 0.6, (d.earn.grossSalary || 0) * 0.4, d.earn.grossSalary,
-          d.earn.maint, d.earn.laptop, d.earn.others, d.earn.arrear, d.earn.food, d.earn.station, d.earn.hardship, d.earn.grossPayable,
+          d.previousSalary || 0,
+          // === MODIFICATION: Use stored basic and others, not 0.6 calculation ===
+          d.earn.basic,
+          d.earn.others,
+          d.earn.grossSalary,
+
+          d.earn.maint, d.earn.laptop, d.earn.othersAll, d.earn.arrear, d.earn.food, d.earn.station, d.earn.hardship, d.earn.grossPayable,
           0, // Gratuity
           d.ded.lunch, d.ded.tds, d.ded.bike, d.ded.welfare, d.ded.loan, d.ded.vehicle, d.ded.cpf, d.ded.adj, d.ded.attDed, d.ded.totalDeduction,
           d.netPayment,
@@ -437,7 +451,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     adviceSheet.mergeCells(13, 1, 17, 6);
     const paraCell = adviceSheet.getCell('A13');
-    paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account...`; // Truncated for brevity in logic fix, exact string preserved in logic
+    paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account...`;
     paraCell.font = { name: 'Calibri', size: 11 };
     paraCell.alignment = { wrapText: true, vertical: 'top' };
 
