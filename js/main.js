@@ -304,11 +304,11 @@ async function initializeAppModules() {
         }
     }
 
-    // === MODIFICATION: Fixed 502 Error (Response too large) ===
+    // === MODIFICATION: Updated handlePayslipGeneration to use CHUNKED FETCHING ===
     async function handlePayslipGeneration() {
         showLoading();
         try {
-            // 1. Fetch ONLY Metadata (lightweight list) first
+            // 1. Fetch Metadata ONLY first
             const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
 
             if (!archivesMeta || archivesMeta.length === 0) {
@@ -321,22 +321,50 @@ async function initializeAppModules() {
             const latestMeta = archivesMeta[0];
             const monthTitle = latestMeta.monthYear;
 
-            // 3. Fetch FULL data for that specific month
-            console.log(`Fetching full data for: ${monthTitle}`);
-            const fullArchiveResp = await apiCall('getSalaryArchive', 'GET', null, { monthYear: monthTitle });
+            // 3. Fetch FULL data using chunking loop (FIX FOR 502 ERROR)
+            console.log(`Fetching full data for: ${monthTitle} in chunks...`);
 
-            if (!fullArchiveResp || fullArchiveResp.length === 0) {
-                throw new Error(`Failed to retrieve data for ${monthTitle}`);
+            let allRawData = [];
+            let offset = 0;
+            const LIMIT = 500;
+            let hasMore = true;
+
+            while (hasMore) {
+                const fullArchiveResp = await apiCall('getSalaryArchive', 'GET', null, {
+                    monthYear: monthTitle,
+                    limit: LIMIT,
+                    offset: offset
+                });
+
+                if (!fullArchiveResp || fullArchiveResp.length === 0) {
+                    if (offset === 0) throw new Error(`Failed to retrieve data for ${monthTitle}`);
+                    break;
+                }
+
+                const batchData = fullArchiveResp[0].jsonData;
+                const totalRecords = fullArchiveResp[0].totalRecords || batchData.length;
+
+                if (Array.isArray(batchData)) {
+                    allRawData = allRawData.concat(batchData);
+
+                    if (batchData.length < LIMIT || allRawData.length >= totalRecords) {
+                        hasMore = false;
+                    } else {
+                        offset += LIMIT;
+                    }
+                } else {
+                    // Legacy format fallback
+                    allRawData = [batchData];
+                    hasMore = false;
+                }
             }
 
-            const rawData = fullArchiveResp[0].jsonData;
-
-            if (!Array.isArray(rawData)) {
-                 throw new Error("Corrupted data in salary archive.");
+            if (!Array.isArray(allRawData) || allRawData.length === 0) {
+                 throw new Error("Corrupted or empty data in salary archive.");
             }
 
             // 4. Map Data for Payslip Generator
-            const salaryDataForPdf = rawData.map(emp => {
+            const salaryDataForPdf = allRawData.map(emp => {
                 const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
                 const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
                 const ded = emp.ded?.totalDeduction ?? emp.deduction ?? 0;
