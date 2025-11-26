@@ -304,31 +304,38 @@ async function initializeAppModules() {
         }
     }
 
-    // === MODIFICATION: Updated handlePayslipGeneration to use SalaryArchive ===
+    // === MODIFICATION: Fixed 502 Error (Response too large) ===
     async function handlePayslipGeneration() {
         showLoading();
         try {
-            // 1. Fetch Archives instead of "Past Sheets" (because we save as JSON now)
-            const archives = await apiCall('getSalaryArchive');
+            // 1. Fetch ONLY Metadata (lightweight list) first
+            const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
 
-            if (!archives || archives.length === 0) {
+            if (!archivesMeta || archivesMeta.length === 0) {
                 throw new Error("No past salary records found in archive.");
             }
 
-            // 2. Sort by timestamp descending to get the latest
-            archives.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // 2. Sort to get the latest
+            archivesMeta.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-            const latestArchive = archives[0];
-            const monthTitle = latestArchive.monthYear; // e.g., "2025-12" or "Dec,25"
-            const rawData = latestArchive.jsonData;
+            const latestMeta = archivesMeta[0];
+            const monthTitle = latestMeta.monthYear;
+
+            // 3. Fetch FULL data for that specific month
+            console.log(`Fetching full data for: ${monthTitle}`);
+            const fullArchiveResp = await apiCall('getSalaryArchive', 'GET', null, { monthYear: monthTitle });
+
+            if (!fullArchiveResp || fullArchiveResp.length === 0) {
+                throw new Error(`Failed to retrieve data for ${monthTitle}`);
+            }
+
+            const rawData = fullArchiveResp[0].jsonData;
 
             if (!Array.isArray(rawData)) {
                  throw new Error("Corrupted data in salary archive.");
             }
 
-            // 3. Map Data for Payslip Generator
-            // Payslip generator expects properties like: salary(gross), daysPresent, netSalary
-            // Archive data (from salarySheet.js) has: earn.grossSalary, att.netPresent, netPayment
+            // 4. Map Data for Payslip Generator
             const salaryDataForPdf = rawData.map(emp => {
                 const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
                 const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
@@ -346,10 +353,10 @@ async function initializeAppModules() {
                 };
             });
 
-            // 4. Generate ZIP
+            // 5. Generate ZIP
             const zipBlob = await generatePayslipsZip(salaryDataForPdf, salaryDataForPdf, monthTitle);
 
-            // 5. Trigger Download
+            // 6. Trigger Download
             const link = document.createElement("a");
             link.href = URL.createObjectURL(zipBlob);
             link.download = `Payslips_${monthTitle}.zip`;

@@ -2,10 +2,6 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// REMOVED: import JSZip from 'jszip';
-// REMOVED: import * as ExcelJS from 'exceljs';
-// NOTE: Relying on global JSZip and ExcelJS variables loaded via index.html script tags.
-
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
     const modal = $('viewSheetsModal');
@@ -24,8 +20,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // Fetch the archived JSON data
-            const sheets = await apiCall('getSalaryArchive');
+            // === FIX: Fetch Metadata ONLY ===
+            const sheets = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
             renderSheetList(sheets);
         } catch (error) {
             console.error(error);
@@ -57,6 +53,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             dBtn.className = 'btn btn-sm btn-primary ml-2';
             dBtn.innerHTML = '<i class="fas fa-download mr-1"></i> ZIP';
 
+            // Pass the metadata object, we will fetch data inside the function
             dBtn.addEventListener('click', () => downloadSheetZip(sheet));
 
             btnDiv.appendChild(dBtn);
@@ -90,9 +87,17 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         return numToWords(Math.floor(amount)) + "Only";
     }
 
-    async function downloadSheetZip(sheetObj) {
+    async function downloadSheetZip(sheetMeta) {
         try {
-            customAlert("Please Wait", "Downloading archive...");
+            customAlert("Please Wait", "Fetching full data for archive...");
+
+            // === FIX: Fetch Full Data ON DEMAND ===
+            const fullDataResp = await apiCall('getSalaryArchive', 'GET', null, { monthYear: sheetMeta.monthYear });
+            if (!fullDataResp || fullDataResp.length === 0) {
+                throw new Error("Data not found for this month.");
+            }
+            const sheetObj = fullDataResp[0]; // Contains .jsonData now
+            // ======================================
 
             const employeesData = sheetObj.jsonData;
             if (!employeesData || !Array.isArray(employeesData) || employeesData.length === 0) {
@@ -360,7 +365,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             a.download = `Archive_${sheetObj.monthYear}.zip`;
             a.click();
 
-            // === Explicit Success Message ===
             customAlert("Success", "Past salary sheet downloaded successfully.");
 
         } catch (error) {
