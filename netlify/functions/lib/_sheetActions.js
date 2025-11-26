@@ -2,7 +2,7 @@
 
 const MAX_CELL_SIZE = 48000;
 
-// (saveSalarySheet, getPastSheets, getSheetData, saveSalaryArchive functions remain UNCHANGED - keeping brevity)
+// (saveSalarySheet, getPastSheets, getSheetData, saveSalaryArchive functions remain UNCHANGED)
 async function saveSalarySheet(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, helpers, { sheetId, sheetData }) {
      if (!sheetId || !sheetData || !Array.isArray(sheetData)) { throw new Error("Invalid input: sheetId and sheetData array required."); }
     const sheetName = `${SALARY_SHEET_PREFIX}${sheetId}`;
@@ -69,14 +69,20 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
     }
 }
 
-/**
- * Retrieves salary archives. Supports "Metadata Only" mode to prevent size errors.
- */
+// === UPDATED: getSalaryArchive with Pagination Support ===
 async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, params = {}) {
     console.log("Executing getSalaryArchive", params);
     try {
         const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows"];
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
+
+        // If pagination params provided (limit/offset), we assume data is NOT compressed in chunks for now
+        // OR we only support 'metaOnly' or 'monthYear' specific fetch.
+        // Since the issue is single-cell size limits, retrieving ALL rows for a month at once is hard.
+
+        // STRATEGY: Read all rows (metadata is small), filter by month, then reconstruct.
+        // If 'chunked' is requested, we might need a different approach, but Google Sheets API reads ranges.
+        // Reading A2:E5000 is fast. The Payload limit hits when we RETURN the big JSON to client.
 
         const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:E`;
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
@@ -86,7 +92,7 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             return { statusCode: 200, body: JSON.stringify([]) };
         }
 
-        // Group rows by key
+        // 1. Group rows
         const groupedArchives = {};
         rows.forEach(row => {
             const monthYear = row[0];
@@ -96,10 +102,7 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             const totalRows = parseInt(row[4], 10);
             const groupKey = `${monthYear}_${timestamp}`;
 
-            // Filtering Logic: If specific month requested, skip others
-            if (params.monthYear && params.monthYear !== monthYear) {
-                return;
-            }
+            if (params.monthYear && params.monthYear !== monthYear) return;
 
             if (monthYear && chunk && !isNaN(rowIndex) && !isNaN(totalRows)) {
                 if (!groupedArchives[groupKey]) {
@@ -119,27 +122,41 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
         for (const groupKey in groupedArchives) {
             const archive = groupedArchives[groupKey];
 
-            // Meta Only Mode: Return info without big data
-            if (params.metaOnly === 'true' || params.metaOnly === true) {
-                resultArchives.push({
-                    monthYear: archive.monthYear,
-                    timestamp: archive.timestamp,
-                    // No jsonData
-                });
+            if (params.metaOnly === 'true') {
+                resultArchives.push({ monthYear: archive.monthYear, timestamp: archive.timestamp });
                 continue;
             }
 
-            // Full Data Mode (Only happens if filtered by month usually)
             if (archive.chunks.every(chunk => chunk !== null)) {
                 const fullEncodedString = archive.chunks.join('');
                 try {
                     const fullJsonString = helpers.decodeAndDecompress(fullEncodedString);
-                    const jsonData = JSON.parse(fullJsonString);
-                    resultArchives.push({
-                        monthYear: archive.monthYear,
-                        timestamp: archive.timestamp,
-                        jsonData
-                    });
+                    let jsonData = JSON.parse(fullJsonString);
+
+                    // === SERVER-SIDE PAGINATION LOGIC ===
+                    if (params.limit && params.offset !== undefined) {
+                        const start = parseInt(params.offset, 10);
+                        const limit = parseInt(params.limit, 10);
+
+                        // Check if jsonData is array
+                        if (Array.isArray(jsonData)) {
+                            const slicedData = jsonData.slice(start, start + limit);
+                            resultArchives.push({
+                                monthYear: archive.monthYear,
+                                timestamp: archive.timestamp,
+                                totalRecords: jsonData.length, // Inform client of total
+                                jsonData: slicedData
+                            });
+                        } else {
+                            // Fallback if object
+                            resultArchives.push({ monthYear: archive.monthYear, jsonData });
+                        }
+                    } else {
+                        // No pagination requested (Legacy behavior - risky for big data)
+                        resultArchives.push({ monthYear: archive.monthYear, timestamp: archive.timestamp, jsonData });
+                    }
+                    // ====================================
+
                 } catch (e) {
                     console.warn(`Failed to process archive ${archive.monthYear}`, e);
                 }

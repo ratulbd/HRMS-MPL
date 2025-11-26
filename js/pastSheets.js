@@ -20,7 +20,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function loadPastSheets() {
         try {
-            // === FIX: Fetch Metadata ONLY ===
             const sheets = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
             renderSheetList(sheets);
         } catch (error) {
@@ -36,7 +35,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             return;
         }
 
-        // Sort by date descending
         sheets.sort((a, b) => b.monthYear.localeCompare(a.monthYear));
 
         sheets.forEach(sheet => {
@@ -53,7 +51,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             dBtn.className = 'btn btn-sm btn-primary ml-2';
             dBtn.innerHTML = '<i class="fas fa-download mr-1"></i> ZIP';
 
-            // Pass the metadata object, we will fetch data inside the function
             dBtn.addEventListener('click', () => downloadSheetZip(sheet));
 
             btnDiv.appendChild(dBtn);
@@ -89,27 +86,52 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
     async function downloadSheetZip(sheetMeta) {
         try {
-            customAlert("Please Wait", "Fetching full data for archive...");
+            customAlert("Please Wait", "Fetching full data (this may take a moment)...");
 
-            // === FIX: Fetch Full Data ON DEMAND ===
-            const fullDataResp = await apiCall('getSalaryArchive', 'GET', null, { monthYear: sheetMeta.monthYear });
-            if (!fullDataResp || fullDataResp.length === 0) {
-                throw new Error("Data not found for this month.");
+            // === CLIENT-SIDE PAGINATION (FIX FOR 502 ERROR) ===
+            let allEmployees = [];
+            let offset = 0;
+            const LIMIT = 500; // Fetch 500 records at a time
+            let hasMore = true;
+
+            while (hasMore) {
+                // console.log(`Fetching batch starting at ${offset}...`);
+                const resp = await apiCall('getSalaryArchive', 'GET', null, {
+                    monthYear: sheetMeta.monthYear,
+                    limit: LIMIT,
+                    offset: offset
+                });
+
+                if (!resp || resp.length === 0) {
+                    if (offset === 0) throw new Error("No data found.");
+                    break;
+                }
+
+                const batchData = resp[0].jsonData;
+                const totalRecords = resp[0].totalRecords || batchData.length; // Server should return total if possible
+
+                if (Array.isArray(batchData)) {
+                    allEmployees = allEmployees.concat(batchData);
+
+                    if (batchData.length < LIMIT || allEmployees.length >= totalRecords) {
+                        hasMore = false;
+                    } else {
+                        offset += LIMIT;
+                    }
+                } else {
+                    // If not array, it's legacy format or single object, just use it
+                    allEmployees = [batchData];
+                    hasMore = false;
+                }
             }
-            const sheetObj = fullDataResp[0]; // Contains .jsonData now
-            // ======================================
+            // ==================================================
 
-            const employeesData = sheetObj.jsonData;
-            if (!employeesData || !Array.isArray(employeesData) || employeesData.length === 0) {
-                throw new Error("Archive data is empty or invalid.");
-            }
-
-            const { full, quote } = getFormattedMonthYear(sheetObj.monthYear);
+            const { full, quote } = getFormattedMonthYear(sheetMeta.monthYear);
             const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
             const zip = new JSZip();
 
             const projectGroups = {};
-            employeesData.forEach(d => {
+            allEmployees.forEach(d => {
                 const p = d.reportProject || 'Unknown';
                 const s = d.subCenter || 'General';
                 if (!projectGroups[p]) projectGroups[p] = {};
@@ -362,7 +384,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const blob = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Archive_${sheetObj.monthYear}.zip`;
+            a.download = `Archive_${sheetMeta.monthYear}.zip`;
             a.click();
 
             customAlert("Success", "Past salary sheet downloaded successfully.");
