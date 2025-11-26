@@ -35,6 +35,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             return;
         }
 
+        // Sort by date descending
         sheets.sort((a, b) => b.monthYear.localeCompare(a.monthYear));
 
         sheets.forEach(sheet => {
@@ -60,7 +61,28 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     }
 
     function getFormattedMonthYear(dateStr) {
-        const date = new Date(dateStr + "-01");
+        // === FIX: Handle "MMM-YY" (Nov-25) format which JS parses as Year 2001 ===
+        let date;
+        const shortYearMatch = dateStr.match(/^([A-Za-z]+)[^A-Za-z0-9](\d{2})$/);
+
+        if (shortYearMatch) {
+            const monthStr = shortYearMatch[1];
+            const yearVal = parseInt(shortYearMatch[2], 10);
+            const fullYear = 2000 + yearVal; // Assume 20xx
+            date = new Date(`${monthStr} 01, ${fullYear}`);
+        } else {
+            // Standard YYYY-MM format
+            date = new Date(dateStr + "-01");
+        }
+
+        if (isNaN(date.getTime())) {
+             date = new Date(dateStr); // Fallback
+        }
+
+        if (isNaN(date.getTime())) {
+            return { full: dateStr, quote: dateStr };
+        }
+
         const month = date.toLocaleString('default', { month: 'long' });
         const year = date.getFullYear();
         return { full: `${month}-${year}`, quote: `${month}'${year}` };
@@ -105,14 +127,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     break;
                 }
 
-                // Server returns array of archives (usually 1 per month unless grouped otherwise)
-                // We take the first one which matches our monthYear query
                 const batchData = resp[0].jsonData;
                 const totalRecords = resp[0].totalRecords || batchData.length;
 
                 if (Array.isArray(batchData)) {
                     allEmployees = allEmployees.concat(batchData);
-
                     if (batchData.length < LIMIT || allEmployees.length >= totalRecords) {
                         hasMore = false;
                     } else {
@@ -230,16 +249,24 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         scTotalNet += netPay;
                         projectGrandTotal += netPay;
 
+                        // === FIX: Correct Mapping for Basic and Others ===
                         const rowData = [
                             sl++,
                             getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
                             getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
                             getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
                             getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent),
-                            getVal(d.previousSalary), getVal(earn.grossSalary ?? d.gross), getVal(d.others), getVal(earn.grossSalary ?? d.gross),
-                            getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.others ?? d.others),
+                            getVal(d.previousSalary),
+                            getVal(earn.basic ?? d.basic),   // CORRECTED: Use Basic
+                            getVal(earn.others ?? d.others), // CORRECTED: Use Others
+                            getVal(earn.grossSalary ?? d.gross), // Gross
+
+                            getVal(earn.maint ?? d.maint),
+                            getVal(earn.laptop ?? d.laptop),
+                            getVal(earn.othersAll ?? d.othersAllowance), // CORRECTED: Use Others Allowance
                             getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship),
                             getVal(earn.grossPayable ?? d.grossPayable),
+
                             0,
                             getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
@@ -376,15 +403,12 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-
-                // === FIX: Using sheetMeta instead of undefined sheetObj ===
                 zip.file(`${safeName}_${sheetMeta.monthYear}.xlsx`, buffer);
             }
 
             const blob = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            // === FIX: Using sheetMeta ===
             a.download = `Archive_${sheetMeta.monthYear}.zip`;
             a.click();
 
