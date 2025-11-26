@@ -88,14 +88,12 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         try {
             customAlert("Please Wait", "Fetching full data (this may take a moment)...");
 
-            // === CLIENT-SIDE PAGINATION (FIX FOR 502 ERROR) ===
             let allEmployees = [];
             let offset = 0;
-            const LIMIT = 500; // Fetch 500 records at a time
+            const LIMIT = 500;
             let hasMore = true;
 
             while (hasMore) {
-                // console.log(`Fetching batch starting at ${offset}...`);
                 const resp = await apiCall('getSalaryArchive', 'GET', null, {
                     monthYear: sheetMeta.monthYear,
                     limit: LIMIT,
@@ -107,8 +105,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     break;
                 }
 
+                // Server returns array of archives (usually 1 per month unless grouped otherwise)
+                // We take the first one which matches our monthYear query
                 const batchData = resp[0].jsonData;
-                const totalRecords = resp[0].totalRecords || batchData.length; // Server should return total if possible
+                const totalRecords = resp[0].totalRecords || batchData.length;
 
                 if (Array.isArray(batchData)) {
                     allEmployees = allEmployees.concat(batchData);
@@ -119,12 +119,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         offset += LIMIT;
                     }
                 } else {
-                    // If not array, it's legacy format or single object, just use it
                     allEmployees = [batchData];
                     hasMore = false;
                 }
             }
-            // ==================================================
 
             const { full, quote } = getFormattedMonthYear(sheetMeta.monthYear);
             const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
@@ -378,12 +376,15 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-                zip.file(`${safeName}_${sheetObj.monthYear}.xlsx`, buffer);
+
+                // === FIX: Using sheetMeta instead of undefined sheetObj ===
+                zip.file(`${safeName}_${sheetMeta.monthYear}.xlsx`, buffer);
             }
 
             const blob = await zip.generateAsync({type:"blob"});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
+            // === FIX: Using sheetMeta ===
             a.download = `Archive_${sheetMeta.monthYear}.zip`;
             a.click();
 
