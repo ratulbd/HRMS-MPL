@@ -74,7 +74,11 @@ const HEADER_MAPPING = {
     officialMobile: 'officialmobilenumber', mobileLimit: 'mobilelimit',
     // Salary
     previousSalary: 'previoussalary', basic: 'basic', others: 'others',
-    salary: 'grosssalary', motobikeCarMaintenance: 'motobikecarmaintenanceallowance',
+    salary: 'grosssalary',
+    // === NEW FIELD ===
+    cashPayment: 'cashpayment',
+    // ================
+    motobikeCarMaintenance: 'motobikecarmaintenanceallowance',
     laptopRent: 'laptoprent', othersAllowance: 'othersallowance',
     arrear: 'arrear', foodAllowance: 'foodallowance',
     stationAllowance: 'stationallowance', hardshipAllowance: 'hardshipallowance',
@@ -152,8 +156,6 @@ exports.handler = async (event) => {
             case 'getPastSheets': result = await sheetActions.getPastSheets(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX); break;
             case 'getSheetData': result = await sheetActions.getSheetData(context.sheets, context.SPREADSHEET_ID, context.SALARY_SHEET_PREFIX, sheetId); break;
             case 'saveSalaryArchive': result = await sheetActions.saveSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers, requestBody); break;
-
-            // === MODIFIED: Pass queryParams to getSalaryArchive ===
             case 'getSalaryArchive': result = await sheetActions.getSalaryArchive(context.sheets, context.SPREADSHEET_ID, context.SALARY_ARCHIVE_SHEET_NAME, context.helpers, queryParams); break;
 
             // Auth

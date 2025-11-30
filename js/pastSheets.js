@@ -2,9 +2,6 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// ... (setupPastSheetsModal, loadPastSheets, renderSheetList, getFormattedMonthYear remain unchanged)
-// ... Keeping them short for brevity, assume standard implementation ...
-
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
     const modal = $('viewSheetsModal');
@@ -168,29 +165,25 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     views: [{ state: 'frozen', ySplit: 4 }]
                 });
 
-                // Merged headers similar to salarySheet.js logic (copying that structure)
-                // Row 1
-                sheet.mergeCells('A1:AS1');
+                sheet.mergeCells('A1:AT1'); // Extended for Cash Payment
                 const r1 = sheet.getCell('A1');
                 r1.value = "Metal Plus Limited";
                 r1.font = { bold: true, size: 16, name: 'Calibri' };
                 r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                // Row 2
-                sheet.mergeCells('A2:AS2');
+                sheet.mergeCells('A2:AT2');
                 const r2 = sheet.getCell('A2');
                 r2.value = `Salary Sheet-${project} for the Month of ${full}`;
                 r2.font = { bold: true, size: 12, name: 'Calibri' };
                 r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                // Row 3
                 [
                     { r: 'A3:J3',  t: 'Employee Information' },
                     { r: 'K3:Q3',  t: 'Attendance' },
                     { r: 'R3:U3',  t: 'Salary Structure' },
                     { r: 'V3:AD3', t: 'Earnings & Benefits' },
                     { r: 'AE3:AO3',t: 'Deductions' },
-                    { r: 'AP3:AS3',t: 'Payment Information' },
+                    { r: 'AP3:AT3',t: 'Payment Information' }, // Extended
                 ].forEach(m => {
                     sheet.mergeCells(m.r);
                     const cell = sheet.getCell(m.r.split(':')[0]);
@@ -201,14 +194,14 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                // Row 4 Headers
+                // Headers updated with Cash Payment
                 const headers = [
                     "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
                     "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
                     "Previous Salary","Basic","Others","Gross Salary",
                     "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
                     "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-                    "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
+                    "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
                 ];
                 const headerRow = sheet.addRow(headers);
                 headerRow.height = 65;
@@ -216,12 +209,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.font = { bold: true, size: 9 };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    cell.alignment = (colNumber >= 11 && colNumber <= 41)
+                    cell.alignment = (colNumber >= 11 && colNumber <= 42)
                         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
                         : { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
 
-                // REQ: Widths
                 sheet.getColumn(3).width = 25;
                 sheet.getColumn(4).width = 14.5;
                 sheet.getColumn(5).width = 14.5;
@@ -230,23 +222,22 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sheet.getColumn(8).width = 11;
                 sheet.getColumn(9).width = 11;
                 sheet.getColumn(10).width = 11;
-                sheet.getColumn(43).width = 21.5;
-                sheet.getColumn(45).width = 21.5;
+                sheet.getColumn(44).width = 21.5; // Bank
+                sheet.getColumn(46).width = 21.5; // Remarks
 
-                for (let c = 11; c <= 41; c++) {
-                    if(![3,4,5,6,7,8,9,10,43,45].includes(c)) sheet.getColumn(c).width = 11.18;
+                for (let c = 11; c <= 42; c++) {
+                    if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
                 }
-                sheet.getColumn(44).width = 11.55;
+                sheet.getColumn(45).width = 11.55;
 
                 let sl = 1;
                 const sortedSubCenters = Object.keys(subCenters).sort();
-                let projectGrandTotal = 0;
 
                 for (const scName of sortedSubCenters) {
                     const scEmployees = subCenters[scName];
 
                     const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    for (let i = 1; i <= 45; i++) {
+                    for (let i = 1; i <= 46; i++) {
                         const c = scRow.getCell(i);
                         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -261,9 +252,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         const earn = d.earn || {};
                         const ded = d.ded || {};
 
-                        const netPay = getVal(d.netPayment || d.netPay);
+                        // Check if archive has netPayment directly (newer archives) or calculate (older archives)
+                        const netPay = (d.netPayment !== undefined) ? getVal(d.netPayment) : (getVal(d.earn?.grossPayable) - getVal(d.ded?.totalDeduction));
                         scTotalNet += netPay;
-                        projectGrandTotal += netPay;
 
                         const rowData = [
                             sl++,
@@ -277,7 +268,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                             getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
                             getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
-                            netPay,
+                            getVal(d.cashPayment), // Column 42
+                            netPay,                // Column 43
                             getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
                         ];
 
@@ -286,17 +278,17 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         r.eachCell((c, colNumber) => {
                             c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                             if (colNumber !== 1) {
-                                c.alignment = (colNumber === 3 || colNumber === 45)
+                                c.alignment = (colNumber === 3 || colNumber === 46)
                                     ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                                     : { vertical: 'middle', horizontal: 'center', wrapText: true };
                             }
-                            if (colNumber >= 18 && colNumber <= 42) c.numFmt = accountingFmt0;
+                            if (colNumber >= 18 && colNumber <= 43) c.numFmt = accountingFmt0;
                         });
                     });
 
-                    const totRow = sheet.addRow(new Array(45).fill(''));
+                    const totRow = sheet.addRow(new Array(46).fill(''));
                     totRow.getCell(3).value = `Total for ${scName}`;
-                    const netPayCell = totRow.getCell(42);
+                    const netPayCell = totRow.getCell(43);
                     netPayCell.value = scTotalNet;
                     netPayCell.numFmt = accountingFmt0;
 
@@ -317,7 +309,14 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const allProjectEmployees = Object.values(subCenters).flat();
 
                 allProjectEmployees.forEach(emp => {
+                    // Logic to extract BANK PORTION only
+                    // If archive has 'netBankPayment', use it. Else calculate: netPayment - cashPayment
+                    const totalNet = (emp.netPayment !== undefined) ? getVal(emp.netPayment) : (getVal(emp.earn?.grossPayable) - getVal(emp.ded?.totalDeduction));
+                    const cashPart = getVal(emp.cashPayment);
+                    const bankPart = emp.netBankPayment !== undefined ? getVal(emp.netBankPayment) : (totalNet - cashPart);
+
                     const acc = emp.finalAccountNo || emp.bankAccount;
+
                     if (acc && acc.trim() !== '') {
                         const key = String(emp.employeeId);
                         if (!consolidationMap.has(key)) {
@@ -326,15 +325,20 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                                 account: acc, amount: 0
                             });
                         }
-                        consolidationMap.get(key).amount += getVal(emp.netPayment || emp.netPay);
+                        consolidationMap.get(key).amount += bankPart;
                     }
                 });
 
+                // Holders
                 allProjectEmployees.forEach(emp => {
                     const acc = emp.finalAccountNo || emp.bankAccount;
                     if (!acc || acc.trim() === '') {
                         if (emp.holderId && consolidationMap.has(emp.holderId)) {
-                            consolidationMap.get(emp.holderId).amount += getVal(emp.netPayment || emp.netPay);
+                             const totalNet = (emp.netPayment !== undefined) ? getVal(emp.netPayment) : (getVal(emp.earn?.grossPayable) - getVal(emp.ded?.totalDeduction));
+                             const cashPart = getVal(emp.cashPayment);
+                             const bankPart = emp.netBankPayment !== undefined ? getVal(emp.netBankPayment) : (totalNet - cashPart);
+
+                             consolidationMap.get(emp.holderId).amount += bankPart;
                         }
                     }
                 });
@@ -348,7 +352,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 };
 
                 const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
-                const totalLetterAmount = allProjectEmployees.reduce((sum, e) => sum + getVal(e.netPayment || e.netPay), 0);
+                // Summation of the map values (Bank Portions Only)
+                const totalLetterAmount = Array.from(consolidationMap.values()).reduce((sum, item) => sum + item.amount, 0);
                 const totalAmountWords  = convertNumberToWords(totalLetterAmount);
 
                 writeTextRow(1,  `Ref: MPL/TELECOM/Salary/${full}`, true);

@@ -127,11 +127,8 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     // --- 2. EMPLOYEE INFO GRID ---
     const startY = 38;
-
-    // === FIX START: Adjusted Column Positions ===
     const col1 = 15;
-    const col2 = 115; // Increased from 80 to 115 to prevent overlap with long names
-    // === FIX END ===
+    const col2 = 115;
 
     doc.setFontSize(9);
 
@@ -157,7 +154,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     // Row 3
     drawLabelVal("Sub Center:", subCenter, col1, startY + 12);
-    // (OT Hours moved to Attendance Box)
 
     // --- 3. ATTENDANCE STRIP ---
     const attY = startY + 20;
@@ -219,7 +215,9 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         { l: "Food Allowance", v: earn.food },
         { l: "Station Allowance", v: earn.station },
         { l: "Hardship Allowance", v: earn.hardship },
-        { l: "OT Amount", v: earn.otAmount }
+        { l: "OT Amount", v: earn.otAmount },
+        // NEW ROW for Cash Payment
+        { l: "Cash Payment", v: earn.cashPayment }
     ];
 
     const dedRows = [
@@ -272,6 +270,9 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     const totalEarnCalc = earnRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
     const totalDedCalc = dedRows.reduce((s, r) => s + (Number(r.v) || 0), 0);
+
+    // Use data.netPayment if available (it has been calculated as Bank+Cash in salarySheet.js),
+    // otherwise fallback to earn-ded calculation
     const netPay = data.netPayment || (totalEarnCalc - totalDedCalc);
 
     doc.setFont("helvetica", "bold");

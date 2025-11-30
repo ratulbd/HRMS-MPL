@@ -52,7 +52,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         validateAttendanceHeaders(attendanceData);
         validateHolderHeaders(holderData);
 
-        customAlert("Processing", "Generating report project-wise sheets...");
+        customAlert("Processing", "Generating project-wise sheets (Split Payroll)...");
 
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
 
@@ -98,7 +98,6 @@ function parseCSV(file) {
 function validateAttendanceHeaders(data) {
   if (!data || data.length === 0) throw new Error("Attendance file is empty.");
   const headers = Object.keys(data[0]).map(k => k.toLowerCase().trim());
-  // REQ: Allow OT columns
   const mustHave = ['employeeid', 'net present', 'total working days'];
   const missing = mustHave.filter(h => !headers.includes(h));
   if (missing.length) throw new Error(`Attendance file missing required column(s): ${missing.join(', ')}`);
@@ -112,7 +111,6 @@ function validateHolderHeaders(data) {
   if (missing.length) throw new Error(`Account Holder file missing required column(s): ${missing.join(', ')}`);
 }
 
-// === REQ: Correct Number to Words Function ===
 function convertNumberToWords(amount) {
     const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
     const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -122,49 +120,25 @@ function convertNumberToWords(amount) {
 
     const numToString = (n) => {
         let str = "";
-        if (n > 99) {
-            str += units[Math.floor(n / 100)] + " Hundred ";
-            n %= 100;
-        }
-        if (n > 19) {
-            str += tens[Math.floor(n / 10)] + " ";
-            n %= 10;
-        }
-        if (n > 9) {
-            str += teens[n - 10] + " ";
-            n = 0;
-        }
-        if (n > 0) {
-            str += units[n] + " ";
-        }
+        if (n > 99) { str += units[Math.floor(n / 100)] + " Hundred "; n %= 100; }
+        if (n > 19) { str += tens[Math.floor(n / 10)] + " "; n %= 10; }
+        if (n > 9) { str += teens[n - 10] + " "; n = 0; }
+        if (n > 0) { str += units[n] + " "; }
         return str.trim();
     };
 
     const convert = (num) => {
         if (num === 0) return "";
         let words = "";
-
-        // Crore (1,00,00,000)
-        const crore = Math.floor(num / 10000000);
-        num %= 10000000;
+        const crore = Math.floor(num / 10000000); num %= 10000000;
         if (crore > 0) words += numToString(crore) + " Crore ";
-
-        // Lakh (1,00,000)
-        const lakh = Math.floor(num / 100000);
-        num %= 100000;
+        const lakh = Math.floor(num / 100000); num %= 100000;
         if (lakh > 0) words += numToString(lakh) + " Lakh ";
-
-        // Thousand (1,000)
-        const thousand = Math.floor(num / 1000);
-        num %= 1000;
+        const thousand = Math.floor(num / 1000); num %= 1000;
         if (thousand > 0) words += numToString(thousand) + " Thousand ";
-
-        // Remainder (Hundreds)
         if (num > 0) words += numToString(num);
-
         return words.trim();
     };
-
     return convert(Math.floor(amount)) + " Only";
 }
 
@@ -210,19 +184,21 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const subCenter = emp.subCenter    || 'General';
     (projectGroups[project] ||= {})[subCenter] ||= [];
 
-    // REQ: OT Columns from Attendance CSV
     const totalDays     = getVal(attRow['total working days']);
     const holidays      = getVal(attRow['holidays']);
     const leave         = getVal(attRow['availing leave']);
     const lwpDays       = getVal(attRow['lwp']);
     const actualPresent = getVal(attRow['actual present']);
     const netPresent    = getVal(attRow['net present']);
-    const otHours       = getVal(attRow['ot hours'] || attRow['othours']); // New field
-    const otAmount      = getVal(attRow['ot amount'] || attRow['otamount']); // New field
+    const otHours       = getVal(attRow['ot hours'] || attRow['othours']);
+    const otAmount      = getVal(attRow['ot amount'] || attRow['otamount']);
 
     const grossSalary  = getVal(emp.salary);
     const basicSalary  = getVal(emp.basic);
     const othersSalary = getVal(emp.others);
+
+    // NEW: Get Cash Payment Config
+    const cashPaymentConfig = getVal(emp.cashPayment);
 
     const earnings = {
       basic:    basicSalary,
@@ -234,11 +210,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       food:     getVal(emp.foodAllowance),
       station:  getVal(emp.stationAllowance),
       hardship: getVal(emp.hardshipAllowance),
-      otAmount: otAmount // Added to earnings object
+      otAmount: otAmount,
+      cashPayment: cashPaymentConfig // Store it here
     };
 
     const additionalAllowances = earnings.maint + earnings.laptop + earnings.othersAll + earnings.arrear + earnings.food + earnings.station + earnings.hardship + earnings.otAmount;
-    const grossPayable = grossSalary + additionalAllowances;
+
+    // Bank Gross (Base for breakdown) + Allowances
+    const grossPayableBank = grossSalary + additionalAllowances;
 
     const deductions = {
       lunch:   getVal(emp.subsidizedLunch),
@@ -258,7 +237,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     attDed = Math.round(attDed * 100) / 100;
 
     const totalDeduction = Object.values(deductions).reduce((a, b) => a + b, 0) + attDed;
-    const netPayment     = Math.round((grossPayable - totalDeduction) * 100) / 100;
+
+    // Bank Portion Net
+    const netBankPayment = Math.round((grossPayableBank - totalDeduction) * 100) / 100;
+
+    // Total Net (Bank + Cash)
+    // The cash payment is added on top of the calculated Bank Net
+    const netPayment = netBankPayment + cashPaymentConfig;
 
     let finalAccountNo = emp.bankAccount;
     let remarksText = "";
@@ -284,10 +269,12 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       remarksText,
       paymentType,
       holderId,
-      att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent, otHours }, // Store OT Hours
-      earn: { grossSalary, ...earnings, grossPayable },
+      att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent, otHours },
+      earn: { grossSalary, ...earnings, grossPayable: grossPayableBank },
       ded:  { ...deductions, attDed, totalDeduction },
-      netPayment,
+      netPayment,      // Total (Bank + Cash)
+      netBankPayment,  // Bank Only (For Advice)
+      cashPayment: cashPaymentConfig
     });
 
     projectGroups[project][subCenter].push(emp);
@@ -301,13 +288,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       views: [{ state: 'frozen', ySplit: 4 }]
     });
 
-    sheet.mergeCells('A1:AS1'); // Extended for 2 new columns
+    sheet.mergeCells('A1:AT1'); // Extended for Cash Payment column
     const r1 = sheet.getCell('A1');
     r1.value = "Metal Plus Limited";
     r1.font = { bold: true, size: 16, name: 'Calibri' };
     r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-    sheet.mergeCells('A2:AS2');
+    sheet.mergeCells('A2:AT2');
     const r2 = sheet.getCell('A2');
     r2.value = `Salary Sheet-${project} for the Month of ${full}`;
     r2.font = { bold: true, size: 12, name: 'Calibri' };
@@ -315,11 +302,11 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     [
       { r: 'A3:J3',  t: 'Employee Information' },
-      { r: 'K3:Q3',  t: 'Attendance' }, // Extended for OT Hours
-      { r: 'R3:U3',  t: 'Salary Structure' }, // Shifted
-      { r: 'V3:AD3', t: 'Earnings & Benefits' }, // Extended for OT Amount
-      { r: 'AE3:AO3',t: 'Deductions' }, // Shifted
-      { r: 'AP3:AS3',t: 'Payment Information' }, // Shifted
+      { r: 'K3:Q3',  t: 'Attendance' },
+      { r: 'R3:U3',  t: 'Salary Structure' },
+      { r: 'V3:AD3', t: 'Earnings & Benefits' },
+      { r: 'AE3:AO3',t: 'Deductions' },
+      { r: 'AP3:AT3',t: 'Payment Information' }, // Extended
     ].forEach(m => {
       sheet.mergeCells(m.r);
       const cell = sheet.getCell(m.r.split(':')[0]);
@@ -333,51 +320,49 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     // Row 4 headers
     const headers = [
       "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
-      "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours", // Added OT Hours
+      "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
       "Previous Salary","Basic","Others","Gross Salary",
-      "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary", // Added OT Amount
+      "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
       "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-      "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
+      "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks" // Added Cash Payment
     ];
+
+    // NOTE: "Cash Payment" is index 42 (1-based), "Net Salary" is 43
     const headerRow = sheet.addRow(headers);
     headerRow.height = 65;
     headerRow.eachCell((cell, colNumber) => {
       cell.font = { bold: true, size: 9 };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-      // Adjust rotation logic for shifted columns
-      cell.alignment = (colNumber >= 11 && colNumber <= 41)
+      cell.alignment = (colNumber >= 11 && colNumber <= 42)
         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
         : { horizontal: 'center', vertical: 'middle', wrapText: true };
     });
 
-    // REQ: Specific Column Widths
-    sheet.getColumn(3).width = 25; // Name
-    sheet.getColumn(4).width = 14.5; // Designation
-    sheet.getColumn(5).width = 14.5; // Func Role
-    sheet.getColumn(6).width = 13.09; // Joining
-    sheet.getColumn(7).width = 11; // Project
+    sheet.getColumn(3).width = 25;
+    sheet.getColumn(4).width = 14.5;
+    sheet.getColumn(5).width = 14.5;
+    sheet.getColumn(6).width = 13.09;
+    sheet.getColumn(7).width = 11;
     sheet.getColumn(8).width = 11;
     sheet.getColumn(9).width = 11;
-    sheet.getColumn(10).width = 11; // Sub Center
-    sheet.getColumn(43).width = 21.5; // Bank
-    sheet.getColumn(45).width = 21.5; // Remarks
+    sheet.getColumn(10).width = 11;
+    sheet.getColumn(44).width = 21.5; // Bank
+    sheet.getColumn(46).width = 21.5; // Remarks
 
-    // Middle columns standard
-    for (let c = 11; c <= 41; c++) {
-        if(![3,4,5,6,7,8,9,10,43,45].includes(c)) sheet.getColumn(c).width = 11.18;
+    for (let c = 11; c <= 42; c++) {
+        if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
     }
-    sheet.getColumn(44).width = 11.55; // Payment Type
+    sheet.getColumn(45).width = 11.55;
 
     let sl = 1;
     const sortedSubCenters = Object.keys(subCenters).sort();
-    let projectGrandTotal = 0;
 
     for (const scName of sortedSubCenters) {
       const scEmployees = subCenters[scName];
 
       const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-      for (let i = 1; i <= 45; i++) { // Updated total cols
+      for (let i = 1; i <= 46; i++) {
         const c = scRow.getCell(i);
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -388,37 +373,35 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       let scTotalNet = 0;
       scEmployees.forEach(d => {
         scTotalNet += d.netPayment;
-        projectGrandTotal += d.netPayment;
 
         const r = sheet.addRow([
           sl++, d.employeeId, d.name, d.designation, d.functionalRole, d.joiningDate,
           d.project, d.projectOffice, d.reportProject, d.subCenter,
-          d.att.totalDays, d.att.holidays, d.att.leave, d.att.lwpDays, d.att.actualPresent, d.att.netPresent, d.att.otHours, // OT Hours
+          d.att.totalDays, d.att.holidays, d.att.leave, d.att.lwpDays, d.att.actualPresent, d.att.netPresent, d.att.otHours,
           d.previousSalary || 0, d.earn.basic, d.earn.others, d.earn.grossSalary,
-          d.earn.maint, d.earn.laptop, d.earn.othersAll, d.earn.arrear, d.earn.food, d.earn.station, d.earn.hardship, d.earn.otAmount, d.earn.grossPayable, // OT Amount
+          d.earn.maint, d.earn.laptop, d.earn.othersAll, d.earn.arrear, d.earn.food, d.earn.station, d.earn.hardship, d.earn.otAmount, d.earn.grossPayable,
           0,
           d.ded.lunch, d.ded.tds, d.ded.bike, d.ded.welfare, d.ded.loan, d.ded.vehicle, d.ded.cpf, d.ded.adj, d.ded.attDed, d.ded.totalDeduction,
-          d.netPayment,
+          d.cashPayment, // Column 42: Cash Payment
+          d.netPayment,  // Column 43: Total Net (Bank+Cash)
           d.finalAccountNo, d.paymentType, d.remarksText
         ]);
 
-        // REQ: SL Column no wrap
         r.getCell(1).alignment = { wrapText: false, vertical: 'middle', horizontal: 'center' };
-
         r.eachCell((c, colNumber) => {
           c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-          if (colNumber !== 1) { // Skip SL manual align
-             c.alignment = (colNumber === 3 || colNumber === 45)
+          if (colNumber !== 1) {
+             c.alignment = (colNumber === 3 || colNumber === 46)
                 ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                 : { vertical: 'middle', horizontal: 'center', wrapText: true };
           }
-          if (colNumber >= 18 && colNumber <= 42) c.numFmt = accountingFmt0;
+          if (colNumber >= 18 && colNumber <= 43) c.numFmt = accountingFmt0;
         });
       });
 
-      const totRow = sheet.addRow(new Array(45).fill(''));
+      const totRow = sheet.addRow(new Array(46).fill(''));
       totRow.getCell(3).value = `Total for ${scName}`;
-      const netPayCell = totRow.getCell(42); // Updated Net Pay Column Index
+      const netPayCell = totRow.getCell(43);
       netPayCell.value = scTotalNet;
       netPayCell.numFmt = accountingFmt0;
       totRow.eachCell((c) => {
@@ -432,19 +415,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     /* ---------------- ADVICE SHEET ---------------- */
     const adviceSheet = workbook.addWorksheet('Advice', {
       pageSetup: {
-          paperSize: 9,
-          orientation: 'portrait',
-          fitToPage: true,
-          fitToWidth: 1,
-          fitToHeight: 0,
-          // REQ: Repeat header row 40
-          printTitles: { rows: '40:40' }
+          paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitles: { rows: '40:40' }
       }
     });
 
     const consolidationMap = new Map();
     const allProjectEmployees = Object.values(subCenters).flat();
 
+    // 1. BANK ACCOUNTS
     allProjectEmployees.forEach(emp => {
       if (emp.finalAccountNo && emp.finalAccountNo.trim() !== '') {
         const key = String(emp.employeeId);
@@ -457,14 +435,17 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             amount: 0,
           });
         }
-        consolidationMap.get(key).amount += emp.netPayment;
+        // IMPORTANT: For Bank Advice, we use netBankPayment (excluding cash)
+        consolidationMap.get(key).amount += emp.netBankPayment;
       }
     });
 
+    // 2. CASH HOLDERS
     allProjectEmployees.forEach(emp => {
       if (!emp.finalAccountNo || emp.finalAccountNo.trim() === '') {
         if (emp.holderId && consolidationMap.has(emp.holderId)) {
-          consolidationMap.get(emp.holderId).amount += emp.netPayment;
+          // Add to holder, excluding Cash portion
+          consolidationMap.get(emp.holderId).amount += emp.netBankPayment;
         }
       }
     });
@@ -477,9 +458,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       if (merge) adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
     };
 
-    const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
-    const totalLetterAmount = allProjectEmployees.reduce((sum, e) => sum + (e.netPayment || 0), 0);
+    // Calculate Total for Letter based on Bank Payment Only
+    const totalLetterAmount = Array.from(consolidationMap.values()).reduce((sum, item) => sum + item.amount, 0);
     const totalAmountWords  = convertNumberToWords(totalLetterAmount);
+    const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
 
     writeTextRow(1,  `Ref: MPL/TELECOM/Salary/${full}`, true);
     writeTextRow(2,  `Date: ${today}`, true);
@@ -498,13 +480,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     writeTextRow(19, "Thanking You,", false);
 
-    // REQ: Signatures in same row with gap
-    // Merging cells to create "Left" and "Right" signature blocks
-    adviceSheet.mergeCells(24, 1, 24, 2); // Left sig name
-    adviceSheet.mergeCells(25, 1, 25, 2); // Left sig title
-
-    adviceSheet.mergeCells(24, 5, 24, 6); // Right sig name
-    adviceSheet.mergeCells(25, 5, 25, 6); // Right sig title
+    adviceSheet.mergeCells(24, 1, 24, 2);
+    adviceSheet.mergeCells(25, 1, 25, 2);
+    adviceSheet.mergeCells(24, 5, 24, 6);
+    adviceSheet.mergeCells(25, 5, 25, 6);
 
     const sigRowName = adviceSheet.getRow(24);
     const sigRowTitle = adviceSheet.getRow(25);
@@ -516,16 +495,12 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     sigRowName.getCell(1).value = "Engr. Sadid Jamil";
     setSigStyle(sigRowName.getCell(1), true);
-
     sigRowTitle.getCell(1).value = "Managing Director";
     setSigStyle(sigRowTitle.getCell(1), false);
-
     sigRowName.getCell(5).value = "Engr. Aminul Islam";
     setSigStyle(sigRowName.getCell(5), true);
-
     sigRowTitle.getCell(5).value = "Chairman";
     setSigStyle(sigRowTitle.getCell(5), false);
-
 
     const adviceHeader = adviceSheet.getRow(40);
     adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
@@ -545,8 +520,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     adviceSheet.getColumn(6).width = 15;
 
     let advSl = 1;
-    const finalAdviceList = Array.from(consolidationMap.values())
-      .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const finalAdviceList = Array.from(consolidationMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
     finalAdviceList.forEach(item => {
       const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);

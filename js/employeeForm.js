@@ -1,30 +1,21 @@
 // js/employeeForm.js
-// --- MODIFICATION: Import customConfirm AND formatDateForDisplay ---
 import { $, openModal, closeModal, customAlert, formatDateForInput, formatDateForDisplay, customConfirm } from './utils.js';
-// --- END MODIFICATION ---
 import { apiCall } from './apiClient.js';
 
 let currentlyEditingEmployeeFullData = null;
 
 // List of MANDATORY field IDs for ADD mode
 const mandatoryFields = [
-    'employeeId', 'name', 'employeeType', 'designation', 
-    // --- MODIFICATION: Add functionalRole ---
-    'functionalRole', 
-    // --- END MODIFICATION ---
-    'joiningDate',
-    'project', 'projectOffice', 'reportProject', 'subCenter',
+    'employeeId', 'name', 'employeeType', 'designation', 'functionalRole',
+    'joiningDate', 'project', 'projectOffice', 'reportProject', 'subCenter',
     'personalMobile', 'dob', 'address', 'identification',
-    'salary' // Gross Salary
+    'salary' // Gross Salary (Bank)
 ];
 
-// List of ALL field IDs present in the employeeForm HTML
+// List of ALL field IDs
 const allFormFields = [
     // Basic
-    'employeeId', 'name', 'employeeType', 'designation', 
-    // --- MODIFICATION: Add functionalRole ---
-    'functionalRole', 
-    // --- END MODIFICATION ---
+    'employeeId', 'name', 'employeeType', 'designation', 'functionalRole',
     'joiningDate', 'workExperience', 'education',
     // Project
     'project', 'projectOffice', 'reportProject', 'subCenter',
@@ -33,7 +24,7 @@ const allFormFields = [
     // Contact
     'nomineeName', 'nomineeMobile', 'officialMobile', 'mobileLimit',
     // Salary - Earnings
-    'salary', 'basic', 'others', 'motobikeCarMaintenance', 'laptopRent', 'othersAllowance',
+    'salary', 'cashPayment', 'basic', 'others', 'motobikeCarMaintenance', 'laptopRent', 'othersAllowance', // Added cashPayment
     'arrear', 'foodAllowance', 'stationAllowance', 'hardshipAllowance',
     // Salary - Deductions
     'gratuity', 'subsidizedLunch', 'tds', 'motorbikeLoan', 'welfareFund', 'salaryOthersLoan',
@@ -44,7 +35,7 @@ const allFormFields = [
     'bankAccount'
 ];
 
-// --- NEW FUNCTION: Auto-calculates salary totals ---
+// Helper
 function getNumericValue(elementId) {
     const el = $(elementId);
     if (!el) return 0;
@@ -52,46 +43,53 @@ function getNumericValue(elementId) {
     return isNaN(value) ? 0 : value;
 }
 
+// Updated Calculation
 function calculateSalaryTotals() {
-    // Sum Earnings
-    const earnings = [
-        getNumericValue('salary'), getNumericValue('motobikeCarMaintenance'), getNumericValue('laptopRent'),
-        getNumericValue('othersAllowance'), getNumericValue('arrear'), getNumericValue('foodAllowance'),
-        getNumericValue('stationAllowance'), getNumericValue('hardshipAllowance')
-    ];
-    const grandTotal = earnings.reduce((sum, val) => sum + val, 0);
+    // 1. Bank Gross (The basis for Basic/Others/Deductions)
+    const bankGross = getNumericValue('salary');
 
-    // === FIX: 'gratuity' REMOVED, 'othersAdjustment' ADDED ===
-    // Sum Deductions
-    const deductions = [
-        // getNumericValue('gratuity'), // REMOVED as requested
-        getNumericValue('subsidizedLunch'), 
-        getNumericValue('tds'),
-        getNumericValue('motorbikeLoan'), 
-        getNumericValue('welfareFund'), 
-        getNumericValue('salaryOthersLoan'),
-        getNumericValue('subsidizedVehicle'), 
-        getNumericValue('lwp'), 
-        getNumericValue('cpf'),
-        getNumericValue('othersAdjustment') // ADDED
+    // 2. Allowances (Usually added on top of Gross)
+    const allowances = [
+        getNumericValue('motobikeCarMaintenance'), getNumericValue('laptopRent'),
+        getNumericValue('othersAllowance'), getNumericValue('arrear'),
+        getNumericValue('foodAllowance'), getNumericValue('stationAllowance'),
+        getNumericValue('hardshipAllowance')
     ];
-    // === END FIX ===
-    
+    const totalAllowances = allowances.reduce((sum, val) => sum + val, 0);
+
+    // 3. Cash Payment (Separate component)
+    const cashPayment = getNumericValue('cashPayment');
+
+    // 4. Grand Total = Bank Gross + Allowances + Cash
+    const grandTotal = bankGross + totalAllowances + cashPayment;
+
+    // 5. Deductions (Based on Bank Gross usually, depends on company policy, keeping standard)
+    const deductions = [
+        getNumericValue('subsidizedLunch'),
+        getNumericValue('tds'),
+        getNumericValue('motorbikeLoan'),
+        getNumericValue('welfareFund'),
+        getNumericValue('salaryOthersLoan'),
+        getNumericValue('subsidizedVehicle'),
+        getNumericValue('lwp'),
+        getNumericValue('cpf'),
+        getNumericValue('othersAdjustment')
+    ];
+
     const totalDeduction = deductions.reduce((sum, val) => sum + val, 0);
 
-    // Calculate Net
+    // 6. Net Pay
     const netSalaryPayment = grandTotal - totalDeduction;
 
     // Set Readonly Fields
     const grandTotalEl = $('grandTotal');
     const totalDeductionEl = $('totalDeduction');
     const netSalaryPaymentEl = $('netSalaryPayment');
-    
+
     if (grandTotalEl) grandTotalEl.value = grandTotal.toFixed(2);
     if (totalDeductionEl) totalDeductionEl.value = totalDeduction.toFixed(2);
     if (netSalaryPaymentEl) netSalaryPaymentEl.value = netSalaryPayment.toFixed(2);
 }
-// --- END NEW FUNCTION ---
 
 export function openEmployeeModal(employee = null, localEmployees = []) {
     const form = $('employeeForm');
@@ -107,20 +105,17 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
         $('employeeDocId').value = employee.id || '';
         $('originalEmployeeIdHidden').value = employee.employeeId || '';
 
-        // Populate ALL known form fields from the employee data
         allFormFields.forEach(fieldId => {
             const input = $(fieldId);
             if (input) {
                 if (fieldId === 'joiningDate' || fieldId === 'dob') {
                     input.value = formatDateForInput(employee[fieldId]);
                 } else {
-                    // Use ?? for null/undefined, ensures 0 is displayed
-                    input.value = employee[fieldId] ?? ''; 
+                    input.value = employee[fieldId] ?? '';
                 }
             }
         });
 
-        // Populate hidden fields
         $('employeeStatus').value = employee.status || 'Active';
         $('employeeSalaryHeld').value = String(employee.salaryHeld === true || String(employee.salaryHeld).toUpperCase() === 'TRUE');
         $('separationDateHidden').value = employee.separationDate || '';
@@ -133,7 +128,6 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
         const empIdInput = $('employeeId');
         if (empIdInput) { empIdInput.setAttribute('readonly', true); empIdInput.classList.add('bg-gray-100', 'cursor-not-allowed'); }
     } else {
-        // Add Mode: Clear stored data and set defaults
         currentlyEditingEmployeeFullData = null;
         $('employeeDocId').value = ''; $('originalEmployeeIdHidden').value = '';
         $('employeeStatus').value = 'Active'; $('employeeSalaryHeld').value = 'false';
@@ -143,13 +137,10 @@ export function openEmployeeModal(employee = null, localEmployees = []) {
 
         const empIdInput = $('employeeId');
         if (empIdInput) { empIdInput.removeAttribute('readonly'); empIdInput.classList.remove('bg-gray-100', 'cursor-not-allowed'); }
-        // --- MODIFICATION: Default to "Regular" ---
         $('employeeType').value = 'Regular';
-        // --- END MODIFICATION ---
     }
-    
+
     calculateSalaryTotals();
-    
     openModal('employeeModal');
 }
 
@@ -172,57 +163,47 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const isEditing = Boolean($('originalEmployeeIdHidden').value);
-
-            // --- MODIFICATION: Define re-join flags ---
             let isRejoining = false;
             let existingByIdentification = null;
-            // --- END MODIFICATION ---
 
             form.querySelectorAll('.input, .input-select').forEach(el => el.classList.remove('border-red-500'));
             let firstErrorField = null;
-            
+
             calculateSalaryTotals();
 
-            // Gather data from ALL known form fields defined in allFormFields array
             const formData = {};
             allFormFields.forEach(fieldId => {
                 const element = $(fieldId);
                 if (element) {
                     if (element.type === 'number') {
                         const numValue = parseFloat(element.value);
-                        formData[fieldId] = isNaN(numValue) ? null : numValue; // Use null if invalid number
+                        formData[fieldId] = isNaN(numValue) ? null : numValue;
                     } else {
                         formData[fieldId] = element.value.trim();
                     }
                 }
             });
 
-            // Add hidden field data separately
             formData.status = $('employeeStatus').value;
             formData.salaryHeld = $('employeeSalaryHeld').value === 'true';
             formData.separationDate = $('separationDateHidden').value;
             formData.remarks = $('remarksHidden').value;
             formData.holdTimestamp = $('holdTimestampHidden').value;
 
-
-            // Validation (Mandatory Fields)
             let isValid = true;
             mandatoryFields.forEach(fieldId => {
                 const element = $(fieldId);
                 let value = formData[fieldId];
-                // For 'salary', 0 is valid, but null is not
                 let isEmpty = (value === null || value === undefined || String(value).trim() === '');
                 if (fieldId === 'salary' && value === 0) {
                      isEmpty = false;
                 }
-
                 if (isEmpty) {
                     isValid = false;
                     if(element) {
                         element.classList.add('border-red-500');
                         if (!firstErrorField) firstErrorField = element;
                     }
-                     console.warn(`Validation failed: Mandatory field '${fieldId}' is empty.`);
                 }
             });
 
@@ -231,82 +212,51 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                 firstErrorField?.focus();
                 return;
             }
-             
-             // Validate salary format in both modes
+
              if (formData.salary === null || formData.salary < 0) {
                   customAlert("Validation Error", "Gross Salary must be a valid non-negative number.");
                    const salaryInput = $('salary');
                    if (salaryInput) { salaryInput.classList.add('border-red-500'); if (!firstErrorField) firstErrorField = salaryInput; firstErrorField?.focus(); }
                   return;
              }
-             
+
              if (!isEditing) {
                 const currentEmployees = getEmployeesFunc();
-                
-                // 1. Check Employee ID
                 const existingById = currentEmployees.find(emp => emp.employeeId.trim().toLowerCase() === formData.employeeId.trim().toLowerCase());
                 if (existingById) {
-                    customAlert("Duplicate Entry", 
-                        `<b>Employee ID "${formData.employeeId}" already exists.</b><br><br>
-                         Assigned to: ${existingById.name}<br>
-                         Designation: ${existingById.designation || 'N/A'}`);
-                    const idInput = $('employeeId'); 
+                    customAlert("Duplicate Entry", `<b>Employee ID "${formData.employeeId}" already exists.</b><br><br>Assigned to: ${existingById.name}`);
+                    const idInput = $('employeeId');
                     if(idInput) { idInput.classList.add('border-red-500'); idInput.focus(); }
                     return;
                 }
-                
-                // --- MODIFICATION: Check Identification and handle re-join prompt ---
+
                 if (formData.identification && formData.identification.trim() !== '') {
-                    existingByIdentification = currentEmployees.find(emp => 
-                        emp.identification && 
+                    existingByIdentification = currentEmployees.find(emp =>
+                        emp.identification &&
                         emp.identification.trim().toLowerCase() === formData.identification.trim().toLowerCase()
                     );
-                    
+
                     if (existingByIdentification) {
-                        // If employee is Active or Held, it's a hard block.
                         if (existingByIdentification.status === 'Active' || existingByIdentification.status === 'Salary Held') {
-                            customAlert("Duplicate Entry", 
-                                `<b>Identification "${formData.identification}" already exists and is assigned to an ACTIVE employee.</b><br><br>
-                                 Assigned to: ${existingByIdentification.name}<br>
-                                 Employee ID: ${existingByIdentification.employeeId}`);
-                            const idenInput = $('identification'); 
+                            customAlert("Duplicate Entry", `<b>Identification "${formData.identification}" already exists and is assigned to an ACTIVE employee.</b><br>Name: ${existingByIdentification.name}`);
+                            const idenInput = $('identification');
                             if(idenInput) { idenInput.classList.add('border-red-500'); idenInput.focus(); }
                             return;
                         }
-
-                        // If employee is Inactive, prompt for re-join
-                        // This is line 269 where the error occurred
-                        const confirmMsg = `<b>Identification "${formData.identification}" matches an inactive employee:</b><br><br>
-                                            <b>Name:</b> ${existingByIdentification.name}<br>
-                                            <b>Employee ID:</b> ${existingByIdentification.employeeId}<br>
-                                            <b>Status:</b> ${existingByIdentification.status}<br>
-                                            <b>Separation Date:</b> ${formatDateForDisplay(existingByIdentification.separationDate) || 'N/A'}<br><br>
-                                            Do you want to proceed and re-join this person using the <b>new Employee ID (${formData.employeeId})</b>?`;
-                        
+                        const confirmMsg = `<b>Identification "${formData.identification}" matches an inactive employee:</b><br><br><b>Name:</b> ${existingByIdentification.name}<br><b>ID:</b> ${existingByIdentification.employeeId}<br><b>Status:</b> ${existingByIdentification.status}<br><br>Do you want to proceed and re-join this person using the <b>new Employee ID (${formData.employeeId})</b>?`;
                         const confirmed = await customConfirm("Re-join Confirmation", confirmMsg);
-
-                        if (!confirmed) {
-                            customAlert("Action Cancelled", "Employee addition has been cancelled.");
-                            const idenInput = $('identification'); 
-                            if(idenInput) { idenInput.classList.add('border-red-500'); idenInput.focus(); }
-                            return;
-                        }
-                        
-                        // User confirmed re-join
+                        if (!confirmed) return;
                         isRejoining = true;
                     }
                 }
-                // --- END MODIFICATION ---
              }
 
-
             let dataToSend = {};
-
             if (isEditing) {
                 if (!currentlyEditingEmployeeFullData) { customAlert("Error", "Original data missing."); return; }
                 dataToSend = {
-                    ...currentlyEditingEmployeeFullData, // Start with original full data
-                    ...formData,                      // Overwrite with form changes
+                    ...currentlyEditingEmployeeFullData,
+                    ...formData,
                     originalEmployeeId: $('originalEmployeeIdHidden').value
                 };
             } else {
@@ -316,19 +266,13 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                      holdTimestamp: '', lastTransferDate: '', lastSubcenter: '', lastTransferReason: ''
                  };
             }
-            
-            // Ensure calculated fields are numbers
+
             dataToSend.grandTotal = parseFloat(formData.grandTotal) || 0;
             dataToSend.totalDeduction = parseFloat(formData.totalDeduction) || 0;
             dataToSend.netSalaryPayment = parseFloat(formData.netSalaryPayment) || 0;
 
-
-            // API Call
             try {
-                // Save the employee first
                 await apiCall('saveEmployee', 'POST', dataToSend);
-
-                // --- MODIFICATION: If re-join, log it ---
                 if (isRejoining && existingByIdentification) {
                     try {
                         const reJoinLogData = {
@@ -341,17 +285,12 @@ export function setupEmployeeForm(getEmployeesFunc, fetchEmployeesFunc) {
                             newJoiningDate: formData.joiningDate
                         };
                         await apiCall('logRejoin', 'POST', reJoinLogData);
-                    } catch (logError) {
-                        console.error("Failed to log re-join event:", logError);
-                        customAlert("Warning", "Employee saved, but failed to log the re-join event. Please notify admin.");
-                    }
+                    } catch (logError) { console.error("Failed to log re-join event:", logError); }
                 }
-                // --- END MODIFICATION ---
 
                 customAlert("Success", isEditing ? "Employee updated." : "Employee added.");
                 closeModal('employeeModal');
                 fetchEmployeesFunc();
-
             } catch (error) { console.error("Error saving employee:", error); customAlert("Error", `Save failed: ${error.message}`); }
             finally { currentlyEditingEmployeeFullData = null; }
         });

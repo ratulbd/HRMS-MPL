@@ -14,12 +14,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        /* ... (Existing styles remain unchanged) ... */
-        /* === === === WILD MODIFICATION V2 === === === */
-
         body {
             font-family: 'Inter', sans-serif;
-            /* Subtle gradient background */
             background-color: #f4f7f6;
             background-image: linear-gradient(180deg, #f9fafb 0%, #f0f3f2 100%);
         }
@@ -41,7 +37,7 @@
             animation: slideInUp 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) 0.2s both;
         }
 
-        /* --- Navbar Button Animations ("Glass" + Shine) --- */
+        /* --- Navbar Button Animations --- */
         .btn-nav {
             position: relative;
             overflow: hidden;
@@ -142,7 +138,7 @@
         /* Card Parallax Content (Floats in 3D) */
         .card-content {
             position: relative;
-            z-index: 2; /* Was 3, now lower than footer */
+            z-index: 2;
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
@@ -176,8 +172,8 @@
             border-top: 1px solid rgba(255, 255, 255, 0.3);
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             transform: translateY(100%);
-            z-index: 3; /* Was 2, now higher than content */
-            padding: 0.75rem 1.25rem; /* 12px 20px */
+            z-index: 3;
+            padding: 0.75rem 1.25rem;
         }
         .employee-card:hover .card-footer {
             transform: translateY(0%);
@@ -193,7 +189,6 @@
             opacity: 1;
             transform: translateY(0);
         }
-        /* Stagger the button animation */
         .employee-card:hover .btn-pill:nth-child(1) { transition-delay: 0.1s; }
         .employee-card:hover .btn-pill:nth-child(2) { transition-delay: 0.15s; }
         .employee-card:hover .btn-pill:nth-child(3) { transition-delay: 0.2s; }
@@ -201,23 +196,19 @@
         .employee-card:hover .btn-pill:nth-child(5) { transition-delay: 0.3s; }
         .employee-card:hover .btn-pill:nth-child(6) { transition-delay: 0.35s; }
 
-        /* === === === END WILD MODIFICATION === === === */
-
-        /* === SKELETON LOADER STYLES (NEW) === */
+        /* === SKELETON LOADER STYLES === */
         .skeleton-card {
             background: rgba(255, 255, 255, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 0.75rem;
             padding: 1.25rem;
-            height: 220px; /* Approx height of real card */
+            height: 220px;
             position: relative;
             overflow: hidden;
-            /* Match the grid layout */
             display: flex;
             flex-direction: column;
         }
 
-        /* The shimmering animation */
         .skeleton-pulse {
             background: linear-gradient(90deg, #f0f3f2 25%, #e0e7e5 50%, #f0f3f2 75%);
             background-size: 200% 100%;
@@ -230,13 +221,11 @@
             100% { background-position: -200% 0; }
         }
 
-        /* Mock Elements inside skeleton */
         .sk-title { height: 24px; width: 60%; margin-bottom: 1rem; }
         .sk-badge { position: absolute; top: 1.25rem; right: 1.25rem; height: 20px; width: 60px; border-radius: 99px; }
         .sk-line { height: 14px; width: 80%; margin-bottom: 0.5rem; }
         .sk-line-short { height: 14px; width: 40%; margin-bottom: 0.5rem; }
         .sk-footer { position: absolute; bottom: 1rem; left: 1.25rem; right: 1.25rem; height: 30px; margin-top: auto; }
-        /* === END SKELETON STYLES === */
 
         .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out; }
         .modal { transition: opacity 0.3s ease, transform 0.3s ease; animation: scaleUp 0.2s ease-out; }
@@ -452,7 +441,9 @@
                     <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Salary Details</h3>
                     <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-4">Earnings</h4>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="salary" class="block text-sm font-medium text-gray-700">Gross Salary<span class="text-red-500">*</span></label><input type="number" step="0.01" id="salary" required class="input salary-component-earning"></div>
+                        <div><label for="salary" class="block text-sm font-medium text-gray-700">Gross Salary (Bank)<span class="text-red-500">*</span></label><input type="number" step="0.01" id="salary" required class="input salary-component-earning"></div>
+
+                        <div><label for="cashPayment" class="block text-sm font-medium text-gray-700">Cash Payment (Optional)</label><input type="number" step="0.01" id="cashPayment" class="input salary-component-earning"></div>
                         <div><label for="basic" class="block text-sm font-medium text-gray-700">Basic<span class="text-red-500">*</span></label><input type="number" step="0.01" id="basic" required class="input"></div>
                         <div><label for="others" class="block text-sm font-medium text-gray-700">Others<span class="text-red-500">*</span></label><input type="number" step="0.01" id="others" required class="input"></div>
                         <div><label for="motobikeCarMaintenance" class="block text-sm font-medium text-gray-700">Motobike/Car Maintenance</label><input type="number" step="0.01" id="motobikeCarMaintenance" class="input salary-component-earning"></div>
@@ -478,9 +469,9 @@
                     </div>
                     <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-6">Totals</h4>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 p-4 bg-gray-50 rounded-lg border">
-                        <div><label for="grandTotal" class="block text-sm font-medium text-gray-700">Grand Total (Auto)</label><input type="number" step="0.01" id="grandTotal" class="input input-readonly" readonly></div>
+                        <div><label for="grandTotal" class="block text-sm font-medium text-gray-700">Grand Total (Bank+Cash)</label><input type="number" step="0.01" id="grandTotal" class="input input-readonly" readonly></div>
                         <div><label for="totalDeduction" class="block text-sm font-medium text-gray-700">Total Deduction (Auto)</label><input type="number" step="0.01" id="totalDeduction" class="input input-readonly" readonly></div>
-                        <div><label for="netSalaryPayment" class="block text-sm font-medium text-gray-700">Net Salary Payment (Auto)</label><input type="number" step="0.01" id="netSalaryPayment" class="input input-readonly" readonly></div>
+                        <div><label for="netSalaryPayment" class="block text-sm font-medium text-gray-700">Net Salary Payment (Total)</label><input type="number" step="0.01" id="netSalaryPayment" class="input input-readonly" readonly></div>
                     </div>
                     <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-6">Bank</h4>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
@@ -545,7 +536,7 @@
                 <div>
                     <label for="attendanceFile" class="block text-sm font-medium text-gray-700">Attendance File (.csv)</label>
                     <p class="text-xs text-gray-500 mb-1">
-                        Required columns: <strong>employeeId, employeename, Total Working Days, Holidays, Availing Leave, LWP, Actual Present, Net Present</strong>.
+                        Required columns: <strong>employeeId, net present, total working days</strong>.
                     </p>
                     <input type="file" id="attendanceFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100">
                 </div>
