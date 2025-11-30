@@ -57,10 +57,15 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
 
         customAlert("Processing", "Archiving data for record keeping...");
+
+        // === MODIFICATION: Capture Logged In User ===
+        const currentUser = sessionStorage.getItem('loggedInUser') || 'Unknown User';
+
         const archiveData = {
           monthYear: monthVal,
           timestamp: new Date().toISOString(),
-          jsonData: employees
+          jsonData: employees,
+          generatedBy: currentUser // Send to backend
         };
 
         await apiCall('saveSalaryArchive', 'POST', archiveData);
@@ -197,7 +202,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const basicSalary  = getVal(emp.basic);
     const othersSalary = getVal(emp.others);
 
-    // NEW: Get Cash Payment Config
+    // Cash Payment
     const cashPaymentConfig = getVal(emp.cashPayment);
 
     const earnings = {
@@ -211,12 +216,12 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       station:  getVal(emp.stationAllowance),
       hardship: getVal(emp.hardshipAllowance),
       otAmount: otAmount,
-      cashPayment: cashPaymentConfig // Store it here
+      cashPayment: cashPaymentConfig
     };
 
     const additionalAllowances = earnings.maint + earnings.laptop + earnings.othersAll + earnings.arrear + earnings.food + earnings.station + earnings.hardship + earnings.otAmount;
 
-    // Bank Gross (Base for breakdown) + Allowances
+    // Bank Gross
     const grossPayableBank = grossSalary + additionalAllowances;
 
     const deductions = {
@@ -238,11 +243,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const totalDeduction = Object.values(deductions).reduce((a, b) => a + b, 0) + attDed;
 
-    // Bank Portion Net
+    // Bank Net
     const netBankPayment = Math.round((grossPayableBank - totalDeduction) * 100) / 100;
 
     // Total Net (Bank + Cash)
-    // The cash payment is added on top of the calculated Bank Net
     const netPayment = netBankPayment + cashPaymentConfig;
 
     let finalAccountNo = emp.bankAccount;
@@ -272,8 +276,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent, otHours },
       earn: { grossSalary, ...earnings, grossPayable: grossPayableBank },
       ded:  { ...deductions, attDed, totalDeduction },
-      netPayment,      // Total (Bank + Cash)
-      netBankPayment,  // Bank Only (For Advice)
+      netPayment,      // Total
+      netBankPayment,  // Bank Only
       cashPayment: cashPaymentConfig
     });
 
@@ -288,7 +292,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       views: [{ state: 'frozen', ySplit: 4 }]
     });
 
-    sheet.mergeCells('A1:AT1'); // Extended for Cash Payment column
+    sheet.mergeCells('A1:AT1');
     const r1 = sheet.getCell('A1');
     r1.value = "Metal Plus Limited";
     r1.font = { bold: true, size: 16, name: 'Calibri' };
@@ -306,7 +310,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       { r: 'R3:U3',  t: 'Salary Structure' },
       { r: 'V3:AD3', t: 'Earnings & Benefits' },
       { r: 'AE3:AO3',t: 'Deductions' },
-      { r: 'AP3:AT3',t: 'Payment Information' }, // Extended
+      { r: 'AP3:AT3',t: 'Payment Information' },
     ].forEach(m => {
       sheet.mergeCells(m.r);
       const cell = sheet.getCell(m.r.split(':')[0]);
@@ -317,17 +321,15 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
 
-    // Row 4 headers
     const headers = [
       "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
       "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
       "Previous Salary","Basic","Others","Gross Salary",
       "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
       "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-      "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks" // Added Cash Payment
+      "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
     ];
 
-    // NOTE: "Cash Payment" is index 42 (1-based), "Net Salary" is 43
     const headerRow = sheet.addRow(headers);
     headerRow.height = 65;
     headerRow.eachCell((cell, colNumber) => {
@@ -347,8 +349,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     sheet.getColumn(8).width = 11;
     sheet.getColumn(9).width = 11;
     sheet.getColumn(10).width = 11;
-    sheet.getColumn(44).width = 21.5; // Bank
-    sheet.getColumn(46).width = 21.5; // Remarks
+    sheet.getColumn(44).width = 21.5;
+    sheet.getColumn(46).width = 21.5;
 
     for (let c = 11; c <= 42; c++) {
         if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
@@ -382,8 +384,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           d.earn.maint, d.earn.laptop, d.earn.othersAll, d.earn.arrear, d.earn.food, d.earn.station, d.earn.hardship, d.earn.otAmount, d.earn.grossPayable,
           0,
           d.ded.lunch, d.ded.tds, d.ded.bike, d.ded.welfare, d.ded.loan, d.ded.vehicle, d.ded.cpf, d.ded.adj, d.ded.attDed, d.ded.totalDeduction,
-          d.cashPayment, // Column 42: Cash Payment
-          d.netPayment,  // Column 43: Total Net (Bank+Cash)
+          d.cashPayment,
+          d.netPayment,
           d.finalAccountNo, d.paymentType, d.remarksText
         ]);
 
@@ -435,7 +437,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             amount: 0,
           });
         }
-        // IMPORTANT: For Bank Advice, we use netBankPayment (excluding cash)
         consolidationMap.get(key).amount += emp.netBankPayment;
       }
     });
@@ -444,7 +445,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     allProjectEmployees.forEach(emp => {
       if (!emp.finalAccountNo || emp.finalAccountNo.trim() === '') {
         if (emp.holderId && consolidationMap.has(emp.holderId)) {
-          // Add to holder, excluding Cash portion
           consolidationMap.get(emp.holderId).amount += emp.netBankPayment;
         }
       }
@@ -458,7 +458,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       if (merge) adviceSheet.mergeCells(rIdx, 1, rIdx, 6);
     };
 
-    // Calculate Total for Letter based on Bank Payment Only
     const totalLetterAmount = Array.from(consolidationMap.values()).reduce((sum, item) => sum + item.amount, 0);
     const totalAmountWords  = convertNumberToWords(totalLetterAmount);
     const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');

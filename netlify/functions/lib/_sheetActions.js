@@ -2,7 +2,7 @@
 
 const MAX_CELL_SIZE = 48000;
 
-// (saveSalarySheet, getPastSheets, getSheetData, saveSalaryArchive functions remain UNCHANGED)
+// (saveSalarySheet, getPastSheets, getSheetData remain UNCHANGED - omitted for brevity if not requested, but full file provided below)
 async function saveSalarySheet(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, helpers, { sheetId, sheetData }) {
      if (!sheetId || !sheetData || !Array.isArray(sheetData)) { throw new Error("Invalid input: sheetId and sheetData array required."); }
     const sheetName = `${SALARY_SHEET_PREFIX}${sheetId}`;
@@ -45,20 +45,29 @@ async function getSheetData(sheets, SPREADSHEET_ID, SALARY_SHEET_PREFIX, sheetId
     return { statusCode: 200, body: JSON.stringify({ sheetId, sheetData }) };
 }
 
-async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, { monthYear, timestamp, jsonData }) {
+// === UPDATED: saveSalaryArchive with GeneratedBy ===
+async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, { monthYear, timestamp, jsonData, generatedBy }) {
     if (!monthYear || !jsonData || !timestamp) { throw new Error("Invalid input: monthYear, timestamp, and jsonData required."); }
+
     const fullJsonString = JSON.stringify(jsonData);
     const encodedString = helpers.compressAndEncode(fullJsonString);
     const totalLength = encodedString.length;
     const totalRows = Math.ceil(totalLength / MAX_CELL_SIZE);
-    const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows"];
+    const user = generatedBy || 'Unknown';
+
+    // === MODIFIED HEADERS ===
+    const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows", "GeneratedBy"];
+
     try {
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
         const rowsToLog = [];
         for (let i = 0; i < totalRows; i++) {
-            const start = i * MAX_CELL_SIZE; const end = (i + 1) * MAX_CELL_SIZE;
+            const start = i * MAX_CELL_SIZE;
+            const end = (i + 1) * MAX_CELL_SIZE;
             const chunk = encodedString.substring(start, end);
-            rowsToLog.push([ monthYear, timestamp, chunk, i, totalRows ]);
+
+            // Push the user only on the first row of the chunk set, or all rows (doesn't matter much, sticking to all)
+            rowsToLog.push([ monthYear, timestamp, chunk, i, totalRows, user ]);
         }
         if (rowsToLog.length > 0) {
             await sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: `${SALARY_ARCHIVE_SHEET_NAME}!A1`, valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS', resource: { values: rowsToLog } });
@@ -69,22 +78,15 @@ async function saveSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NA
     }
 }
 
-// === UPDATED: getSalaryArchive with Pagination Support ===
+// === UPDATED: getSalaryArchive with GeneratedBy Retrieval ===
 async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, helpers, params = {}) {
     console.log("Executing getSalaryArchive", params);
     try {
-        const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows"];
+        const headers = ["MonthYear", "Timestamp", "JsonData", "RowIndex", "TotalRows", "GeneratedBy"];
         await helpers.ensureSheetAndHeaders(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAME, headers, helpers.getSheetHeaders);
 
-        // If pagination params provided (limit/offset), we assume data is NOT compressed in chunks for now
-        // OR we only support 'metaOnly' or 'monthYear' specific fetch.
-        // Since the issue is single-cell size limits, retrieving ALL rows for a month at once is hard.
-
-        // STRATEGY: Read all rows (metadata is small), filter by month, then reconstruct.
-        // If 'chunked' is requested, we might need a different approach, but Google Sheets API reads ranges.
-        // Reading A2:E5000 is fast. The Payload limit hits when we RETURN the big JSON to client.
-
-        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:E`;
+        // Read up to column F (Index 6)
+        const range = `${SALARY_ARCHIVE_SHEET_NAME}!A2:F`;
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
         const rows = response.data.values;
 
@@ -92,7 +94,6 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             return { statusCode: 200, body: JSON.stringify([]) };
         }
 
-        // 1. Group rows
         const groupedArchives = {};
         rows.forEach(row => {
             const monthYear = row[0];
@@ -100,6 +101,9 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             const chunk = row[2];
             const rowIndex = parseInt(row[3], 10);
             const totalRows = parseInt(row[4], 10);
+            // === Retrieve GeneratedBy ===
+            const generatedBy = row[5] || 'Unknown';
+
             const groupKey = `${monthYear}_${timestamp}`;
 
             if (params.monthYear && params.monthYear !== monthYear) return;
@@ -109,6 +113,7 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
                     groupedArchives[groupKey] = {
                         monthYear,
                         timestamp,
+                        generatedBy, // Store it
                         totalRows,
                         chunks: new Array(totalRows).fill(null)
                     };
@@ -123,7 +128,12 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
             const archive = groupedArchives[groupKey];
 
             if (params.metaOnly === 'true') {
-                resultArchives.push({ monthYear: archive.monthYear, timestamp: archive.timestamp });
+                // Include generatedBy in metadata
+                resultArchives.push({
+                    monthYear: archive.monthYear,
+                    timestamp: archive.timestamp,
+                    generatedBy: archive.generatedBy
+                });
                 continue;
             }
 
@@ -133,29 +143,30 @@ async function getSalaryArchive(sheets, SPREADSHEET_ID, SALARY_ARCHIVE_SHEET_NAM
                     const fullJsonString = helpers.decodeAndDecompress(fullEncodedString);
                     let jsonData = JSON.parse(fullJsonString);
 
-                    // === SERVER-SIDE PAGINATION LOGIC ===
                     if (params.limit && params.offset !== undefined) {
                         const start = parseInt(params.offset, 10);
                         const limit = parseInt(params.limit, 10);
 
-                        // Check if jsonData is array
                         if (Array.isArray(jsonData)) {
                             const slicedData = jsonData.slice(start, start + limit);
                             resultArchives.push({
                                 monthYear: archive.monthYear,
                                 timestamp: archive.timestamp,
-                                totalRecords: jsonData.length, // Inform client of total
+                                totalRecords: jsonData.length,
+                                generatedBy: archive.generatedBy, // Include here too
                                 jsonData: slicedData
                             });
                         } else {
-                            // Fallback if object
                             resultArchives.push({ monthYear: archive.monthYear, jsonData });
                         }
                     } else {
-                        // No pagination requested (Legacy behavior - risky for big data)
-                        resultArchives.push({ monthYear: archive.monthYear, timestamp: archive.timestamp, jsonData });
+                        resultArchives.push({
+                            monthYear: archive.monthYear,
+                            timestamp: archive.timestamp,
+                            generatedBy: archive.generatedBy,
+                            jsonData
+                        });
                     }
-                    // ====================================
 
                 } catch (e) {
                     console.warn(`Failed to process archive ${archive.monthYear}`, e);
