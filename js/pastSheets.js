@@ -39,7 +39,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const item = document.createElement('div');
             item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded border';
 
-            // Format precise date and time
             const dateObj = new Date(sheet.timestamp);
             const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
             const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -85,7 +84,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         return { full: `${month}-${year}`, quote: `${month}'${year}` };
     }
 
-    // ... (rest of the file: convertNumberToWords, downloadSheetZip remain unchanged) ...
     function convertNumberToWords(amount) {
         const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
         const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -178,7 +176,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     views: [{ state: 'frozen', ySplit: 4 }]
                 });
 
-                sheet.mergeCells('A1:AT1'); // Extended for Cash Payment
+                sheet.mergeCells('A1:AT1');
                 const r1 = sheet.getCell('A1');
                 r1.value = "Metal Plus Limited";
                 r1.font = { bold: true, size: 16, name: 'Calibri' };
@@ -196,7 +194,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     { r: 'R3:U3',  t: 'Salary Structure' },
                     { r: 'V3:AD3', t: 'Earnings & Benefits' },
                     { r: 'AE3:AO3',t: 'Deductions' },
-                    { r: 'AP3:AT3',t: 'Payment Information' }, // Extended
+                    { r: 'AP3:AT3',t: 'Payment Information' },
                 ].forEach(m => {
                     sheet.mergeCells(m.r);
                     const cell = sheet.getCell(m.r.split(':')[0]);
@@ -207,7 +205,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                // Headers updated with Cash Payment
                 const headers = [
                     "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
                     "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
@@ -235,8 +232,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sheet.getColumn(8).width = 11;
                 sheet.getColumn(9).width = 11;
                 sheet.getColumn(10).width = 11;
-                sheet.getColumn(44).width = 21.5; // Bank
-                sheet.getColumn(46).width = 21.5; // Remarks
+                sheet.getColumn(44).width = 21.5;
+                sheet.getColumn(46).width = 21.5;
 
                 for (let c = 11; c <= 42; c++) {
                     if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
@@ -258,6 +255,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         if (i === 1) c.font = { bold: true };
                     }
 
+                    // === FIX: Prevent Subcenter wrapping ===
+                    scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+
                     let scTotalNet = 0;
 
                     scEmployees.forEach(d => {
@@ -265,7 +265,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         const earn = d.earn || {};
                         const ded = d.ded || {};
 
-                        // Check if archive has netPayment directly (newer archives) or calculate (older archives)
                         const netPay = (d.netPayment !== undefined) ? getVal(d.netPayment) : (getVal(d.earn?.grossPayable) - getVal(d.ded?.totalDeduction));
                         scTotalNet += netPay;
 
@@ -281,8 +280,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                             getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
                             getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
-                            getVal(d.cashPayment), // Column 42
-                            netPay,                // Column 43
+                            getVal(d.cashPayment),
+                            netPay,
                             getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
                         ];
 
@@ -315,15 +314,21 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 /* ---------------- ADVICE SHEET ---------------- */
                 const adviceSheet = workbook.addWorksheet('Advice', {
-                    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitles: { rows: '40:40' } }
+                    pageSetup: {
+                        paperSize: 9,
+                        orientation: 'portrait',
+                        fitToPage: true,
+                        fitToWidth: 1,
+                        fitToHeight: 0,
+                        // === FIX: Repeat headers on subsequent pages ===
+                        printTitles: { rows: '46:46' } // Updated from 40:40 to 46:46
+                    }
                 });
 
                 const consolidationMap = new Map();
                 const allProjectEmployees = Object.values(subCenters).flat();
 
                 allProjectEmployees.forEach(emp => {
-                    // Logic to extract BANK PORTION only
-                    // If archive has 'netBankPayment', use it. Else calculate: netPayment - cashPayment
                     const totalNet = (emp.netPayment !== undefined) ? getVal(emp.netPayment) : (getVal(emp.earn?.grossPayable) - getVal(emp.ded?.totalDeduction));
                     const cashPart = getVal(emp.cashPayment);
                     const bankPart = emp.netBankPayment !== undefined ? getVal(emp.netBankPayment) : (totalNet - cashPart);
@@ -356,7 +361,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                const writeTextRow = (rIdx, text, bold=false, size=11, merge=true) => {
+                // === FIX: Text Size 14 ===
+                const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
                     const cell = adviceSheet.getRow(rIdx).getCell(1);
                     cell.value = text;
                     cell.font = { name: 'Calibri', size, bold };
@@ -365,7 +371,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 };
 
                 const today = new Date().toLocaleDateString('en-GB').replace(/\//g, '.');
-                // Summation of the map values (Bank Portions Only)
                 const totalLetterAmount = Array.from(consolidationMap.values()).reduce((sum, item) => sum + item.amount, 0);
                 const totalAmountWords  = convertNumberToWords(totalLetterAmount);
 
@@ -381,7 +386,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 adviceSheet.mergeCells(13, 1, 17, 6);
                 const paraCell = adviceSheet.getCell('A13');
                 paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
-                paraCell.font = { name: 'Calibri', size: 11 };
+
+                // === FIX: Body Text Size 14 ===
+                paraCell.font = { name: 'Calibri', size: 14 };
                 paraCell.alignment = { wrapText: true, vertical: 'top' };
 
                 writeTextRow(19, "Thanking You,", false);
@@ -395,8 +402,9 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const sigRowName = adviceSheet.getRow(24);
                 const sigRowTitle = adviceSheet.getRow(25);
 
+                // === FIX: Signature Text Size 14 ===
                 const setSigStyle = (cell, bold) => {
-                    cell.font = { name: 'Calibri', size: 11, bold: bold };
+                    cell.font = { name: 'Calibri', size: 14, bold: bold };
                     cell.alignment = { horizontal: 'left', vertical: 'top' };
                 };
 
@@ -412,11 +420,13 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sigRowTitle.getCell(5).value = "Chairman";
                 setSigStyle(sigRowTitle.getCell(5), false);
 
-                const adviceHeader = adviceSheet.getRow(40);
+                // === FIX: Header moved to Row 46 ===
+                const adviceHeader = adviceSheet.getRow(46); // Previously 40
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
                 adviceHeader.height = 24;
                 adviceHeader.eachCell((c) => {
-                    c.font = { bold: true };
+                    // === FIX: Header Text Size 14 ===
+                    c.font = { bold: true, size: 14 };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                     c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -436,6 +446,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 finalAdviceList.forEach(item => {
                     const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
                     r.eachCell((c, colNumber) => {
+                        // === FIX: Data Row Text Size 14 ===
+                        c.font = { size: 14 };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                         c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
                         if (colNumber === 6) c.numFmt = accountingFmt0;
@@ -445,7 +457,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
                 advTotRow.getCell(6).numFmt = accountingFmt0;
                 advTotRow.eachCell((c) => {
-                    c.font = { bold: true };
+                    // === FIX: Total Row Text Size 14 ===
+                    c.font = { bold: true, size: 14 };
                     c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });

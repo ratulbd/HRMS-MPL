@@ -58,14 +58,13 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 
         customAlert("Processing", "Archiving data for record keeping...");
 
-        // === MODIFICATION: Capture Logged In User ===
         const currentUser = sessionStorage.getItem('loggedInUser') || 'Unknown User';
 
         const archiveData = {
           monthYear: monthVal,
           timestamp: new Date().toISOString(),
           jsonData: employees,
-          generatedBy: currentUser // Send to backend
+          generatedBy: currentUser
         };
 
         await apiCall('saveSalaryArchive', 'POST', archiveData);
@@ -202,7 +201,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const basicSalary  = getVal(emp.basic);
     const othersSalary = getVal(emp.others);
 
-    // Cash Payment
     const cashPaymentConfig = getVal(emp.cashPayment);
 
     const earnings = {
@@ -221,7 +219,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const additionalAllowances = earnings.maint + earnings.laptop + earnings.othersAll + earnings.arrear + earnings.food + earnings.station + earnings.hardship + earnings.otAmount;
 
-    // Bank Gross
     const grossPayableBank = grossSalary + additionalAllowances;
 
     const deductions = {
@@ -243,10 +240,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const totalDeduction = Object.values(deductions).reduce((a, b) => a + b, 0) + attDed;
 
-    // Bank Net
     const netBankPayment = Math.round((grossPayableBank - totalDeduction) * 100) / 100;
 
-    // Total Net (Bank + Cash)
     const netPayment = netBankPayment + cashPaymentConfig;
 
     let finalAccountNo = emp.bankAccount;
@@ -276,8 +271,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent, otHours },
       earn: { grossSalary, ...earnings, grossPayable: grossPayableBank },
       ded:  { ...deductions, attDed, totalDeduction },
-      netPayment,      // Total
-      netBankPayment,  // Bank Only
+      netPayment,
+      netBankPayment,
       cashPayment: cashPaymentConfig
     });
 
@@ -372,6 +367,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         if (i === 1) c.font = { bold: true };
       }
 
+      // === FIX: Prevent Subcenter wrapping ===
+      scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+
       let scTotalNet = 0;
       scEmployees.forEach(d => {
         scTotalNet += d.netPayment;
@@ -417,7 +415,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     /* ---------------- ADVICE SHEET ---------------- */
     const adviceSheet = workbook.addWorksheet('Advice', {
       pageSetup: {
-          paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitles: { rows: '40:40' }
+          paperSize: 9,
+          orientation: 'portrait',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          // === FIX: Repeat headers on subsequent pages ===
+          printTitles: { rows: '46:46' } // Updated from 40:40 to 46:46
       }
     });
 
@@ -450,7 +454,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
     });
 
-    const writeTextRow = (rIdx, text, bold=false, size=11, merge=true) => {
+    // === FIX: Increased Font Size to 14 ===
+    const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
       const cell = adviceSheet.getRow(rIdx).getCell(1);
       cell.value = text;
       cell.font = { name: 'Calibri', size, bold };
@@ -474,7 +479,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     adviceSheet.mergeCells(13, 1, 17, 6);
     const paraCell = adviceSheet.getCell('A13');
     paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
-    paraCell.font = { name: 'Calibri', size: 11 };
+
+    // === FIX: Body Text Size 14 ===
+    paraCell.font = { name: 'Calibri', size: 14 };
     paraCell.alignment = { wrapText: true, vertical: 'top' };
 
     writeTextRow(19, "Thanking You,", false);
@@ -487,8 +494,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const sigRowName = adviceSheet.getRow(24);
     const sigRowTitle = adviceSheet.getRow(25);
 
+    // === FIX: Signature Text Size 14 ===
     const setSigStyle = (cell, bold) => {
-        cell.font = { name: 'Calibri', size: 11, bold: bold };
+        cell.font = { name: 'Calibri', size: 14, bold: bold };
         cell.alignment = { horizontal: 'left', vertical: 'top' };
     };
 
@@ -501,11 +509,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     sigRowTitle.getCell(5).value = "Chairman";
     setSigStyle(sigRowTitle.getCell(5), false);
 
-    const adviceHeader = adviceSheet.getRow(40);
+    // === FIX: Header moved to Row 46 ===
+    const adviceHeader = adviceSheet.getRow(46); // Previously 40
     adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
     adviceHeader.height = 24;
     adviceHeader.eachCell((c) => {
-      c.font = { bold: true };
+      // === FIX: Header Text Size 14 ===
+      c.font = { bold: true, size: 14 };
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
       c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -524,6 +534,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     finalAdviceList.forEach(item => {
       const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
       r.eachCell((c, colNumber) => {
+        // === FIX: Data Row Text Size 14 ===
+        c.font = { size: 14 };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
         c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
         if (colNumber === 6) c.numFmt = accountingFmt0;
@@ -533,7 +545,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
     advTotRow.getCell(6).numFmt = accountingFmt0;
     advTotRow.eachCell((c) => {
-      c.font = { bold: true };
+      // === FIX: Total Row Text Size 14 ===
+      c.font = { bold: true, size: 14 };
       c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
