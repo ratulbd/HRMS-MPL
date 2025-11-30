@@ -11,7 +11,6 @@ async function loadLogo() {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                // Increased width to 350px for better clarity (was 120px)
                 const targetWidth = 350;
                 const scale = targetWidth / img.width;
                 const targetHeight = img.height * scale;
@@ -20,13 +19,12 @@ async function loadLogo() {
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
                 const ctx = canvas.getContext('2d');
-                // Use high quality smoothing
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
                 resolve({
-                    data: canvas.toDataURL('image/png', 1.0), // Max quality
+                    data: canvas.toDataURL('image/png', 1.0),
                     ratio: targetWidth / targetHeight
                 });
             };
@@ -37,6 +35,21 @@ async function loadLogo() {
         console.warn("Could not load logo for payslip:", e);
         return null;
     }
+}
+
+// Helper: Convert Decimal Hours to HH:MM format
+function formatDecimalToTime(val) {
+    const num = parseFloat(val);
+    if (isNaN(num) || num === 0) return "00:00";
+
+    const hours = Math.floor(num);
+    const minutes = Math.round((num - hours) * 60);
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+function sanitize(str) {
+    return (str || '').replace(/[^a-z0-9]/gi, '_').trim();
 }
 
 export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
@@ -72,10 +85,6 @@ export async function generatePayslipsZip(salaryData, employeeDB, monthYear) {
         compression: "DEFLATE",
         compressionOptions: { level: 6 }
     });
-}
-
-function sanitize(str) {
-    return (str || '').replace(/[^a-z0-9]/gi, '_').trim();
 }
 
 /**
@@ -145,8 +154,7 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     // Row 3
     drawLabelVal("Sub Center:", subCenter, col1, startY + 12);
-    // REQ: OT Hours shown in this section
-    drawLabelVal("OT Hours:", att.otHours || "0", col2, startY + 12);
+    // (OT Hours moved to Attendance Box)
 
     // --- 3. ATTENDANCE STRIP ---
     const attY = startY + 20;
@@ -158,11 +166,14 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         { l: "Total Days", v: att.totalDays ?? "0" },
         { l: "Holidays", v: att.holidays ?? "0" },
         { l: "Worked", v: att.netPresent ?? "0" },
+        { l: "OT Hours", v: formatDecimalToTime(att.otHours) },
         { l: "Leave", v: att.leave ?? "0" },
         { l: "LWP", v: att.lwpDays ?? "0" }
     ];
 
-    let attX = 22;
+    let attX = 20;
+    const spacing = 30;
+
     attData.forEach(item => {
         doc.setFont("helvetica", "bold");
         doc.setTextColor(22, 101, 49);
@@ -173,7 +184,8 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(9);
         doc.text(String(item.v), attX, attY + 10);
-        attX += 35;
+
+        attX += spacing;
     });
 
     // --- 4. EARNINGS & DEDUCTIONS TABLES ---
@@ -194,35 +206,36 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     const ded = data.ded || {};
     const fMoney = (val) => (val !== undefined && val !== null) ? Number(val).toLocaleString('en-IN') : "0";
 
-    // REQ: Show all sections even if value is 0
+    // === MODIFICATION: EXACT HEADERS FROM SALARY SHEET ===
     const earnRows = [
-        { l: "Basic Salary", v: earn.basic },
-        { l: "House Rent & Others", v: earn.others },
-        { l: "Maintenance Allow.", v: earn.maint },
+        { l: "Basic", v: earn.basic },
+        { l: "Others", v: earn.others },
+        { l: "Motobike / Car Maintenance Allowance", v: earn.maint },
         { l: "Laptop Rent", v: earn.laptop },
-        { l: "Other Allowance", v: earn.othersAll || earn.othersAllowance },
+        { l: "Others Allowance", v: earn.othersAll || earn.othersAllowance },
+        { l: "Arrear", v: earn.arrear },
         { l: "Food Allowance", v: earn.food },
         { l: "Station Allowance", v: earn.station },
         { l: "Hardship Allowance", v: earn.hardship },
-        { l: "Arrears", v: earn.arrear },
-        { l: "OT Amount", v: earn.otAmount } // REQ: Added OT Amount
+        { l: "OT Amount", v: earn.otAmount }
     ];
 
     const dedRows = [
-        { l: "TDS / Tax", v: ded.tds },
-        { l: "Provident Fund (CPF)", v: ded.cpf },
-        { l: "Welfare Fund", v: ded.welfare },
         { l: "Subsidized Lunch", v: ded.lunch },
-        { l: "Vehicle/Bike Loan", v: (ded.vehicle || 0) + (ded.bike || 0) },
-        { l: "Salary/Other Loan", v: ded.loan },
-        { l: "Adjustments", v: ded.adj },
-        { l: "Absent Deduction", v: ded.attDed }
+        { l: "TDS", v: ded.tds },
+        { l: "Motorbike Loan", v: ded.bike }, // Separated from Vehicle
+        { l: "Welfare Fund", v: ded.welfare },
+        { l: "Salary/ Others Loan", v: ded.loan },
+        { l: "Subsidized Vehicle", v: ded.vehicle }, // Separated from Bike
+        { l: "CPF", v: ded.cpf },
+        { l: "Others Adjustment", v: ded.adj },
+        { l: "Attendance Deduction", v: ded.attDed }
     ];
 
     let currentY = tblY + 12;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(9); // Font size for rows
 
     const maxRows = Math.max(earnRows.length, dedRows.length);
 
@@ -231,8 +244,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
         if (earnRows[i]) {
             doc.text(earnRows[i].l, 17, currentY);
             doc.text(fMoney(earnRows[i].v), 15 + colWidth - 2, currentY, { align: "right" });
-        } else {
-            // Blank line if ded rows > earn rows
         }
 
         // Deductions Side

@@ -3,9 +3,11 @@ import { showLoading, hideLoading } from './utils.js';
 
 const API_URL = '/api/proxy'; // Adjust if your proxy endpoint is different
 
-// === MODIFICATION: apiCall is EXPORTED ===
-export async function apiCall(action, method = 'GET', body = null, params = null) {
-    showLoading();
+// === MODIFICATION: Added useSpinner parameter (Default: true) ===
+export async function apiCall(action, method = 'GET', body = null, params = null, useSpinner = true) {
+    // Only show loader if useSpinner is true
+    if (useSpinner) showLoading();
+
     try {
         const options = {
             method: method,
@@ -24,7 +26,7 @@ export async function apiCall(action, method = 'GET', body = null, params = null
             options.body = JSON.stringify(body);
         }
 
-        console.log(`API Call: ${method} ${url}`, body ? JSON.stringify(body).substring(0, 100) + '...' : ''); // Log truncated body
+        console.log(`API Call: ${method} ${url}`, body ? JSON.stringify(body).substring(0, 100) + '...' : '');
 
         const response = await fetch(url, options);
         const responseText = await response.text();
@@ -36,12 +38,12 @@ export async function apiCall(action, method = 'GET', body = null, params = null
                  if (jsonError.error || jsonError.details) errorData = jsonError;
             } catch (e) { /* Ignore JSON parse error if response wasn't JSON */ }
             console.error("API Error Response:", errorData);
-            // Try to extract a meaningful message
+
             let message = errorData.error || `HTTP error! status: ${response.status}`;
             if(errorData.details && typeof errorData.details === 'string' && errorData.details.length < 200) {
                  message += ` - ${errorData.details}`;
             }
-             if (errorData.message) { // Sometimes the error is nested
+             if (errorData.message) {
                  message = errorData.message;
              }
             throw new Error(message);
@@ -49,7 +51,7 @@ export async function apiCall(action, method = 'GET', body = null, params = null
 
         if (!responseText) {
              console.log(`API Success (${action}): No content`);
-             return { success: true }; // Indicate success for empty responses
+             return { success: true };
         }
 
          try {
@@ -63,10 +65,9 @@ export async function apiCall(action, method = 'GET', body = null, params = null
 
     } catch (error) {
         console.error(`API Call Error (${action}):`, error);
-        // Ensure the error message is useful
         throw new Error(error.message || 'An unknown API error occurred.');
     } finally {
-         hideLoading();
+         // Only hide loader if useSpinner is true
+         if (useSpinner) hideLoading();
     }
 }
-// === END MODIFICATION ===

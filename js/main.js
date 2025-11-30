@@ -119,6 +119,7 @@ async function initializeAppModules() {
         }
 
         try {
+            // Note: apiCall defaults to useSpinner=true, which is correct here
             const response = await apiCall('getEmployees', 'GET', null, params);
 
             if (!response || !response.employees) {
@@ -143,7 +144,8 @@ async function initializeAppModules() {
             }
 
             if (currentPage === 1) {
-                apiCall('getEmployees', 'GET', null, { limit: 5000 })
+                // Background fetch: Pass 'false' as 5th arg to disable spinner
+                apiCall('getEmployees', 'GET', null, { limit: 5000 }, false)
                     .then(fullResponse => {
                         mainLocalEmployees = fullResponse.employees || [];
                         console.log(`Background fetch complete: ${mainLocalEmployees.length} employees loaded for modals.`);
@@ -304,24 +306,22 @@ async function initializeAppModules() {
         }
     }
 
-    // === MODIFICATION: Fixed Loading Spinner Logic ===
+    // === SOLVED: Fixed Loading Spinner Logic with API Control ===
     async function handlePayslipGeneration() {
-        showLoading(); // START Spinner
+        showLoading(); // 1. Manually START Global Spinner
         try {
-            // 1. Fetch Metadata
-            const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' });
+            // 2. Fetch Meta: Pass 'false' to disable internal spinner management
+            const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' }, false);
 
             if (!archivesMeta || archivesMeta.length === 0) {
                 throw new Error("No past salary records found in archive.");
             }
 
-            // 2. Sort to get the latest
             archivesMeta.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             const latestMeta = archivesMeta[0];
             const monthTitle = latestMeta.monthYear;
 
-            // 3. Fetch FULL data (Chunked)
             console.log(`Fetching full data for: ${monthTitle} in chunks...`);
 
             let allRawData = [];
@@ -330,11 +330,12 @@ async function initializeAppModules() {
             let hasMore = true;
 
             while (hasMore) {
+                // 3. Fetch Chunks: Pass 'false' to keep global spinner running
                 const fullArchiveResp = await apiCall('getSalaryArchive', 'GET', null, {
                     monthYear: monthTitle,
                     limit: LIMIT,
                     offset: offset
-                });
+                }, false);
 
                 if (!fullArchiveResp || fullArchiveResp.length === 0) {
                     if (offset === 0) throw new Error(`Failed to retrieve data for ${monthTitle}`);
@@ -362,7 +363,6 @@ async function initializeAppModules() {
                  throw new Error("Corrupted or empty data in salary archive.");
             }
 
-            // 4. Map Data
             const salaryDataForPdf = allRawData.map(emp => {
                 const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
                 const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
@@ -380,33 +380,27 @@ async function initializeAppModules() {
                 };
             });
 
-            // 5. Generate ZIP
-            // This might take time, spinner is still running
+            // 4. Heavy CPU Task (ZIP Generation)
+            // Spinner is still ACTIVE here because we never turned it off
             const zipBlob = await generatePayslipsZip(salaryDataForPdf, salaryDataForPdf, monthTitle);
 
-            // 6. Trigger Download
             const link = document.createElement("a");
             link.href = URL.createObjectURL(zipBlob);
             link.download = `Payslips_${monthTitle}.zip`;
             link.click();
 
-            // === FIX: Hide Loading AFTER download trigger and BEFORE Alert ===
-            hideLoading(); // STOP Spinner
-
+            // 5. Success! Now we manually stop the spinner
+            hideLoading();
             customAlert("Success", "Payslips generated and downloaded successfully.");
             closeModal('reportModal');
 
         } catch (error) {
             console.error(error);
-
-            // === FIX: Hide Loading on Error ===
+            // 6. Error! Manually stop the spinner
             hideLoading();
-
             customAlert("Error", `Failed to generate payslips: ${error.message}`);
         }
-        // REMOVED: 'finally' block to prevent premature spinner removal
     }
-    // === END MODIFICATION ===
 
     function setupAutoLogout() {
         const IDLE_TIMEOUT = 20 * 60 * 1000;
