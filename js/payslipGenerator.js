@@ -127,8 +127,11 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
 
     // --- 2. EMPLOYEE INFO GRID ---
     const startY = 38;
+
+    // === FIX START: Adjusted Column Positions ===
     const col1 = 15;
-    const col2 = 80;
+    const col2 = 115; // Increased from 80 to 115 to prevent overlap with long names
+    // === FIX END ===
 
     doc.setFontSize(9);
 
@@ -206,7 +209,6 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     const ded = data.ded || {};
     const fMoney = (val) => (val !== undefined && val !== null) ? Number(val).toLocaleString('en-IN') : "0";
 
-    // === MODIFICATION: EXACT HEADERS FROM SALARY SHEET ===
     const earnRows = [
         { l: "Basic", v: earn.basic },
         { l: "Others", v: earn.others },
@@ -223,10 +225,10 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     const dedRows = [
         { l: "Subsidized Lunch", v: ded.lunch },
         { l: "TDS", v: ded.tds },
-        { l: "Motorbike Loan", v: ded.bike }, // Separated from Vehicle
+        { l: "Motorbike Loan", v: ded.bike },
         { l: "Welfare Fund", v: ded.welfare },
         { l: "Salary/ Others Loan", v: ded.loan },
-        { l: "Subsidized Vehicle", v: ded.vehicle }, // Separated from Bike
+        { l: "Subsidized Vehicle", v: ded.vehicle },
         { l: "CPF", v: ded.cpf },
         { l: "Others Adjustment", v: ded.adj },
         { l: "Attendance Deduction", v: ded.attDed }
@@ -235,7 +237,7 @@ async function createStandardPayslip(data, monthYear, subCenter, logoObj) {
     let currentY = tblY + 12;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9); // Font size for rows
+    doc.setFontSize(9);
 
     const maxRows = Math.max(earnRows.length, dedRows.length);
 
