@@ -255,7 +255,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         if (i === 1) c.font = { bold: true };
                     }
 
-                    // === FIX: Prevent Subcenter wrapping ===
+                    // FIX 1: Prevent "Subcenter: HO" from wrapping
                     scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
 
                     let scTotalNet = 0;
@@ -320,8 +320,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         fitToPage: true,
                         fitToWidth: 1,
                         fitToHeight: 0,
-                        // === FIX: Repeat headers on subsequent pages ===
-                        printTitles: { rows: '46:46' } // Updated from 40:40 to 46:46
+                        // FIX 2: Header starts at 46, so repeat row 46
+                        printTitles: { rows: '46:46' }
                     }
                 });
 
@@ -361,7 +361,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // === FIX: Text Size 14 ===
+                // FIX 3: Global Font Size 14
                 const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
                     const cell = adviceSheet.getRow(rIdx).getCell(1);
                     cell.value = text;
@@ -387,45 +387,45 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const paraCell = adviceSheet.getCell('A13');
                 paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee’s bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
 
-                // === FIX: Body Text Size 14 ===
                 paraCell.font = { name: 'Calibri', size: 14 };
                 paraCell.alignment = { wrapText: true, vertical: 'top' };
 
                 writeTextRow(19, "Thanking You,", false);
 
-                adviceSheet.mergeCells(24, 1, 24, 2);
-                adviceSheet.mergeCells(25, 1, 25, 2);
-
-                adviceSheet.mergeCells(24, 5, 24, 6);
-                adviceSheet.mergeCells(25, 5, 25, 6);
+                // FIX 4: Improved Signature Merging (Left: A-C, Right: D-F)
+                adviceSheet.mergeCells(24, 1, 24, 3); // Left Name
+                adviceSheet.mergeCells(25, 1, 25, 3); // Left Title
+                adviceSheet.mergeCells(24, 4, 24, 6); // Right Name
+                adviceSheet.mergeCells(25, 4, 25, 6); // Right Title
 
                 const sigRowName = adviceSheet.getRow(24);
                 const sigRowTitle = adviceSheet.getRow(25);
 
-                // === FIX: Signature Text Size 14 ===
                 const setSigStyle = (cell, bold) => {
                     cell.font = { name: 'Calibri', size: 14, bold: bold };
                     cell.alignment = { horizontal: 'left', vertical: 'top' };
                 };
 
+                // Left Signature
                 sigRowName.getCell(1).value = "Engr. Sadid Jamil";
                 setSigStyle(sigRowName.getCell(1), true);
-
                 sigRowTitle.getCell(1).value = "Managing Director";
                 setSigStyle(sigRowTitle.getCell(1), false);
 
-                sigRowName.getCell(5).value = "Engr. Aminul Islam";
-                setSigStyle(sigRowName.getCell(5), true);
+                // Right Signature (Start at D/Col 4)
+                sigRowName.getCell(4).value = "Engr. Aminul Islam";
+                setSigStyle(sigRowName.getCell(4), true);
+                sigRowTitle.getCell(4).value = "Chairman";
+                setSigStyle(sigRowTitle.getCell(4), false);
 
-                sigRowTitle.getCell(5).value = "Chairman";
-                setSigStyle(sigRowTitle.getCell(5), false);
+                // FIX 5: Page Break after signatures
+                adviceSheet.getRow(29).addPageBreak();
 
-                // === FIX: Header moved to Row 46 ===
-                const adviceHeader = adviceSheet.getRow(46); // Previously 40
+                // FIX 6: Header starting at Row 46
+                const adviceHeader = adviceSheet.getRow(46);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
                 adviceHeader.height = 24;
                 adviceHeader.eachCell((c) => {
-                    // === FIX: Header Text Size 14 ===
                     c.font = { bold: true, size: 14 };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                     c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -440,13 +440,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 adviceSheet.getColumn(6).width = 15;
 
                 let advSl = 1;
-                const finalAdviceList = Array.from(consolidationMap.values())
-                    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                const finalAdviceList = Array.from(consolidationMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
                 finalAdviceList.forEach(item => {
                     const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
                     r.eachCell((c, colNumber) => {
-                        // === FIX: Data Row Text Size 14 ===
                         c.font = { size: 14 };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                         c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
@@ -457,7 +455,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
                 advTotRow.getCell(6).numFmt = accountingFmt0;
                 advTotRow.eachCell((c) => {
-                    // === FIX: Total Row Text Size 14 ===
                     c.font = { bold: true, size: 14 };
                     c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
