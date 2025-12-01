@@ -156,7 +156,6 @@ function getFormattedMonthYear(dateStr) {
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
-  // Requested specific format
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
 
   const attMap = {};
@@ -333,7 +332,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
 
-      // REQ: No orientation for Cash(42), Account(43), Net(44)
       cell.alignment = (colNumber >= 11 && colNumber <= 41)
         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
         : { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -397,7 +395,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                 : { vertical: 'middle', horizontal: 'center', wrapText: true };
           }
-          // REQ: Previous Salary (18) and Payments (42,43,44) same format
           if ((colNumber >= 18 && colNumber <= 30) || (colNumber >= 32 && colNumber <= 44)) c.numFmt = accountingFmt0;
         });
       });
@@ -426,8 +423,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
     });
 
-    // FIX: Set Repeating Header Row specifically for ExcelJS
-    adviceSheet.pageSetup.printTitlesRow = '31:31';
+    // FIX: Header starts row 32, so repeat row 32 on subsequent pages
+    adviceSheet.pageSetup.printTitlesRow = '32:32';
 
     const consolidationMap = new Map();
     const allProjectEmployees = Object.values(subCenters).flat();
@@ -479,28 +476,28 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     writeTextRow(9,  `Subject: Salary expenses disbursement for the Month of ${quote}.`, true);
     writeTextRow(11, "Dear sir,");
 
-    // FIX: Merge more rows and set row height for visibility
-    adviceSheet.mergeCells(13, 1, 18, 6); // Rows 13-18 (6 rows)
+    // FIX: Merging more rows (13-19) for the longer text
+    adviceSheet.mergeCells(13, 1, 19, 6);
     const paraCell = adviceSheet.getCell('A13');
-    paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee's bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
+    paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee's bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail from id number saidul.islam@metalbd.biz , sender name Mr. Md. Saidul Islam and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible. For any query please contact with Mr. Md. Saidul Islam; Mobile: 01766667498`;
 
     paraCell.font = { name: 'Calibri', size: 14 };
     paraCell.alignment = { wrapText: true, vertical: 'top' };
 
-    // Set explicit row height to ensure text visibility
-    for(let r=13; r<=18; r++) adviceSheet.getRow(r).height = 35;
+    // FIX: Increase row height for visibility of long text
+    for(let r=13; r<=19; r++) adviceSheet.getRow(r).height = 35;
 
-    writeTextRow(20, "Thanking You,", false); // Moved down slightly
+    writeTextRow(21, "Thanking You,", false); // Shifted down
 
-    // Signatures
-    adviceSheet.mergeCells(25, 1, 25, 3);
+    // FIX: Signatures shifted down
     adviceSheet.mergeCells(26, 1, 26, 3);
-    adviceSheet.mergeCells(25, 4, 25, 6);
+    adviceSheet.mergeCells(27, 1, 27, 3);
     adviceSheet.mergeCells(26, 4, 26, 6);
+    adviceSheet.mergeCells(27, 4, 27, 6);
 
-    const sigRowName = adviceSheet.getRow(25);
-    const sigRowTitle = adviceSheet.getRow(26);
-    sigRowName.height = 30; // Increased height
+    const sigRowName = adviceSheet.getRow(26);
+    const sigRowTitle = adviceSheet.getRow(27);
+    sigRowName.height = 30;
     sigRowTitle.height = 30;
 
     const setSigStyle = (cell, bold) => {
@@ -518,11 +515,11 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     sigRowTitle.getCell(4).value = "Chairman";
     setSigStyle(sigRowTitle.getCell(4), false);
 
-    // FIX: Page Break after signatures
-    adviceSheet.getRow(29).addPageBreak();
+    // FIX: Page Break at Row 30
+    adviceSheet.getRow(30).addPageBreak();
 
-    // FIX: Header starts at Row 31 (Top of Page 2)
-    const adviceHeader = adviceSheet.getRow(31);
+    // FIX: Header starts at Row 32 (Top of Page 2)
+    const adviceHeader = adviceSheet.getRow(32);
     adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
     adviceHeader.height = 30;
     adviceHeader.eachCell((c) => {

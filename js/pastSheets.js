@@ -219,6 +219,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.font = { bold: true, size: 9 };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+
                     cell.alignment = (colNumber >= 11 && colNumber <= 41)
                         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
                         : { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -322,8 +323,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // Correct Print Titles syntax
-                adviceSheet.pageSetup.printTitlesRow = '31:31';
+                // FIX: Header Row is 32 (Page 2), set repetition
+                adviceSheet.pageSetup.printTitlesRow = '32:32';
 
                 const consolidationMap = new Map();
                 const allProjectEmployees = Object.values(subCenters).flat();
@@ -382,25 +383,27 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 writeTextRow(9,  `Subject: Salary expenses disbursement for the Month of ${quote}.`, true);
                 writeTextRow(11, "Dear sir,");
 
-                adviceSheet.mergeCells(13, 1, 18, 6);
+                // FIX: Expanded merge area for text visibility
+                adviceSheet.mergeCells(13, 1, 19, 6);
                 const paraCell = adviceSheet.getCell('A13');
-                paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee's bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible.`;
+                paraCell.value = `Please Transfer Tk.${totalLetterAmount.toLocaleString('en-IN')}/-Taka (in word: ${totalAmountWords}) to our following employee's bank account by debiting our CD Account No. 103.110.17302 in the name of Metal Plus Ltd. maintained with you. For better clarification we have provided you the soft copy of data through e-mail from id number saidul.islam@metalbd.biz , sender name Mr. Md. Saidul Islam and affirm you that soft copy of data is true and exact with hard copy of data submitted to you. For any deviation with soft copy and hard copy we will be held responsible. For any query please contact with Mr. Md. Saidul Islam; Mobile: 01766667498`;
 
                 paraCell.font = { name: 'Calibri', size: 14 };
                 paraCell.alignment = { wrapText: true, vertical: 'top' };
 
-                // Set explicit row height for visibility
-                for(let r=13; r<=18; r++) adviceSheet.getRow(r).height = 35;
+                // FIX: Row height increased
+                for(let r=13; r<=19; r++) adviceSheet.getRow(r).height = 35;
 
-                writeTextRow(20, "Thanking You,", false);
+                writeTextRow(21, "Thanking You,", false); // Shifted down
 
-                adviceSheet.mergeCells(25, 1, 25, 3);
+                // FIX: Signatures shifted down
                 adviceSheet.mergeCells(26, 1, 26, 3);
-                adviceSheet.mergeCells(25, 4, 25, 6);
+                adviceSheet.mergeCells(27, 1, 27, 3);
                 adviceSheet.mergeCells(26, 4, 26, 6);
+                adviceSheet.mergeCells(27, 4, 27, 6);
 
-                const sigRowName = adviceSheet.getRow(25);
-                const sigRowTitle = adviceSheet.getRow(26);
+                const sigRowName = adviceSheet.getRow(26);
+                const sigRowTitle = adviceSheet.getRow(27);
                 sigRowName.height = 30;
                 sigRowTitle.height = 30;
 
@@ -419,9 +422,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sigRowTitle.getCell(4).value = "Chairman";
                 setSigStyle(sigRowTitle.getCell(4), false);
 
-                adviceSheet.getRow(29).addPageBreak();
+                // FIX: Page Break at Row 30
+                adviceSheet.getRow(30).addPageBreak();
 
-                const adviceHeader = adviceSheet.getRow(31);
+                // FIX: Header starts at Row 32 (Top of Page 2)
+                const adviceHeader = adviceSheet.getRow(32);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
                 adviceHeader.height = 30;
                 adviceHeader.eachCell((c) => {
@@ -439,8 +444,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 adviceSheet.getColumn(6).width = 15;
 
                 let advSl = 1;
-                const finalAdviceList = Array.from(consolidationMap.values())
-                    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                const finalAdviceList = Array.from(consolidationMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
                 finalAdviceList.forEach(item => {
                     const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
