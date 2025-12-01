@@ -2,7 +2,7 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// --- Module Level Helpers (Accessible everywhere in this file) ---
+// --- Module Level Helpers ---
 const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
 const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
@@ -119,6 +119,18 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         return convert(Math.floor(amount)) + " Only";
     }
 
+    // Helper: Excel Date to JS Date
+    function excelDateToJSDate(serial) {
+       if (typeof serial === 'number') {
+           const utc_days  = Math.floor(serial - 25569);
+           const utc_value = utc_days * 86400;
+           return new Date(utc_value * 1000);
+       } else if (typeof serial === 'string' && serial.match(/^\d{4}-\d{2}-\d{2}$/)) {
+           return new Date(serial);
+       }
+       return new Date(serial);
+    }
+
     function isSeparatedInMonth(dateStr, monthVal) {
         if (!dateStr) return false;
         let d = new Date(dateStr);
@@ -167,6 +179,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
             const { full, quote } = getFormattedMonthYear(sheetMeta.monthYear);
             const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
+            const dateFormat = '[$-en-US]d-mmm-yy;@';
             const zip = new JSZip();
 
             const projectGroups = {};
@@ -189,13 +202,17 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 } else {
                     return;
                 }
+
+                // Ensure date object for formatting
+                emp.joiningDateObj = emp.joiningDate ? excelDateToJSDate(emp.joiningDate) : null;
+
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Re-define helpers inside
+            // Same helper as in salarySheet.js
             function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey, isPrintVersion = false) {
                 const sheet = workbook.addWorksheet(sheetName, {
-                    views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4 }],
+                    views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4, xSplit: 4 }],
                     pageSetup: isPrintVersion
                       ? { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:1' }
                       : {}
@@ -257,7 +274,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 }
 
                 const headerRow = sheet.addRow(headers);
-                headerRow.height = 27;
+                headerRow.height = isPrintVersion ? 40 : 60;
                 headerRow.eachCell((cell, colNumber) => {
                   cell.font = { bold: true, size: 9 };
                   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -275,6 +292,14 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 if (!isPrintVersion) {
                     sheet.getColumn(3).width = 25;
+                    sheet.getColumn(4).width = 16;
+                    sheet.getColumn(5).width = 13;
+                    sheet.getColumn(6).width = 12;
+                    sheet.getColumn(7).width = 13;
+                    sheet.getColumn(8).width = 13;
+                    sheet.getColumn(9).width = 13;
+                    sheet.getColumn(10).width = 13;
+
                     for (let c = 11; c <= 45; c++) {
                         if(![46,48].includes(c)) sheet.getColumn(c).width = 11.18;
                     }
@@ -283,7 +308,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 } else {
                     sheet.columns.forEach(c => c.width = 10);
                     sheet.getColumn(3).width = 20;
-                    sheet.getColumn(4).width = 15;
+                    sheet.getColumn(4).width = 16;
+                    sheet.getColumn(5).width = 12;
                     sheet.getColumn(26).width = 20;
                 }
 
@@ -323,7 +349,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     let rowData = [];
                     if (!isPrintVersion) {
                         rowData = [
-                          sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
+                          sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), d.joiningDateObj,
                           getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
                           getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
                           getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
@@ -339,7 +365,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         ];
                     } else {
                         rowData = [
-                            sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.joiningDate),
+                            sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), d.joiningDateObj,
                             getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
                             getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
                             benefits, getVal(earn.grossPayable ?? d.grossPayable),
@@ -365,8 +391,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                       }
 
                       if (!isPrintVersion) {
+                          if (colNumber === 6) c.numFmt = dateFormat;
                           if ((colNumber >= 18 && colNumber <= 31) || (colNumber >= 33 && colNumber <= 45)) c.numFmt = accountingFmt0;
                       } else {
+                          if (colNumber === 5) c.numFmt = dateFormat;
                           if (colNumber >= 8 && colNumber <= 24) c.numFmt = accountingFmt0;
                       }
                     });
@@ -446,8 +474,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             for (const [project, subCenters] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
 
-                addSalarySheetTab(workbook, 'Salary Sheet', subCenters, 'active', false);
-                addSalarySheetTab(workbook, 'Print Version', subCenters, 'active', true);
+                addSalarySheetTab(workbook, 'Salary Sheet', project, subCenters, 'active', false);
+                addSalarySheetTab(workbook, 'Print Version', project, subCenters, 'active', true);
 
                 /* ---------------- ADVICE SHEET (Active Only) ---------------- */
                 const adviceSheet = workbook.addWorksheet('Advice', {
@@ -543,7 +571,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 const adviceHeader = adviceSheet.getRow(32);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
-                adviceHeader.height = 30;
+                adviceHeader.height = 27; // REQ: 27
                 adviceHeader.eachCell((c) => {
                     c.font = { bold: true, size: 14 };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -563,7 +591,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 finalAdviceList.forEach(item => {
                     const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
-                    r.height = 25;
+                    r.height = 27; // REQ: 27
                     r.eachCell((c, colNumber) => {
                         c.font = { size: 14 };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -573,7 +601,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 });
 
                 const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
-                advTotRow.height = 30;
+                advTotRow.height = 27; // REQ: 27
                 advTotRow.getCell(6).numFmt = accountingFmt0;
                 advTotRow.eachCell((c) => {
                     c.font = { bold: true, size: 14 };
