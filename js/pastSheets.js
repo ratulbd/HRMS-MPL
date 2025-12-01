@@ -115,7 +115,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         return convert(Math.floor(amount)) + " Only";
     }
 
-    // Helper: isSeparatedInMonth (Copied logic from salarySheet.js for consistency)
     function isSeparatedInMonth(dateStr, monthVal) {
         if (!dateStr) return false;
         let d = new Date(dateStr);
@@ -183,7 +182,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     listCategory = 'hold';
                 } else if ((emp.status === 'Resigned' || emp.status === 'Terminated') && isSeparatedInMonth(emp.separationDate, sheetMeta.monthYear)) {
                     listCategory = 'separated';
-                } else if (emp.status === 'Active' || !emp.status) { // Default active if missing
+                } else if (emp.status === 'Active' || !emp.status) {
                     listCategory = 'active';
                 } else {
                     return;
@@ -191,7 +190,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Same helper function as salarySheet.js
+            // Re-define helpers inside
             function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey) {
                 const sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 4 }] });
 
@@ -244,8 +243,18 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     : { horizontal: 'center', vertical: 'middle', wrapText: true };
                 });
 
+                // RESTORED WIDTHS
                 sheet.getColumn(3).width = 25;
-                for (let c = 11; c <= 44; c++) { if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18; }
+                sheet.getColumn(4).width = 14.5;
+                sheet.getColumn(5).width = 14.5;
+                sheet.getColumn(6).width = 13.09;
+                sheet.getColumn(7).width = 11;
+                sheet.getColumn(8).width = 11;
+                sheet.getColumn(9).width = 11;
+                sheet.getColumn(10).width = 11;
+                for (let c = 11; c <= 44; c++) {
+                    if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18;
+                }
                 sheet.getColumn(45).width = 21.5; sheet.getColumn(47).width = 21.5;
 
                 let sl = 1;
@@ -272,7 +281,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         const earn = d.earn || {};
                         const ded = d.ded || {};
 
-                        // Check if archive has netPayment directly
                         const netPay = (d.netPayment !== undefined) ? getVal(d.netPayment) : (getVal(d.earn?.grossPayable) - getVal(d.ded?.totalDeduction));
                         scTotalNet += netPay;
 
@@ -323,6 +331,52 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 }
             }
 
+            function addLogSheet(workbook, sheetName, employees, type) {
+                const sheet = workbook.addWorksheet(sheetName);
+
+                const headers = type === 'hold'
+                    ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
+                    : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
+
+                const headerRow = sheet.addRow(headers);
+                headerRow.eachCell((c) => {
+                    c.font = { bold: true };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    c.alignment = { horizontal: 'center', vertical: 'middle' };
+                });
+
+                sheet.columns.forEach(col => col.width = 20);
+
+                if (employees.length === 0) {
+                    sheet.addRow(["No records found."]);
+                    return;
+                }
+
+                employees.forEach(emp => {
+                    let rowData = [];
+                    if (type === 'hold') {
+                        rowData = [
+                            emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                            formatDateForDisplay(emp.holdTimestamp) || '-',
+                            emp.remarks || ''
+                        ];
+                    } else {
+                        rowData = [
+                            emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                            formatDateForDisplay(emp.separationDate) || '-',
+                            emp.status,
+                            emp.remarks || ''
+                        ];
+                    }
+                    const r = sheet.addRow(rowData);
+                    r.eachCell(c => {
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    });
+                });
+            }
+
             for (const [project, subCenters] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
 
@@ -352,14 +406,13 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // Holders (Active)
                 allActiveEmployees.forEach(emp => {
-                    if ((!emp.finalAccountNo || emp.finalAccountNo.trim() === '') && emp.holderId) {
-                        const netBank = (emp.netBankPayment !== undefined) ? getVal(emp.netBankPayment) : (getVal(emp.netPayment) - getVal(emp.cashPayment));
-                        if(consolidationMap.has(emp.holderId)) {
-                            consolidationMap.get(emp.holderId).amount += netBank;
-                        }
-                    }
+                     if ((!emp.finalAccountNo || emp.finalAccountNo.trim() === '') && emp.holderId) {
+                         const netBank = (emp.netBankPayment !== undefined) ? getVal(emp.netBankPayment) : (getVal(emp.netPayment) - getVal(emp.cashPayment));
+                         if(consolidationMap.has(emp.holderId)) {
+                             consolidationMap.get(emp.holderId).amount += netBank;
+                         }
+                     }
                 });
 
                 const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
@@ -461,11 +514,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                // 3. Salary Hold Sheet
-                addSalarySheetTab(workbook, 'Salary Hold', subCenters, 'hold');
+                const holdEmployees = Object.values(subCenters).flatMap(sc => sc.hold);
+                addLogSheet(workbook, 'Salary Hold', holdEmployees, 'hold');
 
-                // 4. Terminated/Resigned Sheet
-                addSalarySheetTab(workbook, 'Terminated-Resigned', subCenters, 'separated');
+                const separatedEmployees = Object.values(subCenters).flatMap(sc => sc.separated);
+                addLogSheet(workbook, 'Terminated-Resigned', separatedEmployees, 'separated');
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);

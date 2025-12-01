@@ -1,5 +1,5 @@
 // js/salarySheet.js
-import { $, customAlert, closeModal } from './utils.js';
+import { $, customAlert, closeModal, formatDateForDisplay } from './utils.js'; // Added formatDateForDisplay
 import { apiCall } from './apiClient.js';
 
 export function setupSalarySheetModal(getEmployeesFunc) {
@@ -153,12 +153,10 @@ function getFormattedMonthYear(dateStr) {
   return { month, year, full: `${month}-${year}`, quote: `${month}'${year}` };
 }
 
-// Helper to check if a separation date falls within the report month
-function isSeparatedInMonth(dateStr, monthVal) { // monthVal is "YYYY-MM"
+function isSeparatedInMonth(dateStr, monthVal) {
     if (!dateStr) return false;
-    // Handle "DD-MMM-YY" or standard ISO
     let d = new Date(dateStr);
-    if (isNaN(d.getTime())) return false; // Invalid date
+    if (isNaN(d.getTime())) return false;
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     return `${yyyy}-${mm}` === monthVal;
@@ -169,7 +167,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
 
-  // --- Pre-process Data ---
   const attMap = {};
   attendanceData.forEach((row) => {
     const cleanRow = {};
@@ -189,14 +186,15 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   const allEmpMap = {};
   employees.forEach((e) => { allEmpMap[String(e.employeeId).trim()] = e; });
 
-  // Structure: projectGroups[project][subCenter] = { active: [], hold: [], separated: [] }
   const projectGroups = {};
   const getVal = (v) => parseFloat(v) || 0;
 
   employees.forEach((emp) => {
     const attRow = attMap[String(emp.employeeId)];
-    // Skip if no attendance data (optional, but good practice for salary sheet)
-    if (!attRow) return;
+    // For Salary Sheet, we generally need attendance.
+    // BUT for Hold/Separation logs, we might list them even if no attendance (if they exist in DB).
+    // However, the request implies "during salary sheet generation... logic wise".
+    // We'll process them if they are in the employee list.
 
     const project   = emp.reportProject || 'Unknown';
     const subCenter = emp.subCenter    || 'General';
@@ -206,33 +204,32 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         projectGroups[project][subCenter] = { active: [], hold: [], separated: [] };
     }
 
-    // --- LOGIC: Categorize Employee ---
     let listCategory = null;
     const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
 
     if (isHeld) {
-        // Priority 1: Salary Hold
         listCategory = 'hold';
     } else if ((emp.status === 'Resigned' || emp.status === 'Terminated') && isSeparatedInMonth(emp.separationDate, monthVal)) {
-        // Priority 2: Terminated/Resigned THIS MONTH
         listCategory = 'separated';
     } else if (emp.status === 'Active') {
-        // Priority 3: Active and Not Held
         listCategory = 'active';
     } else {
-        // Skip (e.g. Previously resigned)
         return;
     }
 
-    // --- Calc Logic (Same for all categories) ---
-    const totalDays     = getVal(attRow['total working days']);
-    const holidays      = getVal(attRow['holidays']);
-    const leave         = getVal(attRow['availing leave']);
-    const lwpDays       = getVal(attRow['lwp']);
-    const actualPresent = getVal(attRow['actual present']);
-    const netPresent    = getVal(attRow['net present']);
-    const otHours       = getVal(attRow['ot hours'] || attRow['othours']);
-    const otAmount      = getVal(attRow['ot amount'] || attRow['otamount']);
+    // Attendance Data (Active only really needs this, but calculating for all doesn't hurt)
+    let totalDays=0, holidays=0, leave=0, lwpDays=0, actualPresent=0, netPresent=0, otHours=0, otAmount=0;
+
+    if (attRow) {
+        totalDays     = getVal(attRow['total working days']);
+        holidays      = getVal(attRow['holidays']);
+        leave         = getVal(attRow['availing leave']);
+        lwpDays       = getVal(attRow['lwp']);
+        actualPresent = getVal(attRow['actual present']);
+        netPresent    = getVal(attRow['net present']);
+        otHours       = getVal(attRow['ot hours'] || attRow['othours']);
+        otAmount      = getVal(attRow['ot amount'] || attRow['otamount']);
+    }
 
     const grossSalary  = getVal(emp.salary);
     const basicSalary  = getVal(emp.basic);
@@ -309,11 +306,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       cashPayment: cashPaymentConfig
     });
 
-    // Add to specific list based on category
     projectGroups[project][subCenter][listCategory].push(emp);
   });
 
-  // --- Helper: Render a Salary Sheet Tab ---
+  // --- Helper: Render a Salary Sheet Tab (For Active Employees) ---
   function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey) {
       const sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 4 }] });
 
@@ -367,15 +363,27 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       });
 
       sheet.getColumn(3).width = 25;
-      for (let c = 11; c <= 44; c++) { if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18; }
-      sheet.getColumn(45).width = 21.5; sheet.getColumn(47).width = 21.5;
+      sheet.getColumn(4).width = 14.5;
+      sheet.getColumn(5).width = 14.5;
+      sheet.getColumn(6).width = 13.09;
+      sheet.getColumn(7).width = 11;
+      sheet.getColumn(8).width = 11;
+      sheet.getColumn(9).width = 11;
+      sheet.getColumn(10).width = 11;
+
+      for (let c = 11; c <= 44; c++) {
+          if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18;
+      }
+
+      sheet.getColumn(45).width = 21.5;
+      sheet.getColumn(47).width = 21.5;
 
       let sl = 1;
       const sortedSubCenters = Object.keys(dataBySubCenter).sort();
       let hasData = false;
 
       for (const scName of sortedSubCenters) {
-        const scEmployees = dataBySubCenter[scName][categoryKey]; // Access specific category
+        const scEmployees = dataBySubCenter[scName][categoryKey];
         if (!scEmployees || scEmployees.length === 0) continue;
 
         hasData = true;
@@ -426,8 +434,56 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
 
       if(!hasData) {
-          sheet.addRow(["No Data Available for this category."]);
+          sheet.addRow(["No Active Employees found for this project."]);
       }
+  }
+
+  // --- NEW: Helper for Simple Log Sheets (Hold / Separated) ---
+  function addLogSheet(workbook, sheetName, employees, type) {
+      const sheet = workbook.addWorksheet(sheetName);
+
+      // Headers
+      const headers = type === 'hold'
+        ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
+        : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
+
+      const headerRow = sheet.addRow(headers);
+      headerRow.eachCell((c) => {
+          c.font = { bold: true };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+          c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+          c.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+
+      sheet.columns.forEach(col => col.width = 20); // Default width
+
+      if (employees.length === 0) {
+          sheet.addRow(["No records found."]);
+          return;
+      }
+
+      employees.forEach(emp => {
+          let rowData = [];
+          if (type === 'hold') {
+              rowData = [
+                  emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                  formatDateForDisplay(emp.holdTimestamp) || '-',
+                  emp.remarks || ''
+              ];
+          } else {
+              rowData = [
+                  emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                  formatDateForDisplay(emp.separationDate) || '-',
+                  emp.status,
+                  emp.remarks || ''
+              ];
+          }
+          const r = sheet.addRow(rowData);
+          r.eachCell(c => {
+              c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+              c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+          });
+      });
   }
 
   // --- Generate Sheets for Each Project ---
@@ -443,7 +499,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     });
     adviceSheet.pageSetup.printTitlesRow = '32:32';
 
-    // Collect ACTIVE employees for Advice
     const consolidationMap = new Map();
     const allActiveEmployees = Object.values(subCenters).flatMap(sc => sc.active);
 
@@ -457,25 +512,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 });
             }
             consolidationMap.get(key).amount += emp.netBankPayment;
-        } else if (emp.holderId && !emp.finalAccountNo) {
-             // Holder logic
-             if (!consolidationMap.has(emp.holderId)) {
-                 // We might need to fetch holder info if not present, but usually holders are also active employees or present in the map
-                 // For safety, we check if holder is in map, if not, we can't add to them easily without their details.
-                 // Assuming holder is also an employee in the list or pre-filled.
-                 // If Holder is purely external, we can't add.
-                 // However, usually holders are employees.
-             }
+        }
+    });
+
+    allActiveEmployees.forEach(emp => {
+         if ((!emp.finalAccountNo || emp.finalAccountNo.trim() === '') && emp.holderId) {
              if (consolidationMap.has(emp.holderId)) {
                  consolidationMap.get(emp.holderId).amount += emp.netBankPayment;
              }
-        }
-    });
-    // Note: Holder logic above assumes holder is an active employee with a bank account processed in the loop.
-    // To be robust, we iterate again for holders after filling accounts.
-    allActiveEmployees.forEach(emp => {
-         if ((!emp.finalAccountNo || emp.finalAccountNo.trim() === '') && emp.holderId && consolidationMap.has(emp.holderId)) {
-             consolidationMap.get(emp.holderId).amount += emp.netBankPayment;
          }
     });
 
@@ -578,11 +622,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
 
-    // 3. Salary Hold Sheet
-    addSalarySheetTab(workbook, 'Salary Hold', subCenters, 'hold');
+    // 3. Salary Hold Sheet (Simple Log Format)
+    const holdEmployees = Object.values(subCenters).flatMap(sc => sc.hold);
+    addLogSheet(workbook, 'Salary Hold', holdEmployees, 'hold');
 
-    // 4. Terminated/Resigned Sheet
-    addSalarySheetTab(workbook, 'Terminated-Resigned', subCenters, 'separated');
+    // 4. Terminated/Resigned Sheet (Simple Log Format)
+    const separatedEmployees = Object.values(subCenters).flatMap(sc => sc.separated);
+    addLogSheet(workbook, 'Terminated-Resigned', separatedEmployees, 'separated');
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
