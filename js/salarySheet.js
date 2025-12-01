@@ -1,6 +1,10 @@
 // js/salarySheet.js
-import { $, customAlert, closeModal, formatDateForDisplay } from './utils.js'; // FIX: Added formatDateForDisplay
+import { $, customAlert, closeModal, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
+
+// --- Module Level Helpers (Accessible everywhere in this file) ---
+const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
+const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
 export function setupSalarySheetModal(getEmployeesFunc) {
   const modal = $('attendanceModal');
@@ -187,7 +191,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   employees.forEach((e) => { allEmpMap[String(e.employeeId).trim()] = e; });
 
   const projectGroups = {};
-  const getVal = (v) => parseFloat(v) || 0;
 
   employees.forEach((emp) => {
     const attRow = attMap[String(emp.employeeId)];
@@ -321,18 +324,17 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           r1.font = { bold: true, size: 16, name: 'Calibri' };
           r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-          sheet.mergeCells('A2:AV2'); // Adjusted merge
+          sheet.mergeCells('A2:AV2');
           const r2 = sheet.getCell('A2');
           r2.value = `Salary Sheet (${sheetName}) - For the Month of ${full}`;
           r2.font = { bold: true, size: 12, name: 'Calibri' };
           r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-          // Metadata Headers
           [
             { r: 'A3:J3',  t: 'Employee Information' },
             { r: 'K3:Q3',  t: 'Attendance' },
             { r: 'R3:U3',  t: 'Salary Structure' },
-            { r: 'V3:AE3', t: 'Earnings & Benefits' }, // Extended
+            { r: 'V3:AE3', t: 'Earnings & Benefits' },
             { r: 'AF3:AP3',t: 'Deductions' },
             { r: 'AQ3:AV3',t: 'Payment Information' },
           ].forEach(m => {
@@ -345,7 +347,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
           });
 
-          // Standard Columns
           headers = [
             "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
             "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
@@ -357,7 +358,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           ];
           startRow = 4;
       } else {
-          // Print Version Columns
           headers = [
               "SL", "ID", "Name", "Designation", "Joining Date", "Net Present", "OT Hours",
               "Basic", "Others", "Gross Salary", "Total Benefits", "Gross Payable Salary",
@@ -385,9 +385,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         }
       });
 
-      // Widths
       if (!isPrintVersion) {
-          sheet.getColumn(3).width = 25; // Name
+          sheet.getColumn(3).width = 25;
           for (let c = 11; c <= 45; c++) {
               if(![46,48].includes(c)) sheet.getColumn(c).width = 11.18;
           }
@@ -395,9 +394,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           sheet.getColumn(48).width = 21.5;
       } else {
           sheet.columns.forEach(c => c.width = 10);
-          sheet.getColumn(3).width = 20; // Name
-          sheet.getColumn(4).width = 15; // Desig
-          sheet.getColumn(26).width = 20; // Remarks
+          sheet.getColumn(3).width = 20;
+          sheet.getColumn(4).width = 15;
+          sheet.getColumn(26).width = 20;
       }
 
       let sl = 1;
@@ -496,69 +495,60 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
   }
 
-  // --- NEW: Helper for Simple Log Sheets (Hold / Separated) ---
   function addLogSheet(workbook, sheetName, employees, type) {
-      const sheet = workbook.addWorksheet(sheetName);
+        const sheet = workbook.addWorksheet(sheetName);
 
-      // Headers
-      const headers = type === 'hold'
-        ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
-        : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
+        const headers = type === 'hold'
+            ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
+            : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
 
-      const headerRow = sheet.addRow(headers);
-      headerRow.height = 27;
-      headerRow.eachCell((c) => {
-          c.font = { bold: true };
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-          c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-          c.alignment = { horizontal: 'center', vertical: 'middle' };
-      });
+        const headerRow = sheet.addRow(headers);
+        headerRow.height = 27;
+        headerRow.eachCell((c) => {
+            c.font = { bold: true };
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+            c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            c.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
 
-      sheet.columns.forEach(col => col.width = 20);
+        sheet.columns.forEach(col => col.width = 20);
 
-      if (employees.length === 0) {
-          sheet.addRow(["No records found."]);
-          return;
-      }
+        if (employees.length === 0) {
+            sheet.addRow(["No records found."]);
+            return;
+        }
 
-      const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
+        employees.forEach(emp => {
+            let rowData = [];
+            if (type === 'hold') {
+                rowData = [
+                    getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
+                    formatDateForDisplay(emp.holdTimestamp) || '-',
+                    getStr(emp.remarks)
+                ];
+            } else {
+                rowData = [
+                    getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
+                    formatDateForDisplay(emp.separationDate) || '-',
+                    getStr(emp.status),
+                    getStr(emp.remarks)
+                ];
+            }
+            const r = sheet.addRow(rowData);
+            r.height = 27;
+            r.eachCell(c => {
+                c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+            });
+        });
+    }
 
-      employees.forEach(emp => {
-          let rowData = [];
-          if (type === 'hold') {
-              rowData = [
-                  getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
-                  formatDateForDisplay(emp.holdTimestamp) || '-',
-                  getStr(emp.remarks)
-              ];
-          } else {
-              rowData = [
-                  getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
-                  formatDateForDisplay(emp.separationDate) || '-',
-                  getStr(emp.status),
-                  getStr(emp.remarks)
-              ];
-          }
-          const r = sheet.addRow(rowData);
-          r.height = 27;
-          r.eachCell(c => {
-              c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-              c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
-          });
-      });
-  }
-
-  // --- Generate Sheets for Each Project ---
   for (const [project, subCenters] of Object.entries(projectGroups)) {
     const workbook = new ExcelJS.Workbook();
 
-    // 1. Salary Sheet (Active Only)
     addSalarySheetTab(workbook, 'Salary Sheet', subCenters, 'active', false);
-
-    // 2. Print Version (New)
     addSalarySheetTab(workbook, 'Print Version', subCenters, 'active', true);
 
-    // 3. Advice Sheet (Active Only)
     const adviceSheet = workbook.addWorksheet('Advice', {
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
@@ -687,12 +677,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
 
-    const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
-
-    // 4. Salary Hold Sheet
     addLogSheet(workbook, 'Salary Hold', Object.values(subCenters).flatMap(sc => sc.hold), 'hold');
-
-    // 5. Terminated/Resigned Sheet
     addLogSheet(workbook, 'Terminated-Resigned', Object.values(subCenters).flatMap(sc => sc.separated), 'separated');
 
     const buffer = await workbook.xlsx.writeBuffer();

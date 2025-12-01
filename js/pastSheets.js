@@ -2,6 +2,10 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
+// --- Module Level Helpers (Accessible everywhere in this file) ---
+const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
+const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
+
 export function setupPastSheetsModal(getEmployeesFunc, btnId) {
     const btn = $(btnId);
     const modal = $('viewSheetsModal');
@@ -166,8 +170,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             const zip = new JSZip();
 
             const projectGroups = {};
-            const getVal = (v) => (v !== undefined && v !== null) ? Number(v) : 0;
-            const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
             allEmployees.forEach(emp => {
                 const p = emp.reportProject || 'Unknown';
@@ -190,7 +192,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Same helper as in salarySheet.js
+            // Re-define helpers inside
             function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey, isPrintVersion = false) {
                 const sheet = workbook.addWorksheet(sheetName, {
                     views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4 }],
@@ -212,7 +214,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                     sheet.mergeCells('A2:AV2');
                     const r2 = sheet.getCell('A2');
-                    r2.value = `${sheetName} - for the Month of ${full}`;
+                    r2.value = `Salary Sheet (${sheetName}) - For the Month of ${full}`;
                     r2.font = { bold: true, size: 12, name: 'Calibri' };
                     r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
@@ -316,7 +318,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     scTotalNet += netPay;
 
                     const netBank = (d.netBankPayment !== undefined) ? getVal(d.netBankPayment) : (netPay - getVal(d.cashPayment));
-                    const benefits = (earn.totalBenefits !== undefined) ? getVal(earn.totalBenefits) : 0; // Fallback
+                    const benefits = (earn.totalBenefits !== undefined) ? getVal(earn.totalBenefits) : 0;
 
                     let rowData = [];
                     if (!isPrintVersion) {
@@ -325,7 +327,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                           getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
                           getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
                           getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
-                          getVal(d.previousSalary), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
+                          getVal(d.previousSalary || 0), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
                           benefits,
                           getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.othersAll ?? d.othersAllowance), getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship), getVal(earn.otAmount), getVal(earn.grossPayable ?? d.grossPayable),
                           0,
@@ -464,7 +466,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         if (!consolidationMap.has(key)) {
                             consolidationMap.set(key, {
                                 id: emp.employeeId, name: emp.name, designation: emp.designation,
-                                account: emp.finalAccountNo, amount: 0
+                                account: emp.finalAccountNo, amount: 0,
                             });
                         }
                         consolidationMap.get(key).amount += netBank;
@@ -579,10 +581,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                // 4. Salary Hold Sheet
                 addLogSheet(workbook, 'Salary Hold', Object.values(subCenters).flatMap(sc => sc.hold), 'hold');
-
-                // 5. Terminated/Resigned Sheet
                 addLogSheet(workbook, 'Terminated-Resigned', Object.values(subCenters).flatMap(sc => sc.separated), 'separated');
 
                 const buffer = await workbook.xlsx.writeBuffer();
