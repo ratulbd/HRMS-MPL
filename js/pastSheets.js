@@ -190,140 +190,202 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Re-define helpers inside
-            function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey) {
-                const sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 4 }] });
-
-                sheet.mergeCells('A1:AU1');
-                const r1 = sheet.getCell('A1');
-                r1.value = "Metal Plus Limited";
-                r1.font = { bold: true, size: 16, name: 'Calibri' };
-                r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-                sheet.mergeCells('A2:AU2');
-                const r2 = sheet.getCell('A2');
-                r2.value = `${sheetName} - for the Month of ${full}`;
-                r2.font = { bold: true, size: 12, name: 'Calibri' };
-                r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-                [
-                    { r: 'A3:J3',  t: 'Employee Information' },
-                    { r: 'K3:Q3',  t: 'Attendance' },
-                    { r: 'R3:U3',  t: 'Salary Structure' },
-                    { r: 'V3:AD3', t: 'Earnings & Benefits' },
-                    { r: 'AE3:AO3',t: 'Deductions' },
-                    { r: 'AP3:AU3',t: 'Payment Information' },
-                ].forEach(m => {
-                    sheet.mergeCells(m.r);
-                    const cell = sheet.getCell(m.r.split(':')[0]);
-                    cell.value = m.t;
-                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+            // Same helper as in salarySheet.js
+            function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey, isPrintVersion = false) {
+                const sheet = workbook.addWorksheet(sheetName, {
+                    views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4 }],
+                    pageSetup: isPrintVersion
+                      ? { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:1' }
+                      : {}
                 });
 
-                const headers = [
-                    "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
-                    "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
-                    "Previous Salary","Basic","Others","Gross Salary",
-                    "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
-                    "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-                    "Cash Payment", "Account Payment", "Net Salary Payment", "Bank Account Number","Payment Type","Remarks"
-                ];
+                let headers = [];
+                let startRow = 1;
+
+                if (!isPrintVersion) {
+                    // Standard Sheet Header
+                    sheet.mergeCells('A1:AV1');
+                    const r1 = sheet.getCell('A1');
+                    r1.value = "Metal Plus Limited";
+                    r1.font = { bold: true, size: 16, name: 'Calibri' };
+                    r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+                    sheet.mergeCells('A2:AV2');
+                    const r2 = sheet.getCell('A2');
+                    r2.value = `${sheetName} - for the Month of ${full}`;
+                    r2.font = { bold: true, size: 12, name: 'Calibri' };
+                    r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+                    [
+                      { r: 'A3:J3',  t: 'Employee Information' },
+                      { r: 'K3:Q3',  t: 'Attendance' },
+                      { r: 'R3:U3',  t: 'Salary Structure' },
+                      { r: 'V3:AE3', t: 'Earnings & Benefits' },
+                      { r: 'AF3:AP3',t: 'Deductions' },
+                      { r: 'AQ3:AV3',t: 'Payment Information' },
+                    ].forEach(m => {
+                      sheet.mergeCells(m.r);
+                      const cell = sheet.getCell(m.r.split(':')[0]);
+                      cell.value = m.t;
+                      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+                      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                      cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    });
+
+                    headers = [
+                      "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
+                      "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
+                      "Previous Salary","Basic","Others","Gross Salary",
+                      "Total Benefits",
+                      "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
+                      "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
+                      "Cash Payment", "Account Payment", "Net Salary Payment", "Bank Account Number","Payment Type","Remarks"
+                    ];
+                    startRow = 4;
+                } else {
+                    headers = [
+                        "SL", "ID", "Name", "Designation", "Joining Date", "Net Present", "OT Hours",
+                        "Basic", "Others", "Gross Salary", "Total Benefits", "Gross Payable Salary",
+                        "Gratuity", "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund",
+                        "Salary/ Others Loan", "Subsidized Vehicle", "CPF", "Total Deduction",
+                        "Cash Payment", "Account Payment", "Net Salary Payment", "Payment Type", "Remarks"
+                    ];
+                    startRow = 1;
+                }
 
                 const headerRow = sheet.addRow(headers);
-                headerRow.height = 65;
+                headerRow.height = 27;
                 headerRow.eachCell((cell, colNumber) => {
-                    cell.font = { bold: true, size: 9 };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-                    cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    cell.alignment = (colNumber >= 11 && colNumber <= 41)
-                    ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
-                    : { horizontal: 'center', vertical: 'middle', wrapText: true };
+                  cell.font = { bold: true, size: 9 };
+                  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+                  cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+
+                  if (!isPrintVersion) {
+                       const noRotate = [1,2,3,4,5,6,7,8,9,10, 43,44,45,46,47,48];
+                       cell.alignment = (!noRotate.includes(colNumber))
+                        ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
+                        : { horizontal: 'center', vertical: 'middle', wrapText: true };
+                  } else {
+                       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                  }
                 });
 
-                // RESTORED WIDTHS
-                sheet.getColumn(3).width = 25;
-                sheet.getColumn(4).width = 14.5;
-                sheet.getColumn(5).width = 14.5;
-                sheet.getColumn(6).width = 13.09;
-                sheet.getColumn(7).width = 11;
-                sheet.getColumn(8).width = 11;
-                sheet.getColumn(9).width = 11;
-                sheet.getColumn(10).width = 11;
-                for (let c = 11; c <= 44; c++) {
-                    if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18;
+                if (!isPrintVersion) {
+                    sheet.getColumn(3).width = 25;
+                    for (let c = 11; c <= 45; c++) {
+                        if(![46,48].includes(c)) sheet.getColumn(c).width = 11.18;
+                    }
+                    sheet.getColumn(46).width = 21.5;
+                    sheet.getColumn(48).width = 21.5;
+                } else {
+                    sheet.columns.forEach(c => c.width = 10);
+                    sheet.getColumn(3).width = 20;
+                    sheet.getColumn(4).width = 15;
+                    sheet.getColumn(26).width = 20;
                 }
-                sheet.getColumn(45).width = 21.5; sheet.getColumn(47).width = 21.5;
 
                 let sl = 1;
                 const sortedSubCenters = Object.keys(dataBySubCenter).sort();
                 let hasData = false;
 
                 for (const scName of sortedSubCenters) {
-                    const scEmployees = dataBySubCenter[scName][categoryKey];
-                    if (!scEmployees || scEmployees.length === 0) continue;
+                  const scEmployees = dataBySubCenter[scName][categoryKey];
+                  if (!scEmployees || scEmployees.length === 0) continue;
 
-                    hasData = true;
-                    const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    for (let i = 1; i <= 47; i++) {
+                  hasData = true;
+                  const scRow = sheet.addRow([`Subcenter: ${scName}`]);
+                  scRow.height = 27;
+
+                  const totalCols = headers.length;
+                  for (let i = 1; i <= totalCols; i++) {
                     const c = scRow.getCell(i);
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                     if (i === 1) c.font = { bold: true };
+                  }
+                  scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+
+                  let scTotalNet = 0;
+                  scEmployees.forEach(d => {
+                    const att = d.att || {};
+                    const earn = d.earn || {};
+                    const ded = d.ded || {};
+
+                    const netPay = (d.netPayment !== undefined) ? getVal(d.netPayment) : (getVal(d.earn?.grossPayable) - getVal(d.ded?.totalDeduction));
+                    scTotalNet += netPay;
+
+                    const netBank = (d.netBankPayment !== undefined) ? getVal(d.netBankPayment) : (netPay - getVal(d.cashPayment));
+                    const benefits = (earn.totalBenefits !== undefined) ? getVal(earn.totalBenefits) : 0; // Fallback
+
+                    let rowData = [];
+                    if (!isPrintVersion) {
+                        rowData = [
+                          sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
+                          getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
+                          getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
+                          getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
+                          getVal(d.previousSalary), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
+                          benefits,
+                          getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.othersAll ?? d.othersAllowance), getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship), getVal(earn.otAmount), getVal(earn.grossPayable ?? d.grossPayable),
+                          0,
+                          getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
+                          getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
+                          getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
+                          getVal(d.cashPayment), netBank, netPay,
+                          getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
+                        ];
+                    } else {
+                        rowData = [
+                            sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.joiningDate),
+                            getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
+                            getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
+                            benefits, getVal(earn.grossPayable ?? d.grossPayable),
+                            0, getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare), getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.totalDeduction ?? d.totalDeduction),
+                            getVal(d.cashPayment), netBank, netPay, getStr(d.paymentType), getStr(d.remarksText || d.remarks)
+                        ];
                     }
-                    scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
 
-                    let scTotalNet = 0;
-                    scEmployees.forEach(d => {
-                        const att = d.att || {};
-                        const earn = d.earn || {};
-                        const ded = d.ded || {};
+                    const r = sheet.addRow(rowData);
+                    r.height = 27;
 
-                        const netPay = (d.netPayment !== undefined) ? getVal(d.netPayment) : (getVal(d.earn?.grossPayable) - getVal(d.ded?.totalDeduction));
-                        scTotalNet += netPay;
+                    r.getCell(1).alignment = { wrapText: false, vertical: 'middle', horizontal: 'center' };
+                    r.eachCell((c, colNumber) => {
+                      c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
 
-                        const netBank = (d.netBankPayment !== undefined) ? getVal(d.netBankPayment) : (netPay - getVal(d.cashPayment));
+                      const nameIdx = 3;
+                      const remIdx = isPrintVersion ? 26 : 48;
 
-                        const r = sheet.addRow([
-                            sl++,
-                            getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), getStr(d.joiningDate),
-                            getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
-                            getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
-                            getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
-                            getVal(d.previousSalary), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
-                            getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.othersAll ?? d.othersAllowance), getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship), getVal(earn.otAmount), getVal(earn.grossPayable ?? d.grossPayable),
-                            0,
-                            getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
-                            getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
-                            getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
-                            getVal(d.cashPayment),
-                            netBank,
-                            netPay,
-                            getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
-                        ]);
-                        r.getCell(1).alignment = { wrapText: false, vertical: 'middle', horizontal: 'center' };
-                        r.eachCell((c, colNumber) => {
-                            c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                            if (colNumber !== 1 && colNumber !== 3 && colNumber !== 47) {
-                                c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                            }
-                            if ((colNumber >= 18 && colNumber <= 30) || (colNumber >= 32 && colNumber <= 44)) c.numFmt = accountingFmt0;
-                        });
+                      if (colNumber === nameIdx || colNumber === remIdx) {
+                           c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                      } else if (colNumber !== 1) {
+                           c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                      }
+
+                      if (!isPrintVersion) {
+                          if ((colNumber >= 18 && colNumber <= 31) || (colNumber >= 33 && colNumber <= 45)) c.numFmt = accountingFmt0;
+                      } else {
+                          if (colNumber >= 8 && colNumber <= 24) c.numFmt = accountingFmt0;
+                      }
                     });
+                  });
 
-                    const totRow = sheet.addRow(new Array(47).fill(''));
-                    totRow.getCell(3).value = `Total for ${scName}`;
-                    const netPayCell = totRow.getCell(44);
-                    netPayCell.value = scTotalNet;
-                    netPayCell.numFmt = accountingFmt0;
-                    totRow.eachCell((c) => {
-                        c.font = { bold: true };
-                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    });
+                  const totRow = sheet.addRow(new Array(totalCols).fill(''));
+                  totRow.height = 27;
+
+                  totRow.getCell(3).value = `Total for ${scName}`;
+
+                  const netColIdx = isPrintVersion ? 24 : 45;
+                  const netPayCell = totRow.getCell(netColIdx);
+                  netPayCell.value = scTotalNet;
+                  netPayCell.numFmt = accountingFmt0;
+
+                  totRow.eachCell((c) => {
+                    c.font = { bold: true };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                  });
                 }
 
                 if(!hasData) {
@@ -339,6 +401,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
 
                 const headerRow = sheet.addRow(headers);
+                headerRow.height = 27;
                 headerRow.eachCell((c) => {
                     c.font = { bold: true };
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -357,19 +420,20 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     let rowData = [];
                     if (type === 'hold') {
                         rowData = [
-                            emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                             formatDateForDisplay(emp.holdTimestamp) || '-',
-                            emp.remarks || ''
+                            getStr(emp.remarks)
                         ];
                     } else {
                         rowData = [
-                            emp.employeeId, emp.name, emp.designation, emp.project, emp.subCenter,
+                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                             formatDateForDisplay(emp.separationDate) || '-',
-                            emp.status,
-                            emp.remarks || ''
+                            getStr(emp.status),
+                            getStr(emp.remarks)
                         ];
                     }
                     const r = sheet.addRow(rowData);
+                    r.height = 27;
                     r.eachCell(c => {
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                         c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
@@ -380,7 +444,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
             for (const [project, subCenters] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
 
-                addSalarySheetTab(workbook, 'Salary Sheet', subCenters, 'active');
+                addSalarySheetTab(workbook, 'Salary Sheet', subCenters, 'active', false);
+                addSalarySheetTab(workbook, 'Print Version', subCenters, 'active', true);
 
                 /* ---------------- ADVICE SHEET (Active Only) ---------------- */
                 const adviceSheet = workbook.addWorksheet('Advice', {
@@ -514,11 +579,11 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
-                const holdEmployees = Object.values(subCenters).flatMap(sc => sc.hold);
-                addLogSheet(workbook, 'Salary Hold', holdEmployees, 'hold');
+                // 4. Salary Hold Sheet
+                addLogSheet(workbook, 'Salary Hold', Object.values(subCenters).flatMap(sc => sc.hold), 'hold');
 
-                const separatedEmployees = Object.values(subCenters).flatMap(sc => sc.separated);
-                addLogSheet(workbook, 'Terminated-Resigned', separatedEmployees, 'separated');
+                // 5. Terminated/Resigned Sheet
+                addLogSheet(workbook, 'Terminated-Resigned', Object.values(subCenters).flatMap(sc => sc.separated), 'separated');
 
                 const buffer = await workbook.xlsx.writeBuffer();
                 const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
