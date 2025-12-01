@@ -287,13 +287,13 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       views: [{ state: 'frozen', ySplit: 4 }]
     });
 
-    sheet.mergeCells('A1:AT1');
+    sheet.mergeCells('A1:AU1'); // Extended for Account Payment
     const r1 = sheet.getCell('A1');
     r1.value = "Metal Plus Limited";
     r1.font = { bold: true, size: 16, name: 'Calibri' };
     r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-    sheet.mergeCells('A2:AT2');
+    sheet.mergeCells('A2:AU2');
     const r2 = sheet.getCell('A2');
     r2.value = `Salary Sheet-${project} for the Month of ${full}`;
     r2.font = { bold: true, size: 12, name: 'Calibri' };
@@ -305,7 +305,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       { r: 'R3:U3',  t: 'Salary Structure' },
       { r: 'V3:AD3', t: 'Earnings & Benefits' },
       { r: 'AE3:AO3',t: 'Deductions' },
-      { r: 'AP3:AT3',t: 'Payment Information' },
+      { r: 'AP3:AU3',t: 'Payment Information' }, // Extended
     ].forEach(m => {
       sheet.mergeCells(m.r);
       const cell = sheet.getCell(m.r.split(':')[0]);
@@ -316,22 +316,27 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
     });
 
+    // REQ: Added "Account Payment" after "Cash Payment"
     const headers = [
       "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
       "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
       "Previous Salary","Basic","Others","Gross Salary",
       "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
       "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-      "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
+      "Cash Payment", "Account Payment", "Net Salary Payment", "Bank Account Number","Payment Type","Remarks"
     ];
 
+    // Header Row Index is 4
     const headerRow = sheet.addRow(headers);
     headerRow.height = 65;
     headerRow.eachCell((cell, colNumber) => {
       cell.font = { bold: true, size: 9 };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
       cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-      cell.alignment = (colNumber >= 11 && colNumber <= 42)
+
+      // REQ: No orientation for Cash Payment (42), Account Payment (43), Net Salary (44)
+      // Rotation logic: Cols 11 to 41 (Total Deduction)
+      cell.alignment = (colNumber >= 11 && colNumber <= 41)
         ? { textRotation: 90, horizontal: 'center', vertical: 'middle', wrapText: true }
         : { horizontal: 'center', vertical: 'middle', wrapText: true };
     });
@@ -344,13 +349,12 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     sheet.getColumn(8).width = 11;
     sheet.getColumn(9).width = 11;
     sheet.getColumn(10).width = 11;
-    sheet.getColumn(44).width = 21.5;
-    sheet.getColumn(46).width = 21.5;
+    sheet.getColumn(45).width = 21.5; // Bank Account No
+    sheet.getColumn(47).width = 21.5; // Remarks
 
-    for (let c = 11; c <= 42; c++) {
-        if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
+    for (let c = 11; c <= 44; c++) {
+        if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18;
     }
-    sheet.getColumn(45).width = 11.55;
 
     let sl = 1;
     const sortedSubCenters = Object.keys(subCenters).sort();
@@ -359,7 +363,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       const scEmployees = subCenters[scName];
 
       const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-      for (let i = 1; i <= 46; i++) {
+      for (let i = 1; i <= 47; i++) {
         const c = scRow.getCell(i);
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -367,7 +371,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         if (i === 1) c.font = { bold: true };
       }
 
-      // FIX 1: Prevent "Subcenter: HO" from wrapping
+      // Prevent Subcenter wrapping
       scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
 
       let scTotalNet = 0;
@@ -383,6 +387,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           0,
           d.ded.lunch, d.ded.tds, d.ded.bike, d.ded.welfare, d.ded.loan, d.ded.vehicle, d.ded.cpf, d.ded.adj, d.ded.attDed, d.ded.totalDeduction,
           d.cashPayment,
+          d.netBankPayment, // Account Payment Column
           d.netPayment,
           d.finalAccountNo, d.paymentType, d.remarksText
         ]);
@@ -391,18 +396,18 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         r.eachCell((c, colNumber) => {
           c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
           if (colNumber !== 1) {
-             c.alignment = (colNumber === 3 || colNumber === 46)
+             c.alignment = (colNumber === 3 || colNumber === 47)
                 ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                 : { vertical: 'middle', horizontal: 'center', wrapText: true };
           }
-          // FIX: Previous Salary (Col 18) formatting
-          if (colNumber >= 18 && colNumber <= 43) c.numFmt = accountingFmt0;
+          // REQ: Previous Salary (18) and Payments (42,43,44) same format
+          if ((colNumber >= 18 && colNumber <= 30) || (colNumber >= 32 && colNumber <= 44)) c.numFmt = accountingFmt0;
         });
       });
 
-      const totRow = sheet.addRow(new Array(46).fill(''));
+      const totRow = sheet.addRow(new Array(47).fill(''));
       totRow.getCell(3).value = `Total for ${scName}`;
-      const netPayCell = totRow.getCell(43);
+      const netPayCell = totRow.getCell(44);
       netPayCell.value = scTotalNet;
       netPayCell.numFmt = accountingFmt0;
       totRow.eachCell((c) => {
@@ -421,8 +426,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           fitToPage: true,
           fitToWidth: 1,
           fitToHeight: 0,
-          // FIX 2: Header starts at 46, so repeat row 46
-          printTitles: { rows: '46:46' }
+          // REQ: Header starts row 31 (page 2), repeat 31
+          printTitles: { rows: '31:31' }
       }
     });
 
@@ -455,7 +460,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
     });
 
-    // FIX 3: Global Font Size 14
     const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
       const cell = adviceSheet.getRow(rIdx).getCell(1);
       cell.value = text;
@@ -486,11 +490,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     writeTextRow(19, "Thanking You,", false);
 
-    // FIX 4: Improved Signature Merging (Left: A-C, Right: D-F)
-    adviceSheet.mergeCells(24, 1, 24, 3); // Left Name
-    adviceSheet.mergeCells(25, 1, 25, 3); // Left Title
-    adviceSheet.mergeCells(24, 4, 24, 6); // Right Name
-    adviceSheet.mergeCells(25, 4, 25, 6); // Right Title
+    adviceSheet.mergeCells(24, 1, 24, 3);
+    adviceSheet.mergeCells(25, 1, 25, 3);
+    adviceSheet.mergeCells(24, 4, 24, 6);
+    adviceSheet.mergeCells(25, 4, 25, 6);
 
     const sigRowName = adviceSheet.getRow(24);
     const sigRowTitle = adviceSheet.getRow(25);
@@ -500,23 +503,21 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         cell.alignment = { horizontal: 'left', vertical: 'top' };
     };
 
-    // Left Signature
     sigRowName.getCell(1).value = "Engr. Sadid Jamil";
     setSigStyle(sigRowName.getCell(1), true);
     sigRowTitle.getCell(1).value = "Managing Director";
     setSigStyle(sigRowTitle.getCell(1), false);
 
-    // Right Signature (Start at D/Col 4)
     sigRowName.getCell(4).value = "Engr. Aminul Islam";
     setSigStyle(sigRowName.getCell(4), true);
     sigRowTitle.getCell(4).value = "Chairman";
     setSigStyle(sigRowTitle.getCell(4), false);
 
-    // FIX 5: Page Break after signatures
+    // REQ: Page Break for separation
     adviceSheet.getRow(29).addPageBreak();
 
-    // FIX 6: Header starting at Row 46
-    const adviceHeader = adviceSheet.getRow(46);
+    // REQ: Header starts row 31 (Top of Page 2)
+    const adviceHeader = adviceSheet.getRow(31);
     adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
     adviceHeader.height = 24;
     adviceHeader.eachCell((c) => {

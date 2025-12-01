@@ -176,13 +176,13 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     views: [{ state: 'frozen', ySplit: 4 }]
                 });
 
-                sheet.mergeCells('A1:AT1');
+                sheet.mergeCells('A1:AU1');
                 const r1 = sheet.getCell('A1');
                 r1.value = "Metal Plus Limited";
                 r1.font = { bold: true, size: 16, name: 'Calibri' };
                 r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                sheet.mergeCells('A2:AT2');
+                sheet.mergeCells('A2:AU2');
                 const r2 = sheet.getCell('A2');
                 r2.value = `Salary Sheet-${project} for the Month of ${full}`;
                 r2.font = { bold: true, size: 12, name: 'Calibri' };
@@ -194,7 +194,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     { r: 'R3:U3',  t: 'Salary Structure' },
                     { r: 'V3:AD3', t: 'Earnings & Benefits' },
                     { r: 'AE3:AO3',t: 'Deductions' },
-                    { r: 'AP3:AT3',t: 'Payment Information' },
+                    { r: 'AP3:AU3',t: 'Payment Information' },
                 ].forEach(m => {
                     sheet.mergeCells(m.r);
                     const cell = sheet.getCell(m.r.split(':')[0]);
@@ -211,7 +211,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     "Previous Salary","Basic","Others","Gross Salary",
                     "Motobike / Car Maintenance Allowance","Laptop Rent","Others Allowance","Arrear","Food Allowance","Station Allowance","Hardship Allowance","OT Amount","Gross Payable Salary",
                     "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
-                    "Cash Payment", "Net Salary Payment","Bank Account Number","Payment Type","Remarks"
+                    "Cash Payment", "Account Payment", "Net Salary Payment", "Bank Account Number","Payment Type","Remarks"
                 ];
                 const headerRow = sheet.addRow(headers);
                 headerRow.height = 65;
@@ -232,13 +232,12 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 sheet.getColumn(8).width = 11;
                 sheet.getColumn(9).width = 11;
                 sheet.getColumn(10).width = 11;
-                sheet.getColumn(44).width = 21.5;
-                sheet.getColumn(46).width = 21.5;
+                sheet.getColumn(45).width = 21.5;
+                sheet.getColumn(47).width = 21.5;
 
-                for (let c = 11; c <= 42; c++) {
-                    if(![3,4,5,6,7,8,9,10,44,46].includes(c)) sheet.getColumn(c).width = 11.18;
+                for (let c = 11; c <= 44; c++) {
+                    if(![45,47].includes(c)) sheet.getColumn(c).width = 11.18;
                 }
-                sheet.getColumn(45).width = 11.55;
 
                 let sl = 1;
                 const sortedSubCenters = Object.keys(subCenters).sort();
@@ -247,7 +246,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     const scEmployees = subCenters[scName];
 
                     const scRow = sheet.addRow([`Subcenter: ${scName}`]);
-                    for (let i = 1; i <= 46; i++) {
+                    for (let i = 1; i <= 47; i++) {
                         const c = scRow.getCell(i);
                         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDAE3F3' } };
                         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -255,7 +254,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         if (i === 1) c.font = { bold: true };
                     }
 
-                    // FIX 1: Prevent "Subcenter: HO" from wrapping
                     scRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
 
                     let scTotalNet = 0;
@@ -281,6 +279,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                             getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
                             getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
                             getVal(d.cashPayment),
+                            getVal(d.netBankPayment),
                             netPay,
                             getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
                         ];
@@ -290,17 +289,17 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         r.eachCell((c, colNumber) => {
                             c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                             if (colNumber !== 1) {
-                                c.alignment = (colNumber === 3 || colNumber === 46)
+                                c.alignment = (colNumber === 3 || colNumber === 47)
                                     ? { vertical: 'middle', horizontal: 'left', wrapText: true }
                                     : { vertical: 'middle', horizontal: 'center', wrapText: true };
                             }
-                            if (colNumber >= 18 && colNumber <= 43) c.numFmt = accountingFmt0;
+                            if ((colNumber >= 18 && colNumber <= 30) || (colNumber >= 32 && colNumber <= 44)) c.numFmt = accountingFmt0;
                         });
                     });
 
-                    const totRow = sheet.addRow(new Array(46).fill(''));
+                    const totRow = sheet.addRow(new Array(47).fill(''));
                     totRow.getCell(3).value = `Total for ${scName}`;
-                    const netPayCell = totRow.getCell(43);
+                    const netPayCell = totRow.getCell(44);
                     netPayCell.value = scTotalNet;
                     netPayCell.numFmt = accountingFmt0;
 
@@ -320,8 +319,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         fitToPage: true,
                         fitToWidth: 1,
                         fitToHeight: 0,
-                        // FIX 2: Header starts at 46, so repeat row 46
-                        printTitles: { rows: '46:46' }
+                        printTitles: { rows: '31:31' }
                     }
                 });
 
@@ -361,7 +359,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     }
                 });
 
-                // FIX 3: Global Font Size 14
                 const writeTextRow = (rIdx, text, bold=false, size=14, merge=true) => {
                     const cell = adviceSheet.getRow(rIdx).getCell(1);
                     cell.value = text;
@@ -392,11 +389,10 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 writeTextRow(19, "Thanking You,", false);
 
-                // FIX 4: Improved Signature Merging (Left: A-C, Right: D-F)
-                adviceSheet.mergeCells(24, 1, 24, 3); // Left Name
-                adviceSheet.mergeCells(25, 1, 25, 3); // Left Title
-                adviceSheet.mergeCells(24, 4, 24, 6); // Right Name
-                adviceSheet.mergeCells(25, 4, 25, 6); // Right Title
+                adviceSheet.mergeCells(24, 1, 24, 3);
+                adviceSheet.mergeCells(25, 1, 25, 3);
+                adviceSheet.mergeCells(24, 4, 24, 6);
+                adviceSheet.mergeCells(25, 4, 25, 6);
 
                 const sigRowName = adviceSheet.getRow(24);
                 const sigRowTitle = adviceSheet.getRow(25);
@@ -406,23 +402,19 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     cell.alignment = { horizontal: 'left', vertical: 'top' };
                 };
 
-                // Left Signature
                 sigRowName.getCell(1).value = "Engr. Sadid Jamil";
                 setSigStyle(sigRowName.getCell(1), true);
                 sigRowTitle.getCell(1).value = "Managing Director";
                 setSigStyle(sigRowTitle.getCell(1), false);
 
-                // Right Signature (Start at D/Col 4)
                 sigRowName.getCell(4).value = "Engr. Aminul Islam";
                 setSigStyle(sigRowName.getCell(4), true);
                 sigRowTitle.getCell(4).value = "Chairman";
                 setSigStyle(sigRowTitle.getCell(4), false);
 
-                // FIX 5: Page Break after signatures
                 adviceSheet.getRow(29).addPageBreak();
 
-                // FIX 6: Header starting at Row 46
-                const adviceHeader = adviceSheet.getRow(46);
+                const adviceHeader = adviceSheet.getRow(31);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
                 adviceHeader.height = 24;
                 adviceHeader.eachCell((c) => {
@@ -440,7 +432,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 adviceSheet.getColumn(6).width = 15;
 
                 let advSl = 1;
-                const finalAdviceList = Array.from(consolidationMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                const finalAdviceList = Array.from(consolidationMap.values())
+                    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
                 finalAdviceList.forEach(item => {
                     const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
