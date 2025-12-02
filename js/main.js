@@ -325,7 +325,7 @@ async function initializeAppModules() {
 
             let allRawData = [];
             let offset = 0;
-            // === FIX: Reduced LIMIT to 100 to prevent 502 Payload Errors ===
+            // === FIX: Reduced LIMIT to 100 to prevent 502 Payload Too Large ===
             const LIMIT = 100;
             let hasMore = true;
 
@@ -362,27 +362,33 @@ async function initializeAppModules() {
                  throw new Error("Corrupted or empty data in salary archive.");
             }
 
-            // Filter for ACTIVE and NOT HELD employees for Payslips
+            // === FIX: Strict Filtering for Payslips ===
+            // Only Active employees (Not Held, Not Resigned/Terminated)
             const eligibleEmployees = allRawData.filter(emp => {
                 const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
-                // Only generate for Active employees who are NOT held
-                // We use the status captured at archive time
-                const status = emp.status || 'Active';
-                return status === 'Active' && !isHeld;
+                const status = (emp.status || 'Active').trim();
+
+                // 1. Exclude if Salary is Held
+                if (isHeld) return false;
+                if (status === 'Salary Held') return false;
+
+                // 2. Exclude Separated/Closed
+                if (['Resigned', 'Terminated', 'Closed'].includes(status)) return false;
+
+                // 3. Must be Active
+                return status === 'Active';
             });
 
             if (eligibleEmployees.length === 0) {
-                throw new Error("No eligible employees (Active & Not Held) found for payslips.");
+                throw new Error("No eligible active employees found for payslips in this month's archive.");
             }
 
             const salaryDataForPdf = eligibleEmployees.map(emp => {
-                // Ensure earning/deduction objects exist
                 const earn = emp.earn || {};
                 const ded = emp.ded || {};
 
                 return {
                     ...emp,
-                    // Use archived calculations directly
                     salary: earn.grossSalary || emp.salary,
                     daysPresent: emp.att?.netPresent || 0,
                     deduction: ded.totalDeduction || 0,
