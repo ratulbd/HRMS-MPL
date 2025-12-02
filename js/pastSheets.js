@@ -2,7 +2,7 @@
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// --- Module Level Helpers ---
+// --- Module Level Helpers (Accessible everywhere) ---
 const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
 const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
@@ -119,7 +119,15 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
         return convert(Math.floor(amount)) + " Only";
     }
 
-    // Helper: Excel Date to JS Date
+    function isSeparatedInMonth(dateStr, monthVal) {
+        if (!dateStr) return false;
+        let d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${yyyy}-${mm}` === monthVal;
+    }
+
     function excelDateToJSDate(serial) {
        if (typeof serial === 'number') {
            const utc_days  = Math.floor(serial - 25569);
@@ -129,15 +137,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
            return new Date(serial);
        }
        return new Date(serial);
-    }
-
-    function isSeparatedInMonth(dateStr, monthVal) {
-        if (!dateStr) return false;
-        let d = new Date(dateStr);
-        if (isNaN(d.getTime())) return false;
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        return `${yyyy}-${mm}` === monthVal;
     }
 
     async function downloadSheetZip(sheetMeta) {
@@ -203,18 +202,17 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     return;
                 }
 
-                // Ensure date object for formatting
                 emp.joiningDateObj = emp.joiningDate ? excelDateToJSDate(emp.joiningDate) : null;
 
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Same helper as in salarySheet.js
-            function addSalarySheetTab(workbook, sheetName, dataBySubCenter, categoryKey, isPrintVersion = false) {
+            // Re-define helpers inside
+            function addSalarySheetTab(workbook, sheetName, projectName, dataBySubCenter, categoryKey, isPrintVersion = false) {
                 const sheet = workbook.addWorksheet(sheetName, {
                     views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4, xSplit: 4 }],
                     pageSetup: isPrintVersion
-                      ? { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:1' }
+                      ? { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:4' }
                       : {}
                 });
 
@@ -231,7 +229,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                     sheet.mergeCells('A2:AV2');
                     const r2 = sheet.getCell('A2');
-                    r2.value = `Salary Sheet (${sheetName}) - For the Month of ${full}`;
+                    r2.value = `Salary Sheet (${projectName}) - For the Month of ${full}`;
                     r2.font = { bold: true, size: 12, name: 'Calibri' };
                     r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
@@ -263,6 +261,37 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     ];
                     startRow = 4;
                 } else {
+                    // Print Version Header
+                    sheet.mergeCells('A1:Z1');
+                    const r1 = sheet.getCell('A1');
+                    r1.value = "Metal Plus Limited";
+                    r1.font = { bold: true, size: 16, name: 'Calibri' };
+                    r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+                    sheet.mergeCells('A2:Z2');
+                    const r2 = sheet.getCell('A2');
+                    r2.value = `Salary Sheet (${projectName}) - For the Month of ${full}`;
+                    r2.font = { bold: true, size: 12, name: 'Calibri' };
+                    r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+                    // Sub-headers for Print Version (Mapping based on subset columns)
+                    [
+                        { s: 'A3', e: 'E3', t: 'Employee Information' },
+                        { s: 'F3', e: 'G3', t: 'Attendance' },
+                        { s: 'H3', e: 'J3', t: 'Salary Structure' },
+                        { s: 'K3', e: 'L3', t: 'Earnings & Benefits' },
+                        { s: 'M3', e: 'U3', t: 'Deductions' },
+                        { s: 'V3', e: 'Z3', t: 'Payment Information' },
+                    ].forEach(m => {
+                        sheet.mergeCells(`${m.s}:${m.e}`);
+                        const cell = sheet.getCell(m.s);
+                        cell.value = m.t;
+                        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                        cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    });
+
                     headers = [
                         "SL", "ID", "Name", "Designation", "Joining Date", "Net Present", "OT Hours",
                         "Basic", "Others", "Gross Salary", "Total Benefits", "Gross Payable Salary",
@@ -270,7 +299,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         "Salary/ Others Loan", "Subsidized Vehicle", "CPF", "Total Deduction",
                         "Cash Payment", "Account Payment", "Net Salary Payment", "Payment Type", "Remarks"
                     ];
-                    startRow = 1;
+                    startRow = 4;
                 }
 
                 const headerRow = sheet.addRow(headers);
@@ -351,26 +380,22 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         rowData = [
                           sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), getStr(d.functionalRole), d.joiningDateObj,
                           getStr(d.project), getStr(d.projectOffice), getStr(d.reportProject), getStr(d.subCenter),
-                          getVal(att.totalDays ?? d.totalDays), getVal(att.holidays ?? d.holidays), getVal(att.leave ?? d.availingLeave),
-                          getVal(att.lwpDays ?? d.lwpDays), getVal(att.actualPresent ?? d.actualPresent), getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
-                          getVal(d.previousSalary || 0), getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
+                          getVal(d.att.totalDays), getVal(d.att.holidays), getVal(d.att.leave), getVal(d.att.lwpDays), getVal(d.att.actualPresent), getVal(d.att.netPresent), getVal(d.att.otHours),
+                          getVal(d.previousSalary || 0), getVal(d.earn.basic), getVal(d.earn.others), getVal(d.earn.grossSalary),
                           benefits,
-                          getVal(earn.maint ?? d.maint), getVal(earn.laptop ?? d.laptop), getVal(earn.othersAll ?? d.othersAllowance), getVal(earn.arrear ?? d.arrear), getVal(earn.food ?? d.food), getVal(earn.station ?? d.station), getVal(earn.hardship ?? d.hardship), getVal(earn.otAmount), getVal(earn.grossPayable ?? d.grossPayable),
+                          getVal(d.earn.maint), getVal(d.earn.laptop), getVal(d.earn.othersAll), getVal(d.earn.arrear), getVal(d.earn.food), getVal(d.earn.station), getVal(d.earn.hardship), getVal(d.earn.otAmount), getVal(d.earn.grossPayable),
                           0,
-                          getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare),
-                          getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.adj ?? d.adj),
-                          getVal(ded.attDed ?? d.attDed), getVal(ded.totalDeduction ?? d.totalDeduction),
-                          getVal(d.cashPayment), netBank, netPay,
-                          getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText || d.remarks)
+                          getVal(d.ded.lunch), getVal(d.ded.tds), getVal(d.ded.bike), getVal(d.ded.welfare), getVal(d.ded.loan), getVal(d.ded.vehicle), getVal(d.ded.cpf), getVal(d.ded.adj), getVal(d.ded.attDed), getVal(d.ded.totalDeduction),
+                          getVal(d.cashPayment), getVal(d.netBankPayment), getVal(d.netPayment),
+                          getStr(d.finalAccountNo || d.bankAccount), getStr(d.paymentType), getStr(d.remarksText)
                         ];
                     } else {
                         rowData = [
                             sl++, getStr(d.employeeId), getStr(d.name), getStr(d.designation), d.joiningDateObj,
-                            getVal(att.netPresent ?? d.netPresent), getVal(att.otHours),
-                            getVal(earn.basic ?? d.basic), getVal(earn.others ?? d.others), getVal(earn.grossSalary ?? d.gross),
-                            benefits, getVal(earn.grossPayable ?? d.grossPayable),
-                            0, getVal(ded.lunch ?? d.lunch), getVal(ded.tds ?? d.tds), getVal(ded.bike ?? d.bike), getVal(ded.welfare ?? d.welfare), getVal(ded.loan ?? d.loan), getVal(ded.vehicle ?? d.vehicle), getVal(ded.cpf ?? d.cpf), getVal(ded.totalDeduction ?? d.totalDeduction),
-                            getVal(d.cashPayment), netBank, netPay, getStr(d.paymentType), getStr(d.remarksText || d.remarks)
+                            getVal(d.att.netPresent), getVal(d.att.otHours),
+                            getVal(d.earn.basic), getVal(d.earn.others), getVal(d.earn.grossSalary), benefits, getVal(d.earn.grossPayable),
+                            0, getVal(d.ded.lunch), getVal(d.ded.tds), getVal(d.ded.bike), getVal(d.ded.welfare), getVal(d.ded.loan), getVal(d.ded.vehicle), getVal(d.ded.cpf), getVal(d.ded.totalDeduction),
+                            getVal(d.cashPayment), getVal(d.netBankPayment), getVal(d.netPayment), getStr(d.paymentType), getStr(d.remarksText)
                         ];
                     }
 
@@ -571,12 +596,12 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 const adviceHeader = adviceSheet.getRow(32);
                 adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
-                adviceHeader.height = 27; // REQ: 27
+                adviceHeader.height = 27;
                 adviceHeader.eachCell((c) => {
-                    c.font = { bold: true, size: 14 };
-                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+                  c.font = { bold: true, size: 14 };
+                  c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                  c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                  c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
                 });
 
                 adviceSheet.getColumn(1).width = 6;
@@ -590,23 +615,23 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const finalAdviceList = Array.from(consolidationMap.values()).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
                 finalAdviceList.forEach(item => {
-                    const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
-                    r.height = 27; // REQ: 27
-                    r.eachCell((c, colNumber) => {
-                        c.font = { size: 14 };
-                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                        c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
-                        if (colNumber === 6) c.numFmt = accountingFmt0;
-                    });
+                  const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
+                  r.height = 27;
+                  r.eachCell((c, colNumber) => {
+                    c.font = { size: 14 };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
+                    if (colNumber === 6) c.numFmt = accountingFmt0;
+                  });
                 });
 
                 const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
-                advTotRow.height = 27; // REQ: 27
+                advTotRow.height = 27;
                 advTotRow.getCell(6).numFmt = accountingFmt0;
                 advTotRow.eachCell((c) => {
-                    c.font = { bold: true, size: 14 };
-                    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                  c.font = { bold: true, size: 14 };
+                  c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                  c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
                 });
 
                 addLogSheet(workbook, 'Salary Hold', Object.values(subCenters).flatMap(sc => sc.hold), 'hold');

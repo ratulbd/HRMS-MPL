@@ -2,7 +2,7 @@
 import { $, customAlert, closeModal, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// --- Module Level Helpers ---
+// --- Module Level Helpers (Accessible everywhere) ---
 const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
 const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
@@ -157,6 +157,7 @@ function getFormattedMonthYear(dateStr) {
   return { month, year, full: `${month}-${year}`, quote: `${month}'${year}` };
 }
 
+// FIX 2: Separation Logic updated to match month
 function isSeparatedInMonth(dateStr, monthVal) {
     if (!dateStr) return false;
     let d = new Date(dateStr);
@@ -166,9 +167,7 @@ function isSeparatedInMonth(dateStr, monthVal) {
     return `${yyyy}-${mm}` === monthVal;
 }
 
-// Helper: Excel Date Number to JS Date
 function excelDateToJSDate(serial) {
-   // Handle both Excel serial dates and string dates
    if (typeof serial === 'number') {
        const utc_days  = Math.floor(serial - 25569);
        const utc_value = utc_days * 86400;
@@ -176,14 +175,13 @@ function excelDateToJSDate(serial) {
    } else if (typeof serial === 'string' && serial.match(/^\d{4}-\d{2}-\d{2}$/)) {
        return new Date(serial);
    }
-   return new Date(serial); // Fallback
+   return new Date(serial);
 }
 
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
-  const dateFormat = '[$-en-US]d-mmm-yy;@';
 
   const attMap = {};
   attendanceData.forEach((row) => {
@@ -208,7 +206,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
   employees.forEach((emp) => {
     const attRow = attMap[String(emp.employeeId)];
-    if (!attRow) return;
+    // Allow processing even without attendance if we need to log separation
+    // But usually salary needs attendance.
+    // We will proceed, defaulting att to 0 if missing.
 
     const project   = emp.reportProject || 'Unknown';
     const subCenter = emp.subCenter    || 'General';
@@ -223,7 +223,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (isHeld) {
         listCategory = 'hold';
-    } else if ((emp.status === 'Resigned' || emp.status === 'Terminated') && isSeparatedInMonth(emp.separationDate, monthVal)) {
+    } else if (isSeparatedInMonth(emp.separationDate, monthVal)) {
+        // FIX 2: If date matches this month, put in Separated sheet, regardless of status text
         listCategory = 'separated';
     } else if (emp.status === 'Active') {
         listCategory = 'active';
@@ -231,14 +232,15 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         return;
     }
 
-    const totalDays     = getVal(attRow['total working days']);
-    const holidays      = getVal(attRow['holidays']);
-    const leave         = getVal(attRow['availing leave']);
-    const lwpDays       = getVal(attRow['lwp']);
-    const actualPresent = getVal(attRow['actual present']);
-    const netPresent    = getVal(attRow['net present']);
-    const otHours       = getVal(attRow['ot hours'] || attRow['othours']);
-    const otAmount      = getVal(attRow['ot amount'] || attRow['otamount']);
+    // Default Att values if row missing
+    const totalDays     = attRow ? getVal(attRow['total working days']) : 0;
+    const holidays      = attRow ? getVal(attRow['holidays']) : 0;
+    const leave         = attRow ? getVal(attRow['availing leave']) : 0;
+    const lwpDays       = attRow ? getVal(attRow['lwp']) : 0;
+    const actualPresent = attRow ? getVal(attRow['actual present']) : 0;
+    const netPresent    = attRow ? getVal(attRow['net present']) : 0;
+    const otHours       = attRow ? getVal(attRow['ot hours'] || attRow['othours']) : 0;
+    const otAmount      = attRow ? getVal(attRow['ot amount'] || attRow['otamount']) : 0;
 
     const grossSalary  = getVal(emp.salary);
     const basicSalary  = getVal(emp.basic);
@@ -302,7 +304,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
     }
 
-    // Convert joining date to proper Date object for Excel formatting
     let joiningDateObj = emp.joiningDate ? excelDateToJSDate(emp.joiningDate) : null;
 
     Object.assign(emp, {
@@ -310,7 +311,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       remarksText,
       paymentType,
       holderId,
-      joiningDateObj: joiningDateObj, // Store Object for Excel
+      joiningDateObj: joiningDateObj,
       att:  { totalDays, holidays, leave, lwpDays, actualPresent, netPresent, otHours },
       earn: { grossSalary, ...earnings, grossPayable: grossPayableBank, totalBenefits: additionalAllowances },
       ded:  { ...deductions, attDed, totalDeduction },
@@ -325,71 +326,46 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   // --- Helper: Render a Salary Sheet Tab ---
   function addSalarySheetTab(workbook, sheetName, projectName, dataBySubCenter, categoryKey, isPrintVersion = false) {
       const sheet = workbook.addWorksheet(sheetName, {
-          views: [{
-              state: 'frozen',
-              ySplit: 4,
-              // Freeze Columns: 4 (Up to Designation)
-              xSplit: 4,
-              activeCell: 'E5'
-          }],
+          views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4, xSplit: 4 }],
           pageSetup: isPrintVersion
             ? { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:4' }
             : {}
       });
 
-      // --- Header Construction (Same for Both Sheets) ---
-      let totalWidthCols = isPrintVersion ? 26 : 48; // Total Columns based on header
-      let endColLetter = isPrintVersion ? 'Z' : 'AV'; // Approx based on count
-
-      sheet.mergeCells(`A1:${endColLetter}1`);
-      const r1 = sheet.getCell('A1');
-      r1.value = "Metal Plus Limited";
-      r1.font = { bold: true, size: 16, name: 'Calibri' };
-      r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-      sheet.mergeCells(`A2:${endColLetter}2`);
-      const r2 = sheet.getCell('A2');
-      // REQ: Title Fix
-      r2.value = `Salary Sheet (${projectName}) - For the Month of ${full}`;
-      r2.font = { bold: true, size: 12, name: 'Calibri' };
-      r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-      // Sub Headers (Merged Regions) - Adapted for Print Version vs Standard
-      // This is complex due to column shifting. Simplified approach:
-      // We will place headers in specific cells and merge based on standard layout.
-      // Print version subset is tricky for merging.
-      // If print version, we skip the merged sub-headers row to avoid complexity or we simplify it.
-      // Constraint: "In print version 1 to 4 rows should have same formatting... with subsection"
-
-      // Let's define the merged regions based on exact columns
-      const mergeMap = isPrintVersion ? [
-          { s: 'A3', e: 'E3', t: 'Employee Information' }, // SL(1)..Join(5)
-          { s: 'F3', e: 'G3', t: 'Attendance' }, // NetPresent(6)..OT(7)
-          { s: 'H3', e: 'J3', t: 'Salary Structure' }, // Basic(8)..Gross(10)
-          { s: 'K3', e: 'L3', t: 'Earnings & Benefits' }, // Ben(11)..Payable(12)
-          { s: 'M3', e: 'U3', t: 'Deductions' }, // Grat(13)..TotDed(21)
-          { s: 'V3', e: 'Z3', t: 'Payment Information' } // Cash(22)..Rem(26)
-      ] : [
-          { s: 'A3', e: 'J3', t: 'Employee Information' },
-          { s: 'K3', e: 'Q3', t: 'Attendance' },
-          { s: 'R3', e: 'U3', t: 'Salary Structure' },
-          { s: 'V3', e: 'AE3', t: 'Earnings & Benefits' },
-          { s: 'AF3', e: 'AP3', t: 'Deductions' },
-          { s: 'AQ3', e: 'AV3', t: 'Payment Information' },
-      ];
-
-      mergeMap.forEach(m => {
-        sheet.mergeCells(`${m.s}:${m.e}`);
-        const cell = sheet.getCell(m.s);
-        cell.value = m.t;
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-        cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-      });
-
       let headers = [];
+      let startRow = 1;
+
       if (!isPrintVersion) {
+          // Standard Sheet Header
+          sheet.mergeCells('A1:AV1');
+          const r1 = sheet.getCell('A1');
+          r1.value = "Metal Plus Limited";
+          r1.font = { bold: true, size: 16, name: 'Calibri' };
+          r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+          sheet.mergeCells('A2:AV2');
+          const r2 = sheet.getCell('A2');
+          r2.value = `Salary Sheet (${projectName}) - For the Month of ${full}`;
+          r2.font = { bold: true, size: 12, name: 'Calibri' };
+          r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+          [
+            { r: 'A3:J3',  t: 'Employee Information' },
+            { r: 'K3:Q3',  t: 'Attendance' },
+            { r: 'R3:U3',  t: 'Salary Structure' },
+            { r: 'V3:AE3', t: 'Earnings & Benefits' },
+            { r: 'AF3:AP3',t: 'Deductions' },
+            { r: 'AQ3:AV3',t: 'Payment Information' },
+          ].forEach(m => {
+            sheet.mergeCells(m.r);
+            const cell = sheet.getCell(m.r.split(':')[0]);
+            cell.value = m.t;
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+          });
+
           headers = [
             "SL","ID","Name","Designation","Functional Role","Joining Date","Project","Project Office","Report Project","Sub Center",
             "Total Working Days","Holidays","Availing Leave","LWP","Actual Present","Net Present","OT Hours",
@@ -399,7 +375,38 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             "Gratuity","Subsidized Lunch","TDS","Motorbike Loan","Welfare Fund","Salary/ Others Loan","Subsidized Vehicle","CPF","Others Adjustment","Attendance Deduction","Total Deduction",
             "Cash Payment", "Account Payment", "Net Salary Payment", "Bank Account Number","Payment Type","Remarks"
           ];
+          startRow = 4;
       } else {
+          // Print Version Header
+          sheet.mergeCells('A1:Z1');
+          const r1 = sheet.getCell('A1');
+          r1.value = "Metal Plus Limited";
+          r1.font = { bold: true, size: 16, name: 'Calibri' };
+          r1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+          sheet.mergeCells('A2:Z2');
+          const r2 = sheet.getCell('A2');
+          r2.value = `Salary Sheet (${projectName}) - For the Month of ${full}`;
+          r2.font = { bold: true, size: 12, name: 'Calibri' };
+          r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+          [
+            { s: 'A3', e: 'E3', t: 'Employee Information' },
+            { s: 'F3', e: 'G3', t: 'Attendance' },
+            { s: 'H3', e: 'J3', t: 'Salary Structure' },
+            { s: 'K3', e: 'L3', t: 'Earnings & Benefits' },
+            { s: 'M3', e: 'U3', t: 'Deductions' },
+            { s: 'V3', e: 'Z3', t: 'Payment Information' },
+          ].forEach(m => {
+            sheet.mergeCells(`${m.s}:${m.e}`);
+            const cell = sheet.getCell(m.s);
+            cell.value = m.t;
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+          });
+
           headers = [
               "SL", "ID", "Name", "Designation", "Joining Date", "Net Present", "OT Hours",
               "Basic", "Others", "Gross Salary", "Total Benefits", "Gross Payable Salary",
@@ -407,12 +414,11 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
               "Salary/ Others Loan", "Subsidized Vehicle", "CPF", "Total Deduction",
               "Cash Payment", "Account Payment", "Net Salary Payment", "Payment Type", "Remarks"
           ];
+          startRow = 4;
       }
 
       const headerRow = sheet.addRow(headers);
-      // REQ: Height 60 (Std) or 40 (Print)
       headerRow.height = isPrintVersion ? 40 : 60;
-
       headerRow.eachCell((cell, colNumber) => {
         cell.font = { bold: true, size: 9 };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
@@ -428,16 +434,15 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         }
       });
 
-      // --- Column Widths ---
       if (!isPrintVersion) {
-          sheet.getColumn(3).width = 25; // Name
-          sheet.getColumn(4).width = 16; // Designation
-          sheet.getColumn(5).width = 13; // Func Role
-          sheet.getColumn(6).width = 12; // Join Date
-          sheet.getColumn(7).width = 13; // Project
-          sheet.getColumn(8).width = 13; // Office
-          sheet.getColumn(9).width = 13; // Report
-          sheet.getColumn(10).width = 13; // Sub
+          sheet.getColumn(3).width = 25;
+          sheet.getColumn(4).width = 16;
+          sheet.getColumn(5).width = 13;
+          sheet.getColumn(6).width = 12;
+          sheet.getColumn(7).width = 13;
+          sheet.getColumn(8).width = 13;
+          sheet.getColumn(9).width = 13;
+          sheet.getColumn(10).width = 13;
 
           for (let c = 11; c <= 45; c++) {
               if(![46,48].includes(c)) sheet.getColumn(c).width = 11.18;
@@ -446,10 +451,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
           sheet.getColumn(48).width = 21.5;
       } else {
           sheet.columns.forEach(c => c.width = 10);
-          sheet.getColumn(3).width = 20; // Name
-          sheet.getColumn(4).width = 16; // Desig
-          sheet.getColumn(5).width = 12; // Join Date
-          sheet.getColumn(26).width = 20; // Remarks
+          sheet.getColumn(3).width = 20;
+          sheet.getColumn(4).width = 16;
+          sheet.getColumn(5).width = 12;
+          sheet.getColumn(26).width = 20;
       }
 
       let sl = 1;
@@ -511,23 +516,17 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
             const nameIdx = 3;
             const remIdx = isPrintVersion ? 26 : 48;
 
-            // REQ: Wrap Name & Remarks
             if (colNumber === nameIdx || colNumber === remIdx) {
                  c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
             } else if (colNumber !== 1) {
                  c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
             }
 
-            // Formatting
             if (!isPrintVersion) {
-                // Join Date
                 if (colNumber === 6) c.numFmt = dateFormat;
-                // Accounting
                 if ((colNumber >= 18 && colNumber <= 31) || (colNumber >= 33 && colNumber <= 45)) c.numFmt = accountingFmt0;
             } else {
-                // Join Date
                 if (colNumber === 5) c.numFmt = dateFormat;
-                // Accounting (Cols 8 to 24)
                 if (colNumber >= 8 && colNumber <= 24) c.numFmt = accountingFmt0;
             }
           });
@@ -585,7 +584,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 rowData = [
                     getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                     formatDateForDisplay(emp.holdTimestamp) || '-',
-                    getStr(emp.remarks)
+                    getStr(emp.remarks) // FIX 3: Ensure Remarks is used
                 ];
             } else {
                 rowData = [
@@ -610,7 +609,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     addSalarySheetTab(workbook, 'Salary Sheet', project, subCenters, 'active', false);
     addSalarySheetTab(workbook, 'Print Version', project, subCenters, 'active', true);
 
-    // --- Advice Sheet (unchanged structure from last prompt, just checking formatting) ---
     const adviceSheet = workbook.addWorksheet('Advice', {
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     });
@@ -703,7 +701,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const adviceHeader = adviceSheet.getRow(32);
     adviceHeader.values = ["SL", "ID", "Name", "Designation", "Account No", "Amount"];
-    adviceHeader.height = 27; // REQ: 27
+    adviceHeader.height = 27;
     adviceHeader.eachCell((c) => {
       c.font = { bold: true, size: 14 };
       c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -723,7 +721,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     finalAdviceList.forEach(item => {
       const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
-      r.height = 27; // REQ: 27
+      r.height = 27;
       r.eachCell((c, colNumber) => {
         c.font = { size: 14 };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
@@ -733,7 +731,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     });
 
     const advTotRow = adviceSheet.addRow(['', '', 'Total', '', '', totalLetterAmount]);
-    advTotRow.height = 27; // REQ: 27
+    advTotRow.height = 27;
     advTotRow.getCell(6).numFmt = accountingFmt0;
     advTotRow.eachCell((c) => {
       c.font = { bold: true, size: 14 };
@@ -746,7 +744,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-    zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
+    zip.file(`${safeName}_${sheetMeta.monthYear}.xlsx`, buffer);
   }
 
   return zip.generateAsync({ type: "blob" });

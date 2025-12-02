@@ -307,6 +307,23 @@ async function initializeAppModules() {
         }
     }
 
+    // Helper to check if a date is in the payslip month
+    function isDateInPayslipMonth(dateStr, monthTitle) {
+        if (!dateStr || !monthTitle) return false;
+        // monthTitle example: "Dec,25" -> convert to YYYY-MM
+        const [mStr, yStr] = monthTitle.split(',');
+        const monthMap = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
+        const monthNum = monthMap[mStr];
+        const fullYear = '20' + yStr;
+        const targetYM = `${fullYear}-${monthNum}`;
+
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${yyyy}-${mm}` === targetYM;
+    }
+
     async function handlePayslipGeneration() {
         showLoading();
         try {
@@ -325,7 +342,6 @@ async function initializeAppModules() {
 
             let allRawData = [];
             let offset = 0;
-            // === FIX: Reduced LIMIT to 100 to prevent 502 Payload Too Large ===
             const LIMIT = 100;
             let hasMore = true;
 
@@ -362,8 +378,7 @@ async function initializeAppModules() {
                  throw new Error("Corrupted or empty data in salary archive.");
             }
 
-            // === FIX: Strict Filtering for Payslips ===
-            // Only Active employees (Not Held, Not Resigned/Terminated)
+            // === FIX: Strict Filtering for Payslips (Issue 1) ===
             const eligibleEmployees = allRawData.filter(emp => {
                 const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
                 const status = (emp.status || 'Active').trim();
@@ -372,10 +387,14 @@ async function initializeAppModules() {
                 if (isHeld) return false;
                 if (status === 'Salary Held') return false;
 
-                // 2. Exclude Separated/Closed
+                // 2. Exclude if Separated IN THIS MONTH (or previously)
+                // If they appear in the separation log for this month, they don't get a standard active payslip
+                if (isDateInPayslipMonth(emp.separationDate, monthTitle)) return false;
+
+                // 3. Exclude Separated/Closed in general
                 if (['Resigned', 'Terminated', 'Closed'].includes(status)) return false;
 
-                // 3. Must be Active
+                // 4. Must be Active
                 return status === 'Active';
             });
 
