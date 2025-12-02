@@ -119,7 +119,6 @@ async function initializeAppModules() {
         }
 
         try {
-            // Note: apiCall defaults to useSpinner=true, which is correct here
             const response = await apiCall('getEmployees', 'GET', null, params);
 
             if (!response || !response.employees) {
@@ -144,7 +143,7 @@ async function initializeAppModules() {
             }
 
             if (currentPage === 1) {
-                // Background fetch: Pass 'false' as 5th arg to disable spinner
+                // Background fetch
                 apiCall('getEmployees', 'GET', null, { limit: 5000 }, false)
                     .then(fullResponse => {
                         mainLocalEmployees = fullResponse.employees || [];
@@ -252,7 +251,8 @@ async function initializeAppModules() {
                 "Employee ID", "Employee Name", "Employee Type", "Designation", "Functional Role", "Joining Date", "Project", "Project Office", "Report Project", "Sub Center",
                 "Work Experience (Years)", "Education", "Father's Name", "Mother's Name", "Personal Mobile Number", "Official Mobile Number",
                 "Mobile Limit", "Date of Birth", "Blood Group", "Address", "Identification Type", "Identification", "Nominee's Name",
-                "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Motobike / Car Maintenance Allowance", "Laptop Rent",
+                "Nominee's Mobile Number", "Previous Salary", "Basic", "Others", "Gross Salary", "Cash Payment",
+                "Motobike / Car Maintenance Allowance", "Laptop Rent",
                 "Others Allowance", "Arrear", "Food Allowance", "Station Allowance", "Hardship Allowance", "Grand Total", "Gratuity",
                 "Subsidized Lunch", "TDS", "Motorbike Loan", "Welfare Fund", "Salary/ Others Loan", "Subsidized Vehicle", "LWP", "CPF",
                 "Others Adjustment", "Total Deduction", "Net Salary Payment", "Bank Account Number", "Status", "Salary Held", "Hold Timestamp",
@@ -264,7 +264,8 @@ async function initializeAppModules() {
                 "employeeId", "name", "employeeType", "designation", "functionalRole", "joiningDate", "project", "projectOffice", "reportProject", "subCenter",
                 "workExperience", "education", "fatherName", "motherName", "personalMobile", "officialMobile",
                 "mobileLimit", "dob", "bloodGroup", "address", "identificationType", "identification", "nomineeName",
-                "nomineeMobile", "previousSalary", "basic", "others", "salary", "motobikeCarMaintenance", "laptopRent",
+                "nomineeMobile", "previousSalary", "basic", "others", "salary", "cashPayment",
+                "motobikeCarMaintenance", "laptopRent",
                 "othersAllowance", "arrear", "foodAllowance", "stationAllowance", "hardshipAllowance", "grandTotal", "gratuity",
                 "subsidizedLunch", "tds", "motorbikeLoan", "welfareFund", "salaryOthersLoan", "subsidizedVehicle", "lwp", "cpf",
                 "othersAdjustment", "totalDeduction", "netSalaryPayment", "bankAccount", "status", "salaryHeld", "holdTimestamp",
@@ -306,11 +307,9 @@ async function initializeAppModules() {
         }
     }
 
-    // === SOLVED: Fixed Loading Spinner Logic with API Control ===
     async function handlePayslipGeneration() {
-        showLoading(); // 1. Manually START Global Spinner
+        showLoading();
         try {
-            // 2. Fetch Meta: Pass 'false' to disable internal spinner management
             const archivesMeta = await apiCall('getSalaryArchive', 'GET', null, { metaOnly: 'true' }, false);
 
             if (!archivesMeta || archivesMeta.length === 0) {
@@ -326,11 +325,11 @@ async function initializeAppModules() {
 
             let allRawData = [];
             let offset = 0;
-            const LIMIT = 500;
+            // === FIX: Reduced LIMIT to 100 to prevent 502 Payload Errors ===
+            const LIMIT = 100;
             let hasMore = true;
 
             while (hasMore) {
-                // 3. Fetch Chunks: Pass 'false' to keep global spinner running
                 const fullArchiveResp = await apiCall('getSalaryArchive', 'GET', null, {
                     monthYear: monthTitle,
                     limit: LIMIT,
@@ -363,25 +362,36 @@ async function initializeAppModules() {
                  throw new Error("Corrupted or empty data in salary archive.");
             }
 
-            const salaryDataForPdf = allRawData.map(emp => {
-                const gross = emp.earn?.grossSalary ?? emp.salary ?? 0;
-                const days = emp.att?.netPresent ?? emp.daysPresent ?? 0;
-                const ded = emp.ded?.totalDeduction ?? emp.deduction ?? 0;
-                const net = emp.netPayment ?? emp.netSalary ?? 0;
+            // Filter for ACTIVE and NOT HELD employees for Payslips
+            const eligibleEmployees = allRawData.filter(emp => {
+                const isHeld = (emp.salaryHeld === true || String(emp.salaryHeld).toUpperCase() === 'TRUE');
+                // Only generate for Active employees who are NOT held
+                // We use the status captured at archive time
+                const status = emp.status || 'Active';
+                return status === 'Active' && !isHeld;
+            });
+
+            if (eligibleEmployees.length === 0) {
+                throw new Error("No eligible employees (Active & Not Held) found for payslips.");
+            }
+
+            const salaryDataForPdf = eligibleEmployees.map(emp => {
+                // Ensure earning/deduction objects exist
+                const earn = emp.earn || {};
+                const ded = emp.ded || {};
 
                 return {
                     ...emp,
-                    salary: gross,
-                    daysPresent: days,
-                    deduction: ded,
-                    netSalary: net,
+                    // Use archived calculations directly
+                    salary: earn.grossSalary || emp.salary,
+                    daysPresent: emp.att?.netPresent || 0,
+                    deduction: ded.totalDeduction || 0,
+                    netSalary: emp.netPayment || 0,
                     employeeId: emp.employeeId,
                     name: emp.name
                 };
             });
 
-            // 4. Heavy CPU Task (ZIP Generation)
-            // Spinner is still ACTIVE here because we never turned it off
             const zipBlob = await generatePayslipsZip(salaryDataForPdf, salaryDataForPdf, monthTitle);
 
             const link = document.createElement("a");
@@ -389,14 +399,12 @@ async function initializeAppModules() {
             link.download = `Payslips_${monthTitle}.zip`;
             link.click();
 
-            // 5. Success! Now we manually stop the spinner
             hideLoading();
             customAlert("Success", "Payslips generated and downloaded successfully.");
             closeModal('reportModal');
 
         } catch (error) {
             console.error(error);
-            // 6. Error! Manually stop the spinner
             hideLoading();
             customAlert("Error", `Failed to generate payslips: ${error.message}`);
         }
