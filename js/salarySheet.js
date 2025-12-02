@@ -182,7 +182,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
-
+  const dateFormat = '[$-en-US]d-mmm-yy;@';
   const attMap = {};
   attendanceData.forEach((row) => {
     const cleanRow = {};
