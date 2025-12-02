@@ -445,6 +445,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 }
             }
 
+            // --- [CHANGE HERE]: Logic updated to use 'holdRemarks' ---
             function addLogSheet(workbook, sheetName, employees, type) {
                 const sheet = workbook.addWorksheet(sheetName);
 
@@ -474,7 +475,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         rowData = [
                             getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                             formatDateForDisplay(emp.holdTimestamp) || '-',
-                            // [FIX] Use holdRemarks if available in archive
+                            // --- [UPDATED]: Check holdRemarks first ---
                             getStr(emp.holdRemarks || emp.remarks)
                         ];
                     } else {

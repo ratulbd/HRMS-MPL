@@ -52,7 +52,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         const attendanceData = await parseCSV(attendanceFile);
         const holderData = await parseCSV(holderFile);
 
-        // [FIX 1] Fetch Hold Log data to get remarks
+        // --- Fetch Hold Log Data ---
         const holdLogData = await apiCall('getHoldLog', 'GET');
 
         validateAttendanceHeaders(attendanceData);
@@ -60,19 +60,17 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 
         customAlert("Processing", "Generating project-wise sheets (Split Payroll)...");
 
-        // [FIX 2] Pass holdLogData to the generator
+        // --- Pass holdLogData to the generator ---
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData);
 
         customAlert("Processing", "Archiving data for record keeping...");
 
         const currentUser = sessionStorage.getItem('loggedInUser') || 'Unknown User';
 
-        // Add the mapped hold remarks to the employee object for archiving
-        // This ensures the archive preserves the specific remarks used at generation time
         const archiveData = {
           monthYear: monthVal,
           timestamp: new Date().toISOString(),
-          jsonData: employees,
+          jsonData: employees, // This now includes the injected holdRemarks
           generatedBy: currentUser
         };
 
@@ -182,26 +180,51 @@ function excelDateToJSDate(serial) {
    return new Date(serial);
 }
 
-// [FIX 3] Added holdLogData parameter
+// --- Generator Function ---
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData = []) {
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
-
-  // [FIX 4] Defined dateFormat here to prevent ReferenceError
   const dateFormat = '[$-en-US]d-mmm-yy;@';
 
-  // [FIX 5] Create a map for Hold Remarks
+  // --- [FIX: ROBUST LOGIC FOR HOLD REMARKS] ---
   const holdMap = {};
+
+  // 1. Unwrap the data if it's inside an object like { logs: [...] } or { holdLog: [...] }
+  let logsToProcess = [];
   if (Array.isArray(holdLogData)) {
-      // Sort to get the latest remark (newest first)
-      holdLogData.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
-      holdLogData.forEach(log => {
-          const id = String(log.employeeId).trim();
-          // Only store the first (latest) remark found for this ID
-          if (!holdMap[id]) holdMap[id] = log.remarks;
-      });
+      logsToProcess = holdLogData;
+  } else if (holdLogData && typeof holdLogData === 'object') {
+      // Try common property names
+      logsToProcess = holdLogData.logs || holdLogData.data || holdLogData.holdLog || holdLogData.results || [];
+      // If still empty, try to find any array property in the object
+      if (logsToProcess.length === 0) {
+          const values = Object.values(holdLogData);
+          const foundArray = values.find(v => Array.isArray(v));
+          if (foundArray) logsToProcess = foundArray;
+      }
   }
+
+  // 2. Sort to get the latest remark (Handle different Date key casing)
+  logsToProcess.sort((a, b) => {
+      const getD = (obj) => new Date(obj.timestamp || obj.date || obj.Date || obj.Timestamp || 0);
+      return getD(b) - getD(a);
+  });
+
+  // 3. Map Employee ID to Remark (Handle different Key casing)
+  logsToProcess.forEach(log => {
+      // Lowercase all keys to be safe (e.g., 'EmployeeID' -> 'employeeid')
+      const cleanLog = {};
+      Object.keys(log).forEach(k => cleanLog[k.toLowerCase().trim()] = log[k]);
+
+      const id = String(cleanLog.employeeid || cleanLog.id || cleanLog['employee id'] || '').trim();
+      const remark = cleanLog.remarks || cleanLog.remark || cleanLog.comment;
+
+      // Only store if we have an ID and a Remark, and haven't stored one for this ID yet (since we sorted by latest)
+      if (id && remark && !holdMap[id]) {
+          holdMap[id] = remark;
+      }
+  });
 
   const attMap = {};
   attendanceData.forEach((row) => {
@@ -239,11 +262,9 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (isHeld) {
         listCategory = 'hold';
-        // [FIX 6] Inject the hold remarks from the log into the employee object
+        // --- Inject the specific hold remark if found ---
         const hRem = holdMap[String(emp.employeeId).trim()];
-        if (hRem) {
-            emp.holdRemarks = hRem;
-        }
+        if (hRem) emp.holdRemarks = hRem;
     } else if (isSeparatedInMonth(emp.separationDate, monthVal)) {
         listCategory = 'separated';
     } else if (emp.status === 'Active') {
@@ -603,7 +624,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 rowData = [
                     getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                     formatDateForDisplay(emp.holdTimestamp) || '-',
-                    // [FIX 7] Use the injected 'holdRemarks', fallback to generic remarks
+                    // Use holdRemarks if available
                     getStr(emp.holdRemarks || emp.remarks)
                 ];
             } else {
@@ -765,7 +786,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
 
-    // [FIX 8] Fixed ReferenceError: use 'monthVal' instead of 'sheetMeta'
+    // Fix: ReferenceError fix for monthVal
     zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
   }
 
