@@ -53,12 +53,16 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         const attendanceData = await parseCSV(attendanceFile);
         const holderData = await parseCSV(holderFile);
 
+        // --- FIX: Fetch Hold Log to get correct remarks for held employees ---
+        const holdLogData = await apiCall('getHoldLog', 'GET');
+
         validateAttendanceHeaders(attendanceData);
         validateHolderHeaders(holderData);
 
         customAlert("Processing", "Generating project-wise sheets (Split Payroll)...");
 
-        const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal);
+        // --- FIX: Pass holdLogData to the generator ---
+        const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData);
 
         customAlert("Processing", "Archiving data for record keeping...");
 
@@ -67,7 +71,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         const archiveData = {
           monthYear: monthVal,
           timestamp: new Date().toISOString(),
-          jsonData: employees,
+          jsonData: employees, // This now includes the injected holdRemarks
           generatedBy: currentUser
         };
 
@@ -157,7 +161,6 @@ function getFormattedMonthYear(dateStr) {
   return { month, year, full: `${month}-${year}`, quote: `${month}'${year}` };
 }
 
-// FIX 2: Separation Logic updated to match month
 function isSeparatedInMonth(dateStr, monthVal) {
     if (!dateStr) return false;
     let d = new Date(dateStr);
@@ -178,11 +181,26 @@ function excelDateToJSDate(serial) {
    return new Date(serial);
 }
 
-async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal) {
+// --- FIX: Added holdLogData parameter ---
+async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData = []) {
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
+
+  // --- FIX: Defined dateFormat here ---
   const dateFormat = '[$-en-US]d-mmm-yy;@';
+
+  // --- FIX: Process Hold Log into a Map for easy lookup ---
+  const holdMap = {};
+  if (Array.isArray(holdLogData)) {
+      // Sort to get the latest remark if multiple entries exist
+      holdLogData.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+      holdLogData.forEach(log => {
+          const id = String(log.employeeId).trim();
+          if (!holdMap[id]) holdMap[id] = log.remarks;
+      });
+  }
+
   const attMap = {};
   attendanceData.forEach((row) => {
     const cleanRow = {};
@@ -206,10 +224,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
   employees.forEach((emp) => {
     const attRow = attMap[String(emp.employeeId)];
-    // Allow processing even without attendance if we need to log separation
-    // But usually salary needs attendance.
-    // We will proceed, defaulting att to 0 if missing.
-
     const project   = emp.reportProject || 'Unknown';
     const subCenter = emp.subCenter    || 'General';
 
@@ -223,8 +237,10 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (isHeld) {
         listCategory = 'hold';
+        // --- FIX: Inject the specific hold remark from the log ---
+        const hRem = holdMap[String(emp.employeeId).trim()];
+        if (hRem) emp.holdRemarks = hRem;
     } else if (isSeparatedInMonth(emp.separationDate, monthVal)) {
-        // FIX 2: If date matches this month, put in Separated sheet, regardless of status text
         listCategory = 'separated';
     } else if (emp.status === 'Active') {
         listCategory = 'active';
@@ -232,7 +248,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
         return;
     }
 
-    // Default Att values if row missing
     const totalDays     = attRow ? getVal(attRow['total working days']) : 0;
     const holidays      = attRow ? getVal(attRow['holidays']) : 0;
     const leave         = attRow ? getVal(attRow['availing leave']) : 0;
@@ -584,7 +599,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 rowData = [
                     getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                     formatDateForDisplay(emp.holdTimestamp) || '-',
-                    getStr(emp.remarks) // FIX 3: Ensure Remarks is used
+                    // --- FIX: Prefer mapped holdRemarks, fall back to general remarks ---
+                    getStr(emp.holdRemarks || emp.remarks)
                 ];
             } else {
                 rowData = [
@@ -744,6 +760,8 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
+
+    // --- FIX: Use monthVal here, NOT sheetMeta ---
     zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
   }
 

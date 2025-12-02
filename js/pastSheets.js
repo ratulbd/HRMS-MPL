@@ -477,7 +477,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         rowData = [
                             getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                             formatDateForDisplay(emp.holdTimestamp) || '-',
-                            getStr(emp.remarks)
+                            // --- FIX: Use mapped holdRemarks if available in archive ---
+                            getStr(emp.holdRemarks || emp.remarks)
                         ];
                     } else {
                         rowData = [
