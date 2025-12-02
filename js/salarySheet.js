@@ -1,8 +1,7 @@
-// js/salarySheet.js
 import { $, customAlert, closeModal, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// --- Module Level Helpers (Accessible everywhere) ---
+// --- Module Level Helpers ---
 const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
 const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
@@ -53,7 +52,7 @@ export function setupSalarySheetModal(getEmployeesFunc) {
         const attendanceData = await parseCSV(attendanceFile);
         const holderData = await parseCSV(holderFile);
 
-        // --- FIX: Fetch Hold Log to get correct remarks for held employees ---
+        // [FIX 1] Fetch Hold Log data to get remarks
         const holdLogData = await apiCall('getHoldLog', 'GET');
 
         validateAttendanceHeaders(attendanceData);
@@ -61,17 +60,19 @@ export function setupSalarySheetModal(getEmployeesFunc) {
 
         customAlert("Processing", "Generating project-wise sheets (Split Payroll)...");
 
-        // --- FIX: Pass holdLogData to the generator ---
+        // [FIX 2] Pass holdLogData to the generator
         const zipContent = await generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData);
 
         customAlert("Processing", "Archiving data for record keeping...");
 
         const currentUser = sessionStorage.getItem('loggedInUser') || 'Unknown User';
 
+        // Add the mapped hold remarks to the employee object for archiving
+        // This ensures the archive preserves the specific remarks used at generation time
         const archiveData = {
           monthYear: monthVal,
           timestamp: new Date().toISOString(),
-          jsonData: employees, // This now includes the injected holdRemarks
+          jsonData: employees,
           generatedBy: currentUser
         };
 
@@ -181,22 +182,23 @@ function excelDateToJSDate(serial) {
    return new Date(serial);
 }
 
-// --- FIX: Added holdLogData parameter ---
+// [FIX 3] Added holdLogData parameter
 async function generateProjectWiseZip(employees, attendanceData, holderData, monthVal, holdLogData = []) {
   const zip = new JSZip();
   const { full, quote } = getFormattedMonthYear(monthVal);
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
 
-  // --- FIX: Defined dateFormat here ---
+  // [FIX 4] Defined dateFormat here to prevent ReferenceError
   const dateFormat = '[$-en-US]d-mmm-yy;@';
 
-  // --- FIX: Process Hold Log into a Map for easy lookup ---
+  // [FIX 5] Create a map for Hold Remarks
   const holdMap = {};
   if (Array.isArray(holdLogData)) {
-      // Sort to get the latest remark if multiple entries exist
+      // Sort to get the latest remark (newest first)
       holdLogData.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
       holdLogData.forEach(log => {
           const id = String(log.employeeId).trim();
+          // Only store the first (latest) remark found for this ID
           if (!holdMap[id]) holdMap[id] = log.remarks;
       });
   }
@@ -237,9 +239,11 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (isHeld) {
         listCategory = 'hold';
-        // --- FIX: Inject the specific hold remark from the log ---
+        // [FIX 6] Inject the hold remarks from the log into the employee object
         const hRem = holdMap[String(emp.employeeId).trim()];
-        if (hRem) emp.holdRemarks = hRem;
+        if (hRem) {
+            emp.holdRemarks = hRem;
+        }
     } else if (isSeparatedInMonth(emp.separationDate, monthVal)) {
         listCategory = 'separated';
     } else if (emp.status === 'Active') {
@@ -599,7 +603,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
                 rowData = [
                     getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                     formatDateForDisplay(emp.holdTimestamp) || '-',
-                    // --- FIX: Prefer mapped holdRemarks, fall back to general remarks ---
+                    // [FIX 7] Use the injected 'holdRemarks', fallback to generic remarks
                     getStr(emp.holdRemarks || emp.remarks)
                 ];
             } else {
@@ -761,7 +765,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
 
-    // --- FIX: Use monthVal here, NOT sheetMeta ---
+    // [FIX 8] Fixed ReferenceError: use 'monthVal' instead of 'sheetMeta'
     zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
   }
 

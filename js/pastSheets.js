@@ -1,8 +1,7 @@
-// js/pastSheets.js
 import { $, customAlert, formatDateForDisplay } from './utils.js';
 import { apiCall } from './apiClient.js';
 
-// --- Module Level Helpers (Accessible everywhere) ---
+// --- Module Level Helpers ---
 const getVal = (v) => (v !== undefined && v !== null && v !== '') ? parseFloat(v) : 0;
 const getStr = (v) => (v !== undefined && v !== null) ? String(v) : '';
 
@@ -207,7 +206,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[p][s][listCategory].push(emp);
             });
 
-            // Re-define helpers inside
             function addSalarySheetTab(workbook, sheetName, projectName, dataBySubCenter, categoryKey, isPrintVersion = false) {
                 const sheet = workbook.addWorksheet(sheetName, {
                     views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4, xSplit: 4 }],
@@ -274,7 +272,6 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     r2.font = { bold: true, size: 12, name: 'Calibri' };
                     r2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 
-                    // Sub-headers for Print Version (Mapping based on subset columns)
                     [
                         { s: 'A3', e: 'E3', t: 'Employee Information' },
                         { s: 'F3', e: 'G3', t: 'Attendance' },
@@ -477,7 +474,7 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                         rowData = [
                             getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
                             formatDateForDisplay(emp.holdTimestamp) || '-',
-                            // --- FIX: Use mapped holdRemarks if available in archive ---
+                            // [FIX] Use holdRemarks if available in archive
                             getStr(emp.holdRemarks || emp.remarks)
                         ];
                     } else {
