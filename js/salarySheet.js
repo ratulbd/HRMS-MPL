@@ -744,7 +744,7 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
-    zip.file(`${safeName}_${sheetMeta.monthYear}.xlsx`, buffer);
+    zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
   }
 
   return zip.generateAsync({ type: "blob" });
