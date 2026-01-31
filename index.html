@@ -1,219 +1,289 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/assets/logo.png" type="image/png">
-    <title>HR Management System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Metal Plus | HR Management System</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        emerald: {
+                            450: '#10b981',
+                        }
+                    },
+                    animation: {
+                        'gradient': 'gradient 8s linear infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        gradient: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
+        /* ========== CSS VARIABLES & THEMING ========== */
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            --primary-glow: rgba(22, 163, 74, 0.3);
+        }
+
+        .dark {
+            --glass-bg: rgba(17, 24, 39, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --primary-glow: rgba(34, 197, 94, 0.4);
+        }
+
+        /* ========== BASE STYLES ========== */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f4f7f6;
-            background-image: linear-gradient(180deg, #f9fafb 0%, #f0f3f2 100%);
-        }
-        .font-poppins { font-family: 'Poppins', sans-serif; }
-
-        /* --- Page Load Animations --- */
-        @keyframes slideInDown {
-            from { transform: translateY(-100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes slideInUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        #app-header {
-            animation: slideInDown 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) both;
-        }
-        #dashboard-header {
-            animation: slideInUp 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) 0.2s both;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #d1fae5 100%);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            overflow-x: hidden;
         }
 
-        /* --- Navbar Button Animations --- */
-        .btn-nav {
-            position: relative;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.5); /* Glass */
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
-            color: #166531; /* green-800 */
-            font-weight: 500;
-        }
-        .btn-nav:hover {
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        .btn-nav.btn-primary {
-             background: #15803d; color: white;
-             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-         .btn-nav.btn-primary:hover {
-             background: #166531;
-         }
-        /* Shine Effect */
-        .btn-nav::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 75%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            transform: skewX(-30deg);
-            transition: left 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .btn-nav:hover::before {
-            left: 150%;
+        .dark body {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #111827 100%);
+            background-size: 400% 400%;
         }
 
-        /* --- Holographic 3D Card --- */
-        #employee-list {
-            perspective: 1500px;
+        /* ========== GLASSMORPHISM COMPONENTS ========== */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
         }
 
-        .employee-card {
-            position: relative;
-            transform-style: preserve-3d;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            background-color: rgba(255, 255, 255, 0.65);
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 0.75rem; /* 12px */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
-            overflow: hidden;
-            transform: rotateX(var(--rotate-x, 0)) rotateY(var(--rotate-y, 0));
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        /* Holographic Shine */
-        .employee-card::before {
-            content: '';
+        .dark .glass-card {
+            background: rgba(31, 41, 55, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(22, 163, 74, 0.15);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        /* ========== 3D CARD EFFECTS ========== */
+        .perspective-container {
+            perspective: 2000px;
+        }
+
+        .card-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .card-3d:hover {
+            transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y)) translateZ(30px);
+        }
+
+        .card-content-glow {
             position: absolute;
-            left: 0; top: 0; right: 0; bottom: 0;
-            border-radius: 0.75rem;
+            inset: 0;
             background: radial-gradient(
-                400px circle at var(--mouse-x) var(--mouse-y),
-                rgba(168, 216, 0, 0.35), /* Lime green accent */
-                transparent 70%
+                600px circle at var(--mouse-x) var(--mouse-y),
+                rgba(34, 197, 94, 0.15),
+                transparent 40%
             );
             opacity: 0;
-            transition: opacity 0.3s ease-out;
-            z-index: 1;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            border-radius: inherit;
         }
 
-        /* Animated Gradient Border */
-        .employee-card::after {
-            content: '';
-            position: absolute;
-            left: -50%; top: -50%;
-            width: 200%; height: 200%;
-            border-radius: 0.75rem;
-            background: conic-gradient(
-                from var(--angle),
-                #15803d, #a8d800, #15803d, rgba(255, 255, 255, 0.5), #15803d
-            );
-            opacity: 0;
-            transition: opacity 0.4s ease-out;
-            animation: rotateGradient 8s linear infinite;
-            z-index: 0;
-        }
-
-        @keyframes rotateGradient {
-            from { --angle: 0deg; }
-            to { --angle: 360deg; }
-        }
-
-        /* Card Parallax Content (Floats in 3D) */
-        .card-content {
-            position: relative;
-            z-index: 2;
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .employee-card:hover {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-            transform: scale(1.04) rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
-        }
-        .employee-card:hover::before { opacity: 1; }
-        .employee-card:hover::after { opacity: 0.6; }
-        .employee-card:hover .card-content {
-            transform: translateZ(30px); /* 3D float */
-        }
-
-        /* Card Waterfall Animation */
-        @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(30px) rotateX(-20deg) scale(0.9); }
-            to { opacity: 1; transform: none; }
-        }
-        .employee-card {
-            animation: cardFadeIn 0.5s ease-out both;
-            animation-delay: calc(var(--card-index) * 50ms);
-        }
-
-        /* Hover-to-reveal footer (Slide up) */
-        .card-footer {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(255, 255, 255, 0.3);
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            transform: translateY(100%);
-            z-index: 3;
-            padding: 0.75rem 1.25rem;
-        }
-        .employee-card:hover .card-footer {
-            transform: translateY(0%);
-        }
-
-        /* Staggered Button Reveal */
-        .card-footer .btn-pill {
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-        .employee-card:hover .card-footer .btn-pill {
+        .card-3d:hover .card-content-glow {
             opacity: 1;
-            transform: translateY(0);
         }
-        .employee-card:hover .btn-pill:nth-child(1) { transition-delay: 0.1s; }
-        .employee-card:hover .btn-pill:nth-child(2) { transition-delay: 0.15s; }
-        .employee-card:hover .btn-pill:nth-child(3) { transition-delay: 0.2s; }
-        .employee-card:hover .btn-pill:nth-child(4) { transition-delay: 0.25s; }
-        .employee-card:hover .btn-pill:nth-child(5) { transition-delay: 0.3s; }
-        .employee-card:hover .btn-pill:nth-child(6) { transition-delay: 0.35s; }
 
-        /* === SKELETON LOADER STYLES === */
-        .skeleton-card {
-            background: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.75rem;
-            padding: 1.25rem;
-            height: 220px;
+        /* ========== NAVIGATION ========== */
+        .nav-link {
             position: relative;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
         }
 
-        .skeleton-pulse {
-            background: linear-gradient(90deg, #f0f3f2 25%, #e0e7e5 50%, #f0f3f2 75%);
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #22c55e, transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .nav-link:hover::before {
+            transform: translateX(100%);
+        }
+
+        /* ========== BUTTON ANIMATIONS ========== */
+        .btn-magnetic {
+            transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .btn-shine {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-shine::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to right,
+                transparent 0%,
+                rgba(255,255,255,0.3) 50%,
+                transparent 100%
+            );
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .btn-shine:hover::after {
+            transform: rotate(30deg) translateX(100%);
+        }
+
+        /* ========== MODAL ANIMATIONS ========== */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+        }
+
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.3s ease-in;
+        }
+
+        /* ========== CUSTOM SCROLLBAR ========== */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #16a34a, #15803d);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        /* ========== LOADING ANIMATIONS ========== */
+        .loader-ring {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+        }
+
+        .loader-ring:after {
+            content: " ";
+            display: block;
+            width: 64px;
+            height: 64px;
+            margin: 8px;
+            border-radius: 50%;
+            border: 6px solid #22c55e;
+            border-color: #22c55e transparent #22c55e transparent;
+            animation: ring 1.2s linear infinite;
+        }
+
+        @keyframes ring {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ========== SKELETON LOADING ========== */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.05) 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
-            border-radius: 0.25rem;
         }
 
         @keyframes shimmer {
@@ -221,422 +291,530 @@
             100% { background-position: -200% 0; }
         }
 
-        .sk-title { height: 24px; width: 60%; margin-bottom: 1rem; }
-        .sk-badge { position: absolute; top: 1.25rem; right: 1.25rem; height: 20px; width: 60px; border-radius: 99px; }
-        .sk-line { height: 14px; width: 80%; margin-bottom: 0.5rem; }
-        .sk-line-short { height: 14px; width: 40%; margin-bottom: 0.5rem; }
-        .sk-footer { position: absolute; bottom: 1rem; left: 1.25rem; right: 1.25rem; height: 30px; margin-top: auto; }
+        /* ========== STATS COUNTER ========== */
+        .stat-value {
+            background: linear-gradient(135deg, #166534, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+        }
 
-        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out; }
-        .modal { transition: opacity 0.3s ease, transform 0.3s ease; animation: scaleUp 0.2s ease-out; }
-        .status-badge { display: inline-flex; align-items: center; padding: 0.25em 0.75em; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
-        .status-active { background-color: #dcfce7; color: #166534; }
-        .status-held { background-color: #ffedd5; color: #9a3412; }
-        .status-resigned { background-color: #fef9c3; color: #854d0e; }
-        .status-terminated { background-color: #fee2e2; color: #991b1b; }
-        .status-closed { background-color: #e5e7eb; color: #374151; }
+        /* ========== FLOATING ACTION BUTTON ========== */
+        .fab {
+            box-shadow: 0 10px 30px rgba(22, 163, 74, 0.4);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
 
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #166531; animation: spin 1s ease infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .fab:hover {
+            transform: translateY(-3px) scale(1.1);
+            box-shadow: 0 15px 40px rgba(22, 163, 74, 0.5);
+        }
 
-        .loading-overlay { position: fixed; inset: 0; background-color: rgba(249, 250, 251, 0.7); display: flex; align-items: center; justify-content: center; z-index: 110; }
+        /* ========== TOOLTIP ========== */
+        .tooltip {
+            position: relative;
+        }
 
-        .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.375rem; transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 0.875rem; line-height: 1.25rem; }
-        .btn-primary { background-color: #15803d; color: white; } .btn-primary:hover { background-color: #166531; }
-        .btn-secondary { background-color: white; color: #374151; border: 1px solid #d1d5db; } .btn-secondary:hover { background-color: #f9fafb; }
-        .btn-danger { background-color: #dc2626; color: white; } .btn-danger:hover { background-color: #b91c1c; }
-        .btn-logout { background-color: transparent; color: #dc2626; border: 1px solid #fecaca; transition: all 0.2s ease; }
-        .btn-logout:hover { background-color: #fef2f2; border-color: #dc2626; }
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-5px);
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s;
+        }
 
-        .input, .input-select { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); outline: none; margin-top: 0.25rem; display: block; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
-        .input:focus, .input-select:focus { border-color: #166531; --tw-ring-color: #166531; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); }
-        .input-select { padding-left: 0.75rem; padding-right: 2.5rem; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
-        .input-readonly { background-color: #f3f4f6; cursor: not-allowed; }
+        .tooltip:hover::before {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-10px);
+        }
 
-        .ts-control { padding: 0.5rem 0.75rem !important; border: 1px solid #d1d5db !important; border-radius: 0.375rem !important; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important; margin-top: 0.25rem; font-size: 0.875rem; line-height: 1.25rem; }
-        .ts-control .item { background-color: #dcfce7; color: #166531; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 500; }
-        .ts-plugins .remove_button .item .remove { border-left: 1px solid #bbf7d0; margin-left: 0.5rem; padding-left: 0.5rem; }
-        .ts-dropdown { border: 1px solid #d1d5db !important; border-top: none !important; border-radius: 0 0 0.375rem 0.375rem !important; }
-        .ts-control.focus { border-color: #166531 !important; --tw-ring-color: #166531; --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important; }
+        /* ========== TOAST NOTIFICATIONS ========== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-        .btn-pill { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; transition: all 0.2s ease; border: 1px solid transparent; cursor: pointer; }
-        .btn-pill-gray { color: #4b5563; background-color: #f3f4f6; border-color: #e5e7eb; }
-        .btn-pill-gray:hover { background-color: #e5e7eb; }
-        .btn-pill-green { color: #166531; background-color: #f0fdf4; border-color: #bbf7d0; }
-        .btn-pill-green:hover { background-color: #dcfce7; }
-        .btn-pill-orange { color: #9a3412; background-color: #fff7ed; border-color: #fed7aa; }
-        .btn-pill-orange:hover { background-color: #ffedd5; }
-        .btn-pill-yellow { color: #854d0e; background-color: #fefce8; border-color: #fde68a; }
-        .btn-pill-yellow:hover { background-color: #fef9c3; }
-        .btn-pill-red { color: #991b1b; background-color: #fef2f2; border-color: #fecaca; }
-        .btn-pill-red:hover { background-color: #fee2e2; }
+        .toast {
+            background: white;
+            border-left: 4px solid #22c55e;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform: translateX(120%);
+            animation: slideIn 0.4s forwards;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        @keyframes slideIn {
+            to { transform: translateX(0); }
+        }
+
+        .toast.success { border-left-color: #22c55e; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast.warning { border-left-color: #f59e0b; }
+
+        /* ========== DASHBOARD GRID ========== */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-50 font-inter">
+<body class="text-gray-800 dark:text-gray-100 transition-colors duration-300">
 
-<div id="loadingOverlay" class="loading-overlay hidden"><div class="spinner"></div></div>
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container"></div>
 
-<nav class="bg-white border-b border-gray-200 sticky top-0 z-40 w-full" id="app-header">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex items-center">
-                <img src="/assets/logo.png" alt="Metal Logo" class="h-9 w-auto">
-                <span class="font-poppins text-xl font-bold text-green-800 ml-3 hidden sm:inline">HR Management System</span>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button id="addEmployeeBtn" class="btn btn-nav btn-primary"><i class="fas fa-plus mr-2"></i>Add New</button>
-                <button id="bulkUploadBtn" class="btn btn-nav"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
-                <button id="uploadAttendanceBtn" class="btn btn-nav"><i class="fas fa-calculator mr-2"></i>Generate Salary</button>
-                <button id="pastSalarySheetsBtn" class="btn btn-nav"><i class="fas fa-history mr-2"></i>Past Sheets</button>
-                <button id="reportBtn" class="btn btn-nav"><i class="fas fa-chart-bar mr-2"></i>Report</button>
-                <button id="logoutBtn" class="btn btn-logout"><i class="fas fa-sign-out-alt mr-2"></i>Logout</button>
-            </div>
-        </div>
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="fixed inset-0 z-[200] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center hidden">
+    <div class="text-center">
+        <div class="loader-ring mb-4"></div>
+        <p class="text-primary-700 font-semibold animate-pulse">Processing Data...</p>
     </div>
-</nav>
+</div>
 
-<div id="app" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-6 sm:pt-8 lg:pt-10">
-    <header class="mb-6" id="dashboard-header">
-        <h1 class="font-poppins font-bold text-3xl text-gray-800">Employee Dashboard</h1>
-        <p class="text-gray-600 mt-1">View and manage your employee data.</p>
-    </header>
+<!-- Main Layout -->
+<div class="min-h-screen flex flex-col lg:flex-row">
 
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
-        <h2 class="font-poppins text-lg font-semibold text-gray-700 mb-4 flex items-center" id="filterCardTitle">
-            <i class="fas fa-filter mr-2 text-gray-400"></i>
-            Filters
-        </h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div class="lg:col-span-2">
-                <label for="filterName" class="block text-sm font-medium text-gray-600">Search by Name/ID</label>
-                <input type="text" id="filterName" class="input mt-1" placeholder="e.g. John Doe or 123">
+    <!-- Sidebar Navigation -->
+    <aside class="lg:w-80 w-full glass-panel lg:h-screen lg:sticky lg:top-0 z-40 flex flex-col border-r border-white/20 dark:border-gray-700/30">
+        <!-- Logo Area -->
+        <div class="p-6 border-b border-white/20 dark:border-gray-700/30 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
+                    <i class="fas fa-users-cog text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-xl text-gray-900 dark:text-white leading-tight">Metal Plus</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">HRMS Telecom</p>
+                </div>
             </div>
-            <div>
-                <label for="filterStatus" class="block text-sm font-medium text-gray-600">Status</label>
-                <input id="filterStatus" placeholder="All Statuses">
+            <button id="mobileMenuBtn" class="lg:hidden text-gray-600 dark:text-gray-300">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="p-6 grid grid-cols-2 gap-3 border-b border-white/20 dark:border-gray-700/30">
+            <div class="glass-card rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Staff</p>
+                <p id="statTotal" class="stat-value text-2xl font-display">0</p>
             </div>
-            <div>
-                <label for="filterDesignation" class="block text-sm font-medium text-gray-600">Designation</label>
-                <input id="filterDesignation" placeholder="All Designations">
+            <div class="glass-card rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Active</p>
+                <p id="statActive" class="text-2xl font-display font-bold text-primary-600 dark:text-primary-400">0</p>
             </div>
-            <div>
-                <label for="filterFunctionalRole" class="block text-sm font-medium text-gray-600">Functional Role</label>
-                <input id="filterFunctionalRole" placeholder="All Roles">
+            <div class="glass-card rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">On Hold</p>
+                <p id="statHeld" class="text-2xl font-display font-bold text-amber-500">0</p>
             </div>
-            <div>
-                <label for="filterType" class="block text-sm font-medium text-gray-600">Employee Type</label>
-                <input id="filterType" placeholder="All Types">
-            </div>
-            <div>
-                <label for="filterProject" class="block text-sm font-medium text-gray-600">Project</label>
-                <input id="filterProject" placeholder="All Projects">
-            </div>
-            <div>
-                <label for="filterProjectOffice" class="block text-sm font-medium text-gray-600">Project Office</label>
-                <input id="filterProjectOffice" placeholder="All Offices">
-            </div>
-            <div>
-                <label for="filterReportProject" class="block text-sm font-medium text-gray-600">Report Project</label>
-                <input id="filterReportProject" placeholder="All Report Projects">
-            </div>
-            <div>
-                <label for="filterSubCenter" class="block text-sm font-medium text-gray-600">Sub Center</label>
-                <input id="filterSubCenter" placeholder="All Sub Centers">
+            <div class="glass-card rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Separated</p>
+                <p id="statSeparated" class="text-2xl font-display font-bold text-red-500">0</p>
             </div>
         </div>
-        <div class="mt-4 text-right">
-            <button id="resetFiltersBtn" class="text-sm font-medium text-green-700 hover:text-green-800">Reset Filters</button>
+
+        <!-- Navigation Menu -->
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+            <button onclick="app.filterByStatus('all')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-th-large"></i>
+                </div>
+                <div class="text-left">
+                    <p class="font-semibold text-gray-800 dark:text-gray-200">Dashboard</p>
+                    <p class="text-xs text-gray-500">Overview</p>
+                </div>
+            </button>
+
+            <button id="addEmployeeBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
+                <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div class="text-left">
+                    <p class="font-semibold text-gray-800 dark:text-gray-200">Add Employee</p>
+                    <p class="text-xs text-gray-500">Create new record</p>
+                </div>
+            </button>
+
+            <button id="bulkUploadBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
+                <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="text-left">
+                    <p class="font-semibold text-gray-800 dark:text-gray-200">Bulk Upload</p>
+                    <p class="text-xs text-gray-500">CSV Import</p>
+                </div>
+            </button>
+
+            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-4">Payroll</p>
+
+                <button id="uploadAttendanceBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic mb-2">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">Generate Salary</p>
+                        <p class="text-xs text-gray-500">Monthly processing</p>
+                    </div>
+                </button>
+
+                <button id="pastSalarySheetsBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic mb-2">
+                    <div class="w-10 h-10 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">Past Sheets</p>
+                        <p class="text-xs text-gray-500">View archives</p>
+                    </div>
+                </button>
+            </div>
+
+            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-4">Reports</p>
+
+                <button id="reportBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
+                    <div class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">Analytics</p>
+                        <p class="text-xs text-gray-500">Export reports</p>
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- User Profile -->
+        <div class="p-4 border-t border-white/20 dark:border-gray-700/30">
+            <div class="glass-card rounded-xl p-3 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
+                    A
+                </div>
+                <div class="flex-1">
+                    <p class="font-semibold text-sm text-gray-800 dark:text-gray-200">Admin User</p>
+                    <p class="text-xs text-gray-500">HR Manager</p>
+                </div>
+                <button id="toggleDarkMode" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="logoutBtn" class="text-red-500 hover:text-red-600 transition-colors tooltip" data-tooltip="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
         </div>
-    </div>
+    </aside>
 
-    <div class="mb-4 text-sm text-gray-600" id="filterCountDisplay">Loading employees...</div>
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col min-h-screen overflow-hidden">
+        <!-- Top Header -->
+        <header class="glass-panel sticky top-0 z-30 px-6 py-4 flex items-center justify-between border-b border-white/20 dark:border-gray-700/30">
+            <div class="flex-1 max-w-2xl">
+                <div class="relative group">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors"></i>
+                    <input type="text" id="globalSearch" placeholder="Search employees by name, ID, or project..."
+                           class="w-full pl-12 pr-4 py-3 rounded-xl bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none">
+                </div>
+            </div>
 
-    <main id="employee-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="flex items-center gap-4 ml-6">
+                <div class="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 glass-card px-4 py-2 rounded-lg">
+                    <i class="far fa-calendar-alt text-primary-500"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Filters Bar -->
+        <div class="px-6 py-4 border-b border-white/20 dark:border-gray-700/30 overflow-x-auto">
+            <div class="flex gap-3 min-w-max">
+                <button onclick="app.filterByStatus('Active')" class="filter-pill active px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium text-sm hover:shadow-lg transition-all border border-primary-200 dark:border-primary-800">
+                    <i class="fas fa-user-check mr-2"></i>Active
+                </button>
+                <button onclick="app.filterByStatus('Salary Held')" class="filter-pill px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-medium text-sm hover:shadow-lg transition-all border border-amber-200 dark:border-amber-800">
+                    <i class="fas fa-pause-circle mr-2"></i>On Hold
+                </button>
+                <button onclick="app.filterByStatus('Resigned')" class="filter-pill px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 font-medium text-sm hover:shadow-lg transition-all border border-yellow-200 dark:border-yellow-800">
+                    <i class="fas fa-user-minus mr-2"></i>Resigned
+                </button>
+                <button onclick="app.filterByStatus('Terminated')" class="filter-pill px-4 py-2 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-medium text-sm hover:shadow-lg transition-all border border-red-200 dark:border-red-800">
+                    <i class="fas fa-user-times mr-2"></i>Terminated
+                </button>
+                <button onclick="app.filterByStatus('Closed')" class="filter-pill px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium text-sm hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700">
+                    <i class="fas fa-archive mr-2"></i>Closed Files
+                </button>
+
+                <div class="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-2"></div>
+
+                <select id="projectFilter" class="px-4 py-2 rounded-full bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:border-primary-500 cursor-pointer">
+                    <option value="">All Projects</option>
+                </select>
+
+                <select id="subCenterFilter" class="px-4 py-2 rounded-full bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:border-primary-500 cursor-pointer">
+                    <option value="">All Sub Centers</option>
+                </select>
+
+                <button id="resetFiltersBtn" class="px-4 py-2 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition-colors">
+                    <i class="fas fa-sync-alt mr-1"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="flex-1 p-6 overflow-y-auto">
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden flex flex-col items-center justify-center h-96 text-center">
+                <div class="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <i class="fas fa-search text-3xl text-gray-400"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No employees found</h3>
+                <p class="text-gray-500 max-w-md">Try adjusting your filters or search criteria to find what you're looking for.</p>
+            </div>
+
+            <!-- Employee Grid -->
+            <div id="employee-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 perspective-container">
+                <!-- Cards injected here -->
+            </div>
+
+            <!-- Load More -->
+            <div id="loadMoreContainer" class="mt-8 text-center hidden">
+                <button onclick="app.loadMore()" class="px-8 py-3 rounded-full glass-card text-primary-700 dark:text-primary-300 font-semibold hover:shadow-xl transition-all btn-shine">
+                    Load More Employees
+                </button>
+            </div>
+        </div>
+
+        <footer class="glass-panel border-t border-white/20 dark:border-gray-700/30 px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p>&copy; 2025 Metal Plus Limited | Crafted by Md. Rakibul Islam Ratul</p>
+        </footer>
     </main>
-
-    <footer class="text-center text-xs text-gray-400 mt-12 border-t pt-4">&copy; 2025 Md. Rakibul Islam Ratul <br> Sr. Manager, Telecom Service, Metal</footer>
 </div>
 
-<div id="employeeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4">
-    <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl modal max-h-[90vh] flex flex-col transform scale-100" id="employeeModalContent">
-        <div class="flex justify-between items-center p-6 border-b flex-shrink-0">
-            <h2 id="modalTitle" class="font-poppins text-2xl font-semibold text-gray-900">Add/Edit Employee</h2>
-            <button type="button" id="cancelEmployeeModal_top" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-        </div>
-        <form id="employeeForm" class="flex-grow overflow-y-auto p-6">
-            <input type="hidden" id="employeeDocId"><input type="hidden" id="employeeStatus"><input type="hidden" id="employeeSalaryHeld"><input type="hidden" id="separationDateHidden"><input type="hidden" id="remarksHidden"><input type="hidden" id="originalEmployeeIdHidden"><input type="hidden" id="holdTimestampHidden"><input type="hidden" id="lastTransferDateHidden"><input type="hidden" id="lastSubcenterHidden"><input type="hidden" id="lastTransferReasonHidden">
-            <div class="space-y-6">
-                <div>
-                    <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Basic Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="employeeId" class="block text-sm font-medium text-gray-700">Employee ID<span class="text-red-500">*</span></label><input type="text" id="employeeId" required class="input"></div>
-                        <div><label for="name" class="block text-sm font-medium text-gray-700">Employee Name<span class="text-red-500">*</span></label><input type="text" id="name" required class="input"></div>
-                        <div>
-                            <label for="employeeType" class="block text-sm font-medium text-gray-700">Employee Type<span class="text-red-500">*</span></label>
-                            <select id="employeeType" required class="input-select">
-                                <option>Regular</option>
-                                <option>Casual</option>
-                                <option>Contractual</option>
-                                <option>Temporary</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="designation" class="block text-sm font-medium text-gray-700">Designation<span class="text-red-500">*</span></label>
-                            <input type="text" id="designation" required class="input" list="designation-list"><datalist id="designation-list"></datalist>
-                        </div>
-                        <div>
-                            <label for="functionalRole" class="block text-sm font-medium text-gray-700">Functional Role<span class="text-red-500">*</span></label>
-                            <input type="text" id="functionalRole" required class="input">
-                        </div>
-                        <div><label for="joiningDate" class="block text-sm font-medium text-gray-700">Joining Date<span class="text-red-500">*</span></label><input type="date" id="joiningDate" required class="input"></div>
-                        <div><label for="workExperience" class="block text-sm font-medium text-gray-700">Work Experience (Years)</label><input type="number" step="0.5" id="workExperience" class="input"></div>
-                        <div class="md:col-span-1"><label for="education" class="block text-sm font-medium text-gray-700">Education</label><input type="text" id="education" class="input"></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Project Details</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="project" class="block text-sm font-medium text-gray-700">Project<span class="text-red-500">*</span></label>
-                            <input type="text" id="project" required class="input" list="project-list"><datalist id="project-list"></datalist>
-                        </div>
-                        <div><label for="projectOffice" class="block text-sm font-medium text-gray-700">Project Office<span class="text-red-500">*</span></label>
-                            <input type="text" id="projectOffice" required class="input" list="projectOffice-list"><datalist id="projectOffice-list"></datalist>
-                        </div>
-                        <div><label for="reportProject" class="block text-sm font-medium text-gray-700">Report Project<span class="text-red-500">*</span></label>
-                            <input type="text" id="reportProject" required class="input" list="reportProject-list"><datalist id="reportProject-list"></datalist>
-                        </div>
-                        <div><label for="subCenter" class="block text-sm font-medium text-gray-700">Sub Center<span class="text-red-500">*</span></label>
-                            <input type="text" id="subCenter" required class="input" list="subCenter-list"><datalist id="subCenter-list"></datalist>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Personal Details</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="fatherName" class="block text-sm font-medium text-gray-700">Father's Name</label><input type="text" id="fatherName" class="input"></div>
-                        <div><label for="motherName" class="block text-sm font-medium text-gray-700">Mother's Name</label><input type="text" id="motherName" class="input"></div>
-                        <div><label for="personalMobile" class="block text-sm font-medium text-gray-700">Personal Mobile<span class="text-red-500">*</span></label><input type="tel" id="personalMobile" required class="input"></div>
-                        <div><label for="dob" class="block text-sm font-medium text-gray-700">Date of Birth<span class="text-red-500">*</span></label><input type="date" id="dob" required class="input"></div>
-                        <div><label for="bloodGroup" class="block text-sm font-medium text-gray-700">Blood Group</label><input type="text" id="bloodGroup" class="input"></div>
-                        <div><label for="identificationType" class="block text-sm font-medium text-gray-700">Identification Type<span class="text-red-500">*</span></label>
-                            <input type="text" id="identificationType" required class="input" list="identificationType-list">
-                            <datalist id="identificationType-list"></datalist>
-                        </div>
-                        <div><label for="identification" class="block text-sm font-medium text-gray-700">Identification No.<span class="text-red-500">*</span></label><input type="text" id="identification" required class="input"></div>
-                        <div class="md:col-span-4"><label for="address" class="block text-sm font-medium text-gray-700">Address<span class="text-red-500">*</span></label><input type="text" id="address" required class="input"></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Contact & Nominee</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="nomineeName" class="block text-sm font-medium text-gray-700">Nominee's Name</label><input type="text" id="nomineeName" class="input"></div>
-                        <div><label for="nomineeMobile" class="block text-sm font-medium text-gray-700">Nominee's Mobile</label><input type="tel" id="nomineeMobile" class="input"></div>
-                        <div><label for="officialMobile" class="block text-sm font-medium text-gray-700">Official Mobile Number</label><input type="tel" id="officialMobile" class="input"></div>
-                        <div><label for="mobileLimit" class="block text-sm font-medium text-gray-700">Mobile Limit</label><input type="number" step="0.01" id="mobileLimit" class="input"></div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="font-poppins text-lg font-medium text-gray-900 border-b pb-2 mb-4">Salary Details</h3>
-                    <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-4">Earnings</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="salary" class="block text-sm font-medium text-gray-700">Gross Salary (Bank)<span class="text-red-500">*</span></label><input type="number" step="0.01" id="salary" required class="input salary-component-earning"></div>
+<!-- Floating Action Button (Mobile) -->
+<button id="fabAdd" class="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg flex items-center justify-center text-xl fab z-40">
+    <i class="fas fa-plus"></i>
+</button>
 
-                        <div><label for="cashPayment" class="block text-sm font-medium text-gray-700">Cash Payment (Optional)</label><input type="number" step="0.01" id="cashPayment" class="input salary-component-earning"></div>
-                        <div><label for="basic" class="block text-sm font-medium text-gray-700">Basic<span class="text-red-500">*</span></label><input type="number" step="0.01" id="basic" required class="input"></div>
-                        <div><label for="others" class="block text-sm font-medium text-gray-700">Others<span class="text-red-500">*</span></label><input type="number" step="0.01" id="others" required class="input"></div>
-                        <div><label for="motobikeCarMaintenance" class="block text-sm font-medium text-gray-700">Motobike/Car Maintenance</label><input type="number" step="0.01" id="motobikeCarMaintenance" class="input salary-component-earning"></div>
-                        <div><label for="laptopRent" class="block text-sm font-medium text-gray-700">Laptop Rent</label><input type="number" step="0.01" id="laptopRent" class="input salary-component-earning"></div>
-                        <div><label for="othersAllowance" class="block text-sm font-medium text-gray-700">Others Allowance</label><input type="number" step="0.01" id="othersAllowance" class="input salary-component-earning"></div>
-                        <div><label for="arrear" class="block text-sm font-medium text-gray-700">Arrear</label><input type="number" step="0.01" id="arrear" class="input salary-component-earning"></div>
-                        <div><label for="foodAllowance" class="block text-sm font-medium text-gray-700">Food Allowance</label><input type="number" step="0.01" id="foodAllowance" class="input salary-component-earning"></div>
-                        <div><label for="stationAllowance" class="block text-sm font-medium text-gray-700">Station Allowance</label><input type="number" step="0.01" id="stationAllowance" class="input salary-component-earning"></div>
-                        <div><label for="hardshipAllowance" class="block text-sm font-medium text-gray-700">Hardship Allowance</label><input type="number" step="0.01" id="hardshipAllowance" class="input salary-component-earning"></div>
-                    </div>
-                    <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-6">Deductions</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="gratuity" class="block text-sm font-medium text-gray-700">Gratuity</label><input type="number" step="0.01" id="gratuity" class="input"></div>
-                        <div><label for="subsidizedLunch" class="block text-sm font-medium text-gray-700">Subsidized Lunch</label><input type="number" step="0.01" id="subsidizedLunch" class="input salary-component-deduction"></div>
-                        <div><label for="tds" class="block text-sm font-medium text-gray-700">TDS</label><input type="number" step="0.01" id="tds" class="input salary-component-deduction"></div>
-                        <div><label for="motorbikeLoan" class="block text-sm font-medium text-gray-700">Motorbike Loan</label><input type="number" step="0.01" id="motorbikeLoan" class="input salary-component-deduction"></div>
-                        <div><label for="welfareFund" class="block text-sm font-medium text-gray-700">Welfare Fund</label><input type="number" step="0.01" id="welfareFund" class="input salary-component-deduction"></div>
-                        <div><label for="salaryOthersLoan" class="block text-sm font-medium text-gray-700">Salary/ Others Loan</label><input type="number" step="0.01" id="salaryOthersLoan" class="input salary-component-deduction"></div>
-                        <div><label for="subsidizedVehicle" class="block text-sm font-medium text-gray-700">Subsidized Vehicle</label><input type="number" step="0.01" id="subsidizedVehicle" class="input salary-component-deduction"></div>
-                        <div><label for="lwp" class="block text-sm font-medium text-gray-700">LWP</label><input type="number" step="0.01" id="lwp" class="input salary-component-deduction"></div>
-                        <div><label for="cpf" class="block text-sm font-medium text-gray-700">CPF</label><input type="number" step="0.01" id="cpf" class="input salary-component-deduction"></div>
-                        <div><label for="othersAdjustment" class="block text-sm font-medium text-gray-700">Others Adjustment</label><input type="number" step="0.01" id="othersAdjustment" class="input salary-component-deduction"></div>
-                    </div>
-                    <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-6">Totals</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 p-4 bg-gray-50 rounded-lg border">
-                        <div><label for="grandTotal" class="block text-sm font-medium text-gray-700">Grand Total (Bank+Cash)</label><input type="number" step="0.01" id="grandTotal" class="input input-readonly" readonly></div>
-                        <div><label for="totalDeduction" class="block text-sm font-medium text-gray-700">Total Deduction (Auto)</label><input type="number" step="0.01" id="totalDeduction" class="input input-readonly" readonly></div>
-                        <div><label for="netSalaryPayment" class="block text-sm font-medium text-gray-700">Net Salary Payment (Total)</label><input type="number" step="0.01" id="netSalaryPayment" class="input input-readonly" readonly></div>
-                    </div>
-                    <h4 class="font-poppins text-md font-medium text-gray-700 mb-2 mt-6">Bank</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
-                        <div><label for="bankAccount" class="block text-sm font-medium text-gray-700">Bank Account Number</label><input type="text" id="bankAccount" class="input"></div>
-                    </div>
+<!-- Modals with Modern Styling -->
+
+<!-- Employee Modal -->
+<div id="employeeModal" class="fixed inset-0 z-50 hidden overflow-y-auto backdrop-blur-sm bg-black/40 p-4">
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all scale-95 opacity-0 modal-content">
+            <!-- Modal Header -->
+            <div class="px-8 py-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gradient-to-r from-primary-50/50 to-transparent dark:from-primary-900/20">
+                <div>
+                    <h2 id="modalTitle" class="text-2xl font-display font-bold text-gray-900 dark:text-white">Add Employee</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Enter employee details carefully</p>
                 </div>
+                <button onclick="app.closeModal('employeeModal')" class="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors">
+                    <i class="fas fa-times text-xl text-gray-500"></i>
+                </button>
             </div>
-            <div class="mt-8 flex justify-end gap-4 flex-shrink-0 pt-6 border-t">
-                <button type="button" id="cancelEmployeeModal" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Employee</button>
+
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-y-auto p-8">
+                <form id="employeeForm" class="space-y-8">
+                    <!-- Hidden inputs -->
+                    <input type="hidden" id="employeeDocId">
+                    <input type="hidden" id="originalEmployeeIdHidden">
+
+                    <!-- Personal Info -->
+                    <section class="space-y-4">
+                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+                            <i class="fas fa-user-circle"></i> Personal Information
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Employee ID</label>
+                                <input type="text" id="employeeId" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+                                <input type="text" id="name" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Employee Type</label>
+                                <select id="employeeType" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                                    <option>Regular</option>
+                                    <option>Casual</option>
+                                    <option>Contractual</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Designation</label>
+                                <input type="text" id="designation" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Functional Role</label>
+                                <input type="text" id="functionalRole" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Joining Date</label>
+                                <input type="date" id="joiningDate" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Project Info -->
+                    <section class="space-y-4">
+                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+                            <i class="fas fa-building"></i> Project Assignment
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project</label>
+                                <input type="text" id="project" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Office</label>
+                                <input type="text" id="projectOffice" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Report Project</label>
+                                <input type="text" id="reportProject" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Sub Center</label>
+                                <input type="text" id="subCenter" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Salary Section with Visual Calculator -->
+                    <section class="space-y-4">
+                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+                            <i class="fas fa-money-bill-wave"></i> Compensation
+                        </h3>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Earnings -->
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Earnings</h4>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                                        <label class="text-xs font-medium">Gross Salary</label>
+                                        <input type="number" id="salary" class="w-24 text-right bg-transparent font-semibold text-primary-600 outline-none" value="0">
+                                    </div>
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                        <label class="text-xs">Cash Payment</label>
+                                        <input type="number" id="cashPayment" class="w-24 text-right bg-transparent outline-none" value="0">
+                                    </div>
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                        <label class="text-xs">Basic</label>
+                                        <input type="number" id="basic" class="w-24 text-right bg-transparent outline-none" value="0">
+                                    </div>
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                        <label class="text-xs">Allowances</label>
+                                        <input type="number" id="others" class="w-24 text-right bg-transparent outline-none" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Deductions -->
+                            <div class="space-y-3">
+                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider text-red-500">Deductions</h4>
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30">
+                                        <label class="text-xs font-medium text-red-700 dark:text-red-400">TDS</label>
+                                        <input type="number" id="tds" class="w-24 text-right bg-transparent font-semibold text-red-600 outline-none" value="0">
+                                    </div>
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10">
+                                        <label class="text-xs text-red-600 dark:text-red-400">Lunch</label>
+                                        <input type="number" id="subsidizedLunch" class="w-24 text-right bg-transparent outline-none" value="0">
+                                    </div>
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10">
+                                        <label class="text-xs text-red-600 dark:text-red-400">Loans</label>
+                                        <input type="number" id="motorbikeLoan" class="w-24 text-right bg-transparent outline-none" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Summary Card -->
+                            <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-primary-50 to-emerald-50 dark:from-primary-900/20 dark:to-emerald-900/10 border border-primary-200 dark:border-primary-800">
+                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Net Summary</h4>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center pb-2 border-b border-primary-200 dark:border-primary-800">
+                                        <span class="text-xs text-gray-600 dark:text-gray-400">Gross Total</span>
+                                        <span id="grandTotal" class="font-bold text-gray-800 dark:text-gray-200">৳0</span>
+                                    </div>
+                                    <div class="flex justify-between items-center pb-2 border-b border-red-200 dark:border-red-800/30">
+                                        <span class="text-xs text-red-600 dark:text-red-400">Deductions</span>
+                                        <span id="totalDeduction" class="font-bold text-red-600">৳0</span>
+                                    </div>
+                                    <div class="flex justify-between items-center pt-1">
+                                        <span class="text-sm font-bold text-primary-800 dark:text-primary-400">Net Payable</span>
+                                        <span id="netSalaryPayment" class="text-2xl font-bold text-primary-600 dark:text-primary-400">৳0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </form>
             </div>
-        </form>
-    </div>
-</div>
 
-<div id="bulkUploadModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal"> <h2 class="font-poppins text-2xl font-semibold mb-2">Bulk Upload Employees</h2> <p class="text-gray-500 mb-6 text-sm">
-    Upload a CSV file with employee data. Ensure the following columns have valid data for every row:
-    <br>
-    <strong>Employee ID</strong>, <strong>Employee Name</strong>, <strong>Employee Type</strong>, <strong>Designation</strong>, <strong>Functional Role</strong>, <strong>Joining Date</strong>, <strong>Project</strong>, <strong>Project Office</strong>, <strong>Report Project</strong>, <strong>Sub Center</strong>, <strong>Personal Mobile Number</strong>, <strong>Date of Birth</strong>, <strong>Address</strong>, <strong>Identification Type</strong>, <strong>Identification</strong>, <strong>Gross Salary</strong>, <strong>Basic</strong>, <strong>Others</strong>.
-    <br>
-    Download the template for all headers.
-</p> <form id="bulkUploadForm"> <div class="space-y-4"> <div> <label for="employeeFile" class="block text-sm font-medium text-gray-700">Employee Data File (.csv)</label> <p class="text-xs text-gray-500 mb-2">Download the template to see all required and optional headers.</p> <input type="file" id="employeeFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100"> </div> </div> <div class="mt-8 flex justify-between items-center gap-4"> <button type="button" id="downloadTemplateBtn" class="text-sm font-medium text-green-700 hover:text-green-800">Download Template</button> <div class="flex gap-4"> <button type="button" id="cancelBulkUploadModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="bulkUploadForm" class="btn btn-primary">Upload & Save</button> </div> </div> </form> </div> </div>
-
-<div id="statusChangeModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
-    <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
-        <h2 id="statusChangeTitle" class="font-poppins text-2xl font-semibold mb-6">Update Employee Status</h2>
-        <form id="statusChangeForm">
-            <input type="hidden" id="statusChangeEmployeeId">
-            <input type="hidden" id="statusChangeNewStatus">
-            <div class="space-y-4">
-                <div id="separationDateContainer">
-                    <label for="separationDate" class="block text-sm font-medium text-gray-700">
-                        <span id="separationDateLabel">Date</span><span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="separationDate" required class="input">
-                </div>
-                <div>
-                    <label for="remarks" class="block text-sm font-medium text-gray-700">Remarks<span class="text-red-500">*</span></label>
-                    <textarea id="remarks" rows="3" class="input" required></textarea>
-                </div>
+            <!-- Modal Footer -->
+            <div class="px-8 py-5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-gray-900/50">
+                <button onclick="app.closeModal('employeeModal')" class="px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">Cancel</button>
+                <button onclick="app.submitEmployee()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-medium shadow-lg shadow-primary-500/30 hover:shadow-xl hover:scale-105 transition-all btn-shine">
+                    Save Employee
+                </button>
             </div>
-            <div class="mt-8 flex justify-end gap-4">
-                <button type="button" id="cancelStatusChangeModal" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Update Status</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="viewDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-4xl modal max-h-[90vh] flex flex-col"> <h2 class="font-poppins text-2xl font-semibold mb-6 flex-shrink-0 text-gray-900">Employee Details</h2> <div id="viewDetailsContent" class="flex-grow overflow-y-auto pr-4"></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0 pt-4 border-t"> <button type="button" id="closeViewDetailsModal" class="btn btn-secondary">Close</button> </div> </div> </div>
-
-<div id="attendanceModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
-    <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
-        <h2 class="font-poppins text-2xl font-semibold mb-6">Generate Salary Sheet</h2>
-        <form id="attendanceForm">
-            <div class="space-y-4">
-                <div>
-                    <label for="salaryMonth" class="block text-sm font-medium text-gray-700">Select Month</label>
-                    <input type="month" id="salaryMonth" required class="input">
-                </div>
-
-                <div>
-                    <label for="attendanceFile" class="block text-sm font-medium text-gray-700">Attendance File (.csv)</label>
-                    <p class="text-xs text-gray-500 mb-1">
-                        Required columns: <strong>employeeId, net present, total working days</strong>.
-                    </p>
-                    <input type="file" id="attendanceFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100">
-                </div>
-
-                <div>
-                    <label for="accountabilityFile" class="block text-sm font-medium text-gray-700">Common Account Holder File (.csv)</label>
-                    <p class="text-xs text-gray-500 mb-1">
-                        Required columns: <strong>reportproject, subcenter, accountableemployeename, accountableemployeeid</strong>.
-                    </p>
-                    <input type="file" id="accountabilityFile" accept=".csv" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
-                </div>
-            </div>
-            <div class="mt-8 flex justify-end gap-4">
-                <button type="button" id="cancelAttendanceModal" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Generate Sheet</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="salarySheetModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-5xl modal h-full max-h-[90vh] flex flex-col"> <div class="flex-shrink-0"><h2 class="font-poppins text-2xl font-semibold mb-2">Salary Sheet</h2><p id="sheetMonthYear" class="text-gray-500 mb-6"></p></div> <div class="flex-grow overflow-y-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deduction</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody id="salarySheetBody" class="bg-white divide-y divide-gray-200"></tbody></table></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0"><button type="button" id="closeSheetModal" class="btn btn-secondary">Close</button></div> </div> </div>
-
-<div id="viewSheetsModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-2xl modal h-full max-h-[90vh] flex flex-col"> <h2 class="font-poppins text-2xl font-semibold mb-6 flex-shrink-0">Past Salary Sheets</h2> <div id="pastSheetsList" class="flex-grow overflow-y-auto space-y-3"></div> <div class="mt-8 flex justify-end gap-4 flex-shrink-0"><button type="button" id="closePastSheetsModal" class="btn btn-secondary">Close</button></div> </div> </div>
-
-<div id="alertModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal text-center"><h3 id="alertTitle" class="font-poppins text-xl font-semibold mb-4"></h3><p id="alertMessage" class="text-gray-600 mb-6 text-left"></p><button id="alertOkBtn" class="btn btn-primary w-full">OK</button></div> </div>
-
-<div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden"> <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-sm modal text-center"><h3 id="confirmTitle" class="font-poppins text-xl font-semibold mb-4">Confirmation</h3><p id="confirmMessage" class="text-gray-600 mb-6"></p><div class="flex justify-center gap-4"><button id="confirmCancelBtn" class="btn btn-secondary w-1.2">Cancel</button><button id="confirmOkBtn" class="btn btn-danger w-1.2">Confirm</button></div></div> </div>
-
-<div id="transferModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden p-4"> <div class="bg-white rounded-lg shadow-2xl w-full max-w-md modal flex flex-col max-h-[90vh]"> <div class="p-6 border-b flex-shrink-0"><h2 class="font-poppins text-2xl font-semibold text-gray-900">Transfer Employee</h2></div> <div class="p-6 flex-grow overflow-y-auto"> <form id="transferForm"> <input type="hidden" id="transferEmployeeId"><input type="hidden" id="transferEmployeeName"> <p class="mb-4">Transferring: <strong id="transferEmployeeNameDisplay"></strong> (<span id="transferEmployeeIdDisplay"></span>)</p> <div class="space-y-4"> <div><label for="currentSubCenter" class="block text-sm font-medium text-gray-700">Current Sub Center</label><input type="text" id="currentSubCenter" readonly class="input bg-gray-100 cursor-not-allowed"></div> <div><label for="transferProject" class="block text-sm font-medium text-gray-700">New Project<span class="text-red-500">*</span></label><select id="transferProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferProjectOffice" class="block text-sm font-medium text-gray-700">New Project Office<span class="text-red-500">*</span></label><select id="transferProjectOffice" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="newSubCenter" class="block text-sm font-medium text-gray-700">New Sub Center<span class="text-red-500">*</span></label><select id="newSubCenter" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferReportProject" class="block text-sm font-medium text-gray-700">New Report Project<span class="text-red-500">*</span></label><select id="transferReportProject" required class="input-select"><option value="" disabled selected>Loading...</option></select></div> <div><label for="transferDate" class="block text-sm font-medium text-gray-700">Transfer Date<span class="text-red-500">*</span></label><input type="date" id="transferDate" required class="input"></div> <div><label for="transferReason" class="block text-sm font-medium text-gray-700">Reason for Transfer<span class="text-red-500">*</span></label><textarea id="transferReason" rows="3" required class="input"></textarea></div> </div> <div id="transferError" class="text-red-600 text-sm mt-4 hidden"></div> </form> </div> <div class="p-6 border-t flex justify-end gap-4 flex-shrink-0"> <button type="button" id="cancelTransferModal" class="btn btn-secondary">Cancel</button> <button type="submit" form="transferForm" class="btn btn-primary">Confirm Transfer</button> </div> </div> </div>
-
-<div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
-    <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-lg modal">
-        <h2 class="font-poppins text-2xl font-semibold mb-6">Download Reports</h2>
-        <p class="text-gray-500 mb-6 text-sm">Select a report to download as a .csv file.</p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button id="downloadEmployeeDatabase" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-database mr-2"></i> Employee Database
-            </button>
-            <button id="downloadHoldLog" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-pause-circle mr-2"></i> Salary Hold Log
-            </button>
-            <button id="downloadSeparationLog" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-user-minus mr-2"></i> Separation Log
-            </button>
-            <button id="downloadTransferLog" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-exchange-alt mr-2"></i> Transfer Log
-            </button>
-
-            <button id="downloadFileCloseLog" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-file-archive mr-2"></i> File Close Log
-            </button>
-
-            <button id="generatePayslipBtn" class="btn btn-secondary text-left justify-start w-full">
-                <i class="fas fa-file-invoice-dollar mr-2"></i> Download Payslips
-            </button>
-        </div>
-
-        <div class="mt-8 flex justify-end gap-4">
-            <button type="button" id="cancelReportModal" class="btn btn-secondary">Close</button>
         </div>
     </div>
 </div>
 
-<div id="fileClosingModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop hidden">
-    <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md modal">
-        <h2 id="fileClosingModalTitle" class="font-poppins text-2xl font-semibold mb-6">Close Employee File</h2>
-        <form id="fileClosingForm">
-            <input type="hidden" id="fileClosingEmployeeId">
-            <div class="space-y-4">
-                <div>
-                    <label for="fileClosingDate" class="block text-sm font-medium text-gray-700">
-                        File Closing Date<span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" id="fileClosingDate" required class="input">
-                </div>
-                <div>
-                    <label for="fileClosingRemarks" class="block text-sm font-medium text-gray-700">
-                        File Closing Remarks<span class="text-red-500">*</span>
-                    </label>
-                    <textarea id="fileClosingRemarks" rows="3" class="input" required></textarea>
-                </div>
-            </div>
-            <div class="mt-8 flex justify-end gap-4">
-                <button type="button" id="cancelFileClosingModal" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Confirm File Closing</button>
-            </div>
-        </form>
+<!-- Toast Notification Template -->
+<div id="toastTemplate" class="hidden">
+    <div class="toast flex items-center gap-3 bg-white dark:bg-gray-800 border-l-4 shadow-lg rounded-lg p-4 min-w-[300px] transform translate-x-full transition-transform duration-300">
+        <div class="toast-icon w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
+        <div class="flex-1">
+            <h4 class="font-semibold text-sm text-gray-900 dark:text-white toast-title"></h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400 toast-message"></p>
+        </div>
+        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-
+<!-- External Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 
-<script type="module" src="js/main.js"></script>
-
+<!-- App Script -->
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
