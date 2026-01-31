@@ -5,816 +5,302 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <title>Metal Plus | HR Management System</title>
-
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['Space Grotesk', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'] },
                     colors: {
-                        primary: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            300: '#86efac',
-                            400: '#4ade80',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
-                        },
-                        emerald: {
-                            450: '#10b981',
-                        }
-                    },
-                    animation: {
-                        'gradient': 'gradient 8s linear infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        gradient: {
-                            '0%, 100%': { backgroundPosition: '0% 50%' },
-                            '50%': { backgroundPosition: '100% 50%' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' },
-                        }
+                        primary: { 50:'#f0fdf4', 100:'#dcfce7', 200:'#bbf7d0', 300:'#86efac', 400:'#4ade80', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 800:'#166534', 900:'#14532d' }
                     }
                 }
             }
         }
     </script>
-
     <style>
-        /* ========== CSS VARIABLES & THEMING ========== */
-        :root {
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-            --primary-glow: rgba(22, 163, 74, 0.3);
-        }
-
-        .dark {
-            --glass-bg: rgba(17, 24, 39, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-            --primary-glow: rgba(34, 197, 94, 0.4);
-        }
-
-        /* ========== BASE STYLES ========== */
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #d1fae5 100%);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-            overflow-x: hidden;
-        }
-
-        .dark body {
-            background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #111827 100%);
-            background-size: 400% 400%;
-        }
-
-        /* ========== GLASSMORPHISM COMPONENTS ========== */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--glass-shadow);
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .dark .glass-card {
-            background: rgba(31, 41, 55, 0.6);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .glass-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(22, 163, 74, 0.15);
-            border-color: rgba(34, 197, 94, 0.3);
-        }
-
-        /* ========== 3D CARD EFFECTS ========== */
-        .perspective-container {
-            perspective: 2000px;
-        }
-
-        .card-3d {
-            transform-style: preserve-3d;
-            transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .card-3d:hover {
-            transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y)) translateZ(30px);
-        }
-
-        .card-content-glow {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(
-                600px circle at var(--mouse-x) var(--mouse-y),
-                rgba(34, 197, 94, 0.15),
-                transparent 40%
-            );
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            border-radius: inherit;
-        }
-
-        .card-3d:hover .card-content-glow {
-            opacity: 1;
-        }
-
-        /* ========== NAVIGATION ========== */
-        .nav-link {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #22c55e, transparent);
-            transform: translateX(-100%);
-            transition: transform 0.6s;
-        }
-
-        .nav-link:hover::before {
-            transform: translateX(100%);
-        }
-
-        /* ========== BUTTON ANIMATIONS ========== */
-        .btn-magnetic {
-            transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .btn-shine {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-shine::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(
-                to right,
-                transparent 0%,
-                rgba(255,255,255,0.3) 50%,
-                transparent 100%
-            );
-            transform: rotate(30deg) translateX(-100%);
-            transition: transform 0.6s;
-        }
-
-        .btn-shine:hover::after {
-            transform: rotate(30deg) translateX(100%);
-        }
-
-        /* ========== MODAL ANIMATIONS ========== */
-        .modal-enter {
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-        }
-
-        .modal-enter-active {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .modal-exit {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .modal-exit-active {
-            opacity: 0;
-            transform: scale(0.9);
-            transition: all 0.3s ease-in;
-        }
-
-        /* ========== CUSTOM SCROLLBAR ========== */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
-            border-radius: 5px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #22c55e, #16a34a);
-            border-radius: 5px;
-            border: 2px solid transparent;
-            background-clip: padding-box;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #16a34a, #15803d);
-            border: 2px solid transparent;
-            background-clip: padding-box;
-        }
-
-        /* ========== LOADING ANIMATIONS ========== */
-        .loader-ring {
-            display: inline-block;
-            width: 80px;
-            height: 80px;
-        }
-
-        .loader-ring:after {
-            content: " ";
-            display: block;
-            width: 64px;
-            height: 64px;
-            margin: 8px;
-            border-radius: 50%;
-            border: 6px solid #22c55e;
-            border-color: #22c55e transparent #22c55e transparent;
-            animation: ring 1.2s linear infinite;
-        }
-
-        @keyframes ring {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ========== SKELETON LOADING ========== */
-        .skeleton {
-            background: linear-gradient(90deg, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.05) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* ========== STATS COUNTER ========== */
-        .stat-value {
-            background: linear-gradient(135deg, #166534, #22c55e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
-        }
-
-        /* ========== FLOATING ACTION BUTTON ========== */
-        .fab {
-            box-shadow: 0 10px 30px rgba(22, 163, 74, 0.4);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        }
-
-        .fab:hover {
-            transform: translateY(-3px) scale(1.1);
-            box-shadow: 0 15px 40px rgba(22, 163, 74, 0.5);
-        }
-
-        /* ========== TOOLTIP ========== */
-        .tooltip {
-            position: relative;
-        }
-
-        .tooltip::before {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(-5px);
-            padding: 6px 12px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.2s;
-        }
-
-        .tooltip:hover::before {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-10px);
-        }
-
-        /* ========== TOAST NOTIFICATIONS ========== */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .toast {
-            background: white;
-            border-left: 4px solid #22c55e;
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transform: translateX(120%);
-            animation: slideIn 0.4s forwards;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        @keyframes slideIn {
-            to { transform: translateX(0); }
-        }
-
-        .toast.success { border-left-color: #22c55e; }
-        .toast.error { border-left-color: #ef4444; }
-        .toast.warning { border-left-color: #f59e0b; }
-
-        /* ========== DASHBOARD GRID ========== */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 2rem;
-            padding: 2rem;
-            max-width: 1920px;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 1024px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-                padding: 1rem;
-            }
-        }
+        /* ... (Keep your existing CSS for glass-panel, card-3d, etc.) ... */
+        .modal-content { transition: all 0.3s ease-out; }
     </style>
 </head>
-<body class="text-gray-800 dark:text-gray-100 transition-colors duration-300">
+<body class="text-gray-800 dark:text-gray-100 transition-colors duration-300 bg-gray-50 dark:bg-gray-900">
 
-<!-- Toast Container -->
-<div id="toastContainer" class="toast-container"></div>
+<div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
 
-<!-- Loading Overlay -->
 <div id="loadingOverlay" class="fixed inset-0 z-[200] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center hidden">
     <div class="text-center">
-        <div class="loader-ring mb-4"></div>
-        <p class="text-primary-700 font-semibold animate-pulse">Processing Data...</p>
+        <div class="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+        <p class="text-primary-700 font-semibold animate-pulse">Processing...</p>
     </div>
 </div>
 
-<!-- Main Layout -->
 <div class="min-h-screen flex flex-col lg:flex-row">
-
-    <!-- Sidebar Navigation -->
     <aside class="lg:w-80 w-full glass-panel lg:h-screen lg:sticky lg:top-0 z-40 flex flex-col border-r border-white/20 dark:border-gray-700/30">
-        <!-- Logo Area -->
-        <div class="p-6 border-b border-white/20 dark:border-gray-700/30 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/30">
-                    <i class="fas fa-users-cog text-white text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-display font-bold text-xl text-gray-900 dark:text-white leading-tight">Metal Plus</h1>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">HRMS Telecom</p>
-                </div>
-            </div>
-            <button id="mobileMenuBtn" class="lg:hidden text-gray-600 dark:text-gray-300">
-                <i class="fas fa-bars text-xl"></i>
-            </button>
+        <div class="p-6">
+            <h1 class="text-2xl font-bold text-primary-700">Metal Plus</h1>
         </div>
-
-        <!-- Stats Overview -->
-        <div class="p-6 grid grid-cols-2 gap-3 border-b border-white/20 dark:border-gray-700/30">
-            <div class="glass-card rounded-xl p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Staff</p>
-                <p id="statTotal" class="stat-value text-2xl font-display">0</p>
-            </div>
-            <div class="glass-card rounded-xl p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Active</p>
-                <p id="statActive" class="text-2xl font-display font-bold text-primary-600 dark:text-primary-400">0</p>
-            </div>
-            <div class="glass-card rounded-xl p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">On Hold</p>
-                <p id="statHeld" class="text-2xl font-display font-bold text-amber-500">0</p>
-            </div>
-            <div class="glass-card rounded-xl p-3 text-center">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Separated</p>
-                <p id="statSeparated" class="text-2xl font-display font-bold text-red-500">0</p>
-            </div>
-        </div>
-
-        <!-- Navigation Menu -->
-        <nav class="flex-1 overflow-y-auto p-4 space-y-2">
-            <button onclick="app.filterByStatus('all')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group">
-                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fas fa-th-large"></i>
-                </div>
-                <div class="text-left">
-                    <p class="font-semibold text-gray-800 dark:text-gray-200">Dashboard</p>
-                    <p class="text-xs text-gray-500">Overview</p>
-                </div>
-            </button>
-
-            <button id="addEmployeeBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
-                <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fas fa-plus"></i>
-                </div>
-                <div class="text-left">
-                    <p class="font-semibold text-gray-800 dark:text-gray-200">Add Employee</p>
-                    <p class="text-xs text-gray-500">Create new record</p>
-                </div>
-            </button>
-
-            <button id="bulkUploadBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
-                <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <div class="text-left">
-                    <p class="font-semibold text-gray-800 dark:text-gray-200">Bulk Upload</p>
-                    <p class="text-xs text-gray-500">CSV Import</p>
-                </div>
-            </button>
-
-            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-4">Payroll</p>
-
-                <button id="uploadAttendanceBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic mb-2">
-                    <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-calculator"></i>
-                    </div>
-                    <div class="text-left">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">Generate Salary</p>
-                        <p class="text-xs text-gray-500">Monthly processing</p>
-                    </div>
-                </button>
-
-                <button id="pastSalarySheetsBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic mb-2">
-                    <div class="w-10 h-10 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <div class="text-left">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">Past Sheets</p>
-                        <p class="text-xs text-gray-500">View archives</p>
-                    </div>
-                </button>
-            </div>
-
-            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-4">Reports</p>
-
-                <button id="reportBtn" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group btn-magnetic">
-                    <div class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-chart-pie"></i>
-                    </div>
-                    <div class="text-left">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">Analytics</p>
-                        <p class="text-xs text-gray-500">Export reports</p>
-                    </div>
-                </button>
-            </div>
+        <nav class="p-4 space-y-2">
+            <button id="addEmployeeBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded">Add Employee</button>
+            <button id="bulkUploadBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded">Bulk Upload</button>
+            <button id="uploadAttendanceBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded">Generate Salary</button>
+            <button id="pastSalarySheetsBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded">Past Sheets</button>
+            <button id="reportBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded">Reports</button>
         </nav>
-
-        <!-- User Profile -->
-        <div class="p-4 border-t border-white/20 dark:border-gray-700/30">
-            <div class="glass-card rounded-xl p-3 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
-                    A
-                </div>
-                <div class="flex-1">
-                    <p class="font-semibold text-sm text-gray-800 dark:text-gray-200">Admin User</p>
-                    <p class="text-xs text-gray-500">HR Manager</p>
-                </div>
-                <button id="toggleDarkMode" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button id="logoutBtn" class="text-red-500 hover:text-red-600 transition-colors tooltip" data-tooltip="Logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </div>
+        <div class="mt-auto p-4">
+            <button id="logoutBtn" class="text-red-500">Logout</button>
+            <button id="toggleDarkMode" class="text-gray-500 ml-4">Dark Mode</button>
         </div>
     </aside>
 
-    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col min-h-screen overflow-hidden">
-        <!-- Top Header -->
-        <header class="glass-panel sticky top-0 z-30 px-6 py-4 flex items-center justify-between border-b border-white/20 dark:border-gray-700/30">
-            <div class="flex-1 max-w-2xl">
-                <div class="relative group">
-                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors"></i>
-                    <input type="text" id="globalSearch" placeholder="Search employees by name, ID, or project..."
-                           class="w-full pl-12 pr-4 py-3 rounded-xl bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 transition-all outline-none">
-                </div>
-            </div>
-
-            <div class="flex items-center gap-4 ml-6">
-                <div class="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 glass-card px-4 py-2 rounded-lg">
-                    <i class="far fa-calendar-alt text-primary-500"></i>
-                    <span id="currentDate"></span>
-                </div>
-            </div>
+        <header class="p-4 border-b flex justify-between items-center">
+            <input type="text" id="globalSearch" placeholder="Search..." class="p-2 border rounded w-96">
+            <div id="filterCountDisplay" class="text-sm text-gray-500"></div>
+            <span id="currentDate"></span>
         </header>
 
-        <!-- Filters Bar -->
-        <div class="px-6 py-4 border-b border-white/20 dark:border-gray-700/30 overflow-x-auto">
-            <div class="flex gap-3 min-w-max">
-                <button onclick="app.filterByStatus('Active')" class="filter-pill active px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium text-sm hover:shadow-lg transition-all border border-primary-200 dark:border-primary-800">
-                    <i class="fas fa-user-check mr-2"></i>Active
-                </button>
-                <button onclick="app.filterByStatus('Salary Held')" class="filter-pill px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-medium text-sm hover:shadow-lg transition-all border border-amber-200 dark:border-amber-800">
-                    <i class="fas fa-pause-circle mr-2"></i>On Hold
-                </button>
-                <button onclick="app.filterByStatus('Resigned')" class="filter-pill px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 font-medium text-sm hover:shadow-lg transition-all border border-yellow-200 dark:border-yellow-800">
-                    <i class="fas fa-user-minus mr-2"></i>Resigned
-                </button>
-                <button onclick="app.filterByStatus('Terminated')" class="filter-pill px-4 py-2 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-medium text-sm hover:shadow-lg transition-all border border-red-200 dark:border-red-800">
-                    <i class="fas fa-user-times mr-2"></i>Terminated
-                </button>
-                <button onclick="app.filterByStatus('Closed')" class="filter-pill px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium text-sm hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700">
-                    <i class="fas fa-archive mr-2"></i>Closed Files
-                </button>
-
-                <div class="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-2"></div>
-
-                <select id="projectFilter" class="px-4 py-2 rounded-full bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:border-primary-500 cursor-pointer">
-                    <option value="">All Projects</option>
-                </select>
-
-                <select id="subCenterFilter" class="px-4 py-2 rounded-full bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:border-primary-500 cursor-pointer">
-                    <option value="">All Sub Centers</option>
-                </select>
-
-                <button id="resetFiltersBtn" class="px-4 py-2 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm transition-colors">
-                    <i class="fas fa-sync-alt mr-1"></i> Reset
-                </button>
-            </div>
+        <div class="p-4 flex gap-2 overflow-x-auto">
+            <button id="resetFiltersBtn" class="p-2 text-sm text-red-500">Reset</button>
         </div>
 
-        <!-- Content Grid -->
         <div class="flex-1 p-6 overflow-y-auto">
-            <!-- Empty State -->
-            <div id="emptyState" class="hidden flex flex-col items-center justify-center h-96 text-center">
-                <div class="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                    <i class="fas fa-search text-3xl text-gray-400"></i>
-                </div>
-                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No employees found</h3>
-                <p class="text-gray-500 max-w-md">Try adjusting your filters or search criteria to find what you're looking for.</p>
-            </div>
-
-            <!-- Employee Grid -->
             <div id="employee-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 perspective-container">
-                <!-- Cards injected here -->
             </div>
-
-            <!-- Load More -->
             <div id="loadMoreContainer" class="mt-8 text-center hidden">
-                <button onclick="app.loadMore()" class="px-8 py-3 rounded-full glass-card text-primary-700 dark:text-primary-300 font-semibold hover:shadow-xl transition-all btn-shine">
-                    Load More Employees
-                </button>
+                <button onclick="app.loadMore()" class="btn-primary">Load More</button>
             </div>
         </div>
-
-        <footer class="glass-panel border-t border-white/20 dark:border-gray-700/30 px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            <p>&copy; 2025 Metal Plus Limited | Crafted by Md. Rakibul Islam Ratul</p>
-        </footer>
     </main>
 </div>
 
-<!-- Floating Action Button (Mobile) -->
-<button id="fabAdd" class="fixed bottom-6 right-6 lg:hidden w-14 h-14 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg flex items-center justify-center text-xl fab z-40">
-    <i class="fas fa-plus"></i>
-</button>
+<div id="employeeModal" class="fixed inset-0 z-50 hidden overflow-y-auto backdrop-blur-sm bg-black/40 p-4 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col modal-content">
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+            <h2 id="modalTitle" class="text-xl font-bold">Add Employee</h2>
+            <button id="cancelEmployeeModal" class="text-gray-500 hover:text-red-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto">
+            <form id="employeeForm" class="space-y-6">
+                <input type="hidden" id="employeeDocId">
+                <input type="hidden" id="originalEmployeeIdHidden">
+                <input type="hidden" id="employeeStatus">
+                <input type="hidden" id="employeeSalaryHeld">
+                <input type="hidden" id="separationDateHidden">
+                <input type="hidden" id="remarksHidden">
+                <input type="hidden" id="holdTimestampHidden">
+                <input type="hidden" id="lastTransferDateHidden">
+                <input type="hidden" id="lastSubcenterHidden">
+                <input type="hidden" id="lastTransferReasonHidden">
 
-<!-- Modals with Modern Styling -->
-
-<!-- Employee Modal -->
-<div id="employeeModal" class="fixed inset-0 z-50 hidden overflow-y-auto backdrop-blur-sm bg-black/40 p-4">
-    <div class="min-h-screen flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col transform transition-all scale-95 opacity-0 modal-content">
-            <!-- Modal Header -->
-            <div class="px-8 py-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gradient-to-r from-primary-50/50 to-transparent dark:from-primary-900/20">
-                <div>
-                    <h2 id="modalTitle" class="text-2xl font-display font-bold text-gray-900 dark:text-white">Add Employee</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Enter employee details carefully</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="text" id="employeeId" placeholder="Employee ID *" class="input-field" required>
+                    <input type="text" id="name" placeholder="Full Name *" class="input-field" required>
                 </div>
-                <button onclick="app.closeModal('employeeModal')" class="w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-xl text-gray-500"></i>
-                </button>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="flex-1 overflow-y-auto p-8">
-                <form id="employeeForm" class="space-y-8">
-                    <!-- Hidden inputs -->
-                    <input type="hidden" id="employeeDocId">
-                    <input type="hidden" id="originalEmployeeIdHidden">
-
-                    <!-- Personal Info -->
-                    <section class="space-y-4">
-                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
-                            <i class="fas fa-user-circle"></i> Personal Information
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Employee ID</label>
-                                <input type="text" id="employeeId" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
-                                <input type="text" id="name" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Employee Type</label>
-                                <select id="employeeType" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                                    <option>Regular</option>
-                                    <option>Casual</option>
-                                    <option>Contractual</option>
-                                </select>
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Designation</label>
-                                <input type="text" id="designation" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Functional Role</label>
-                                <input type="text" id="functionalRole" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Joining Date</label>
-                                <input type="date" id="joiningDate" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Project Info -->
-                    <section class="space-y-4">
-                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
-                            <i class="fas fa-building"></i> Project Assignment
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project</label>
-                                <input type="text" id="project" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Office</label>
-                                <input type="text" id="projectOffice" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Report Project</label>
-                                <input type="text" id="reportProject" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Sub Center</label>
-                                <input type="text" id="subCenter" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary-500 outline-none">
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Salary Section with Visual Calculator -->
-                    <section class="space-y-4">
-                        <h3 class="text-lg font-display font-semibold text-primary-700 dark:text-primary-400 flex items-center gap-2">
-                            <i class="fas fa-money-bill-wave"></i> Compensation
-                        </h3>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <!-- Earnings -->
-                            <div class="space-y-3">
-                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Earnings</h4>
-                                <div class="space-y-2">
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                                        <label class="text-xs font-medium">Gross Salary</label>
-                                        <input type="number" id="salary" class="w-24 text-right bg-transparent font-semibold text-primary-600 outline-none" value="0">
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                        <label class="text-xs">Cash Payment</label>
-                                        <input type="number" id="cashPayment" class="w-24 text-right bg-transparent outline-none" value="0">
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                        <label class="text-xs">Basic</label>
-                                        <input type="number" id="basic" class="w-24 text-right bg-transparent outline-none" value="0">
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                        <label class="text-xs">Allowances</label>
-                                        <input type="number" id="others" class="w-24 text-right bg-transparent outline-none" value="0">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Deductions -->
-                            <div class="space-y-3">
-                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider text-red-500">Deductions</h4>
-                                <div class="space-y-2">
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30">
-                                        <label class="text-xs font-medium text-red-700 dark:text-red-400">TDS</label>
-                                        <input type="number" id="tds" class="w-24 text-right bg-transparent font-semibold text-red-600 outline-none" value="0">
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10">
-                                        <label class="text-xs text-red-600 dark:text-red-400">Lunch</label>
-                                        <input type="number" id="subsidizedLunch" class="w-24 text-right bg-transparent outline-none" value="0">
-                                    </div>
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-900/10">
-                                        <label class="text-xs text-red-600 dark:text-red-400">Loans</label>
-                                        <input type="number" id="motorbikeLoan" class="w-24 text-right bg-transparent outline-none" value="0">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Summary Card -->
-                            <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-primary-50 to-emerald-50 dark:from-primary-900/20 dark:to-emerald-900/10 border border-primary-200 dark:border-primary-800">
-                                <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Net Summary</h4>
-                                <div class="space-y-3">
-                                    <div class="flex justify-between items-center pb-2 border-b border-primary-200 dark:border-primary-800">
-                                        <span class="text-xs text-gray-600 dark:text-gray-400">Gross Total</span>
-                                        <span id="grandTotal" class="font-bold text-gray-800 dark:text-gray-200">৳0</span>
-                                    </div>
-                                    <div class="flex justify-between items-center pb-2 border-b border-red-200 dark:border-red-800/30">
-                                        <span class="text-xs text-red-600 dark:text-red-400">Deductions</span>
-                                        <span id="totalDeduction" class="font-bold text-red-600">৳0</span>
-                                    </div>
-                                    <div class="flex justify-between items-center pt-1">
-                                        <span class="text-sm font-bold text-primary-800 dark:text-primary-400">Net Payable</span>
-                                        <span id="netSalaryPayment" class="text-2xl font-bold text-primary-600 dark:text-primary-400">৳0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </form>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="px-8 py-5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3 bg-gray-50/50 dark:bg-gray-900/50">
-                <button onclick="app.closeModal('employeeModal')" class="px-6 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">Cancel</button>
-                <button onclick="app.submitEmployee()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-medium shadow-lg shadow-primary-500/30 hover:shadow-xl hover:scale-105 transition-all btn-shine">
-                    Save Employee
-                </button>
-            </div>
+                <div class="grid grid-cols-3 gap-4 mt-4 bg-gray-50 p-4 rounded">
+                    <input type="text" id="grandTotal" readonly class="bg-transparent font-bold">
+                    <input type="text" id="totalDeduction" readonly class="bg-transparent font-bold text-red-500">
+                    <input type="text" id="netSalaryPayment" readonly class="bg-transparent font-bold text-green-600">
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="submit" id="addEmployeeBtnSubmit" class="px-6 py-2 bg-primary-600 text-white rounded-lg">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- Toast Notification Template -->
-<div id="toastTemplate" class="hidden">
-    <div class="toast flex items-center gap-3 bg-white dark:bg-gray-800 border-l-4 shadow-lg rounded-lg p-4 min-w-[300px] transform translate-x-full transition-transform duration-300">
-        <div class="toast-icon w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
-        <div class="flex-1">
-            <h4 class="font-semibold text-sm text-gray-900 dark:text-white toast-title"></h4>
-            <p class="text-xs text-gray-500 dark:text-gray-400 toast-message"></p>
-        </div>
-        <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
+<div id="transferModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg p-6 modal-content">
+        <h2 class="text-xl font-bold mb-4">Transfer Employee</h2>
+        <form id="transferForm" class="space-y-4">
+            <input type="hidden" id="transferEmployeeId">
+            <input type="hidden" id="transferEmployeeName">
+            <input type="hidden" id="currentSubCenter">
+
+            <div class="bg-blue-50 p-3 rounded text-sm text-blue-800">
+                Transferring: <span id="transferEmployeeNameDisplay" class="font-bold"></span> (<span id="transferEmployeeIdDisplay"></span>)
+            </div>
+
+            <select id="transferProject" class="w-full p-2 border rounded" required><option>Loading Projects...</option></select>
+            <select id="transferProjectOffice" class="w-full p-2 border rounded" required><option>Loading Offices...</option></select>
+            <select id="newSubCenter" class="w-full p-2 border rounded" required><option>Loading Sub Centers...</option></select>
+            <select id="transferReportProject" class="w-full p-2 border rounded" required><option>Loading Report Projects...</option></select>
+
+            <input type="date" id="transferDate" class="w-full p-2 border rounded" required>
+            <textarea id="transferReason" placeholder="Reason for transfer" class="w-full p-2 border rounded" required></textarea>
+
+            <div id="transferError" class="text-red-500 text-sm hidden"></div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" id="cancelTransferModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded">Transfer</button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- External Libraries -->
+<div id="statusChangeModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 modal-content">
+        <h2 id="statusChangeTitle" class="text-xl font-bold mb-4 text-red-600">Change Status</h2>
+        <form id="statusChangeForm" class="space-y-4">
+            <input type="hidden" id="statusChangeEmployeeId">
+            <input type="hidden" id="statusChangeNewStatus">
+
+            <div id="separationDateContainer" class="hidden">
+                <label id="separationDateLabel" class="block text-sm font-medium mb-1">Date</label>
+                <input type="date" id="separationDate" class="w-full p-2 border rounded">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1">Remarks (Mandatory)</label>
+                <textarea id="remarks" class="w-full p-2 border rounded" rows="3" required></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button type="button" id="cancelStatusChangeModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="attendanceModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 modal-content">
+        <h2 class="text-xl font-bold mb-4 text-primary-700">Generate Salary Sheet</h2>
+        <form id="attendanceForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Select Month</label>
+                <input type="month" id="salaryMonth" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Attendance CSV</label>
+                <input type="file" id="attendanceFile" accept=".csv" class="w-full p-2 border rounded text-sm" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Account Holder CSV</label>
+                <input type="file" id="accountabilityFile" accept=".csv" class="w-full p-2 border rounded text-sm" required>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="cancelAttendanceModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded shadow-lg hover:shadow-primary-500/30">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="viewDetailsModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col modal-content">
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+            <h2 class="text-xl font-bold">Employee Details</h2>
+            <button id="closeViewDetailsModal" class="text-gray-500 hover:text-red-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="viewDetailsContent" class="p-8 overflow-y-auto">
+        </div>
+    </div>
+</div>
+
+<div id="fileClosingModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 modal-content">
+        <h2 id="fileClosingModalTitle" class="text-xl font-bold mb-4">Close File</h2>
+        <form id="fileClosingForm" class="space-y-4">
+            <input type="hidden" id="fileClosingEmployeeId">
+            <div>
+                <label class="block text-sm font-medium mb-1">Closing Date</label>
+                <input type="date" id="fileClosingDate" class="w-full p-2 border rounded" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Closing Remarks</label>
+                <textarea id="fileClosingRemarks" class="w-full p-2 border rounded" rows="3" required></textarea>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="cancelFileClosingModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded">Close File</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="reportModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 modal-content">
+        <h2 class="text-xl font-bold mb-6">System Reports</h2>
+        <div class="space-y-3">
+            <button id="downloadEmployeeDatabase" class="w-full p-3 text-left border rounded hover:bg-gray-50 flex justify-between"><span class="font-medium">Full Employee Database</span> <i class="fas fa-download text-gray-400"></i></button>
+            <button id="generatePayslipBtn" class="w-full p-3 text-left border rounded hover:bg-gray-50 flex justify-between"><span class="font-medium">Generate Payslips (Last Month)</span> <i class="fas fa-file-pdf text-red-500"></i></button>
+            <div class="h-px bg-gray-200 my-2"></div>
+            <button id="downloadHoldLog" class="w-full p-3 text-left border rounded hover:bg-gray-50 text-sm">Download Hold Log</button>
+            <button id="downloadSeparationLog" class="w-full p-3 text-left border rounded hover:bg-gray-50 text-sm">Download Separation Log</button>
+            <button id="downloadTransferLog" class="w-full p-3 text-left border rounded hover:bg-gray-50 text-sm">Download Transfer Log</button>
+            <button id="downloadFileCloseLog" class="w-full p-3 text-left border rounded hover:bg-gray-50 text-sm">Download File Closing Log</button>
+        </div>
+        <div class="mt-6 text-center">
+            <button id="cancelReportModal" class="text-gray-500 hover:text-gray-800">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="alertModal" class="fixed inset-0 z-[60] hidden backdrop-blur-sm bg-black/20 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 max-w-sm w-full transform scale-100 transition-transform">
+        <h3 id="alertTitle" class="text-lg font-bold mb-2">Notice</h3>
+        <p id="alertMessage" class="text-gray-600 dark:text-gray-300 mb-6"></p>
+        <div class="flex justify-end">
+            <button id="alertOkBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmModal" class="fixed inset-0 z-[60] hidden backdrop-blur-sm bg-black/20 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 max-w-sm w-full">
+        <h3 id="confirmTitle" class="text-lg font-bold mb-2">Confirm Action</h3>
+        <p id="confirmMessage" class="text-gray-600 dark:text-gray-300 mb-6"></p>
+        <div class="flex justify-end gap-3">
+            <button id="confirmCancelBtn" class="px-4 py-2 border rounded-lg">Cancel</button>
+            <button id="confirmOkBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="viewSheetsModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl p-6 modal-content h-[80vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">Past Salary Sheets</h2>
+            <button id="closePastSheetsModal" class="text-gray-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="pastSheetsList" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+</div>
+
+<div id="bulkUploadModal" class="fixed inset-0 z-50 hidden backdrop-blur-sm bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 modal-content">
+        <h2 class="text-xl font-bold mb-4">Bulk Employee Upload</h2>
+        <form id="bulkUploadForm">
+            <div class="mb-4">
+                <button type="button" id="downloadTemplateBtn" class="text-primary-600 underline text-sm">Download CSV Template</button>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-1">Select CSV File</label>
+                <input type="file" id="employeeFile" accept=".csv" class="w-full p-2 border rounded" required>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="cancelBulkUploadModal" class="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded">Upload</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-<!-- App Script -->
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
