@@ -187,17 +187,14 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
   const accountingFmt0 = '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)';
   const dateFormat = '[$-en-US]d-mmm-yy;@';
 
-  // --- [FIX: ROBUST LOGIC FOR HOLD REMARKS] ---
   const holdMap = {};
 
-  // 1. Unwrap the data if it's inside an object like { logs: [...] } or { holdLog: [...] }
+  // 1. Unwrap the data
   let logsToProcess = [];
   if (Array.isArray(holdLogData)) {
       logsToProcess = holdLogData;
   } else if (holdLogData && typeof holdLogData === 'object') {
-      // Try common property names
       logsToProcess = holdLogData.logs || holdLogData.data || holdLogData.holdLog || holdLogData.results || [];
-      // If still empty, try to find any array property in the object
       if (logsToProcess.length === 0) {
           const values = Object.values(holdLogData);
           const foundArray = values.find(v => Array.isArray(v));
@@ -205,22 +202,20 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
       }
   }
 
-  // 2. Sort to get the latest remark (Handle different Date key casing)
+  // 2. Sort to get the latest remark
   logsToProcess.sort((a, b) => {
       const getD = (obj) => new Date(obj.timestamp || obj.date || obj.Date || obj.Timestamp || 0);
       return getD(b) - getD(a);
   });
 
-  // 3. Map Employee ID to Remark (Handle different Key casing)
+  // 3. Map Employee ID to Remark
   logsToProcess.forEach(log => {
-      // Lowercase all keys to be safe (e.g., 'EmployeeID' -> 'employeeid')
       const cleanLog = {};
       Object.keys(log).forEach(k => cleanLog[k.toLowerCase().trim()] = log[k]);
 
       const id = String(cleanLog.employeeid || cleanLog.id || cleanLog['employee id'] || '').trim();
       const remark = cleanLog.remarks || cleanLog.remark || cleanLog.comment;
 
-      // Only store if we have an ID and a Remark, and haven't stored one for this ID yet (since we sorted by latest)
       if (id && remark && !holdMap[id]) {
           holdMap[id] = remark;
       }
@@ -262,7 +257,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     if (isHeld) {
         listCategory = 'hold';
-        // --- Inject the specific hold remark if found ---
         const hRem = holdMap[String(emp.employeeId).trim()];
         if (hRem) emp.holdRemarks = hRem;
     } else if (isSeparatedInMonth(emp.separationDate, monthVal)) {
@@ -574,13 +568,79 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
         const totRow = sheet.addRow(new Array(totalCols).fill(''));
         totRow.height = 27;
-
         totRow.getCell(3).value = `Total for ${scName}`;
 
-        const netColIdx = isPrintVersion ? 24 : 45;
-        const netPayCell = totRow.getCell(netColIdx);
-        netPayCell.value = scTotalNet;
-        netPayCell.numFmt = accountingFmt0;
+        if (!isPrintVersion) {
+            // Mapping column indices for Standard Sheet totals
+            const colsToSum = {
+                21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0, 30: 0, 31: 0,
+                32: 0, 33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0,
+                43: 0, 44: 0, 45: 0
+            };
+
+            scEmployees.forEach(d => {
+                colsToSum[21] += getVal(d.earn.grossSalary);
+                colsToSum[22] += getVal(d.earn.totalBenefits);
+                colsToSum[23] += getVal(d.earn.maint);
+                colsToSum[24] += getVal(d.earn.laptop);
+                colsToSum[25] += getVal(d.earn.othersAll);
+                colsToSum[26] += getVal(d.earn.arrear);
+                colsToSum[27] += getVal(d.earn.food);
+                colsToSum[28] += getVal(d.earn.station);
+                colsToSum[29] += getVal(d.earn.hardship);
+                colsToSum[30] += getVal(d.earn.otAmount);
+                colsToSum[31] += getVal(d.earn.grossPayable);
+                colsToSum[32] += 0; // Gratuity
+                colsToSum[33] += getVal(d.ded.lunch);
+                colsToSum[34] += getVal(d.ded.tds);
+                colsToSum[35] += getVal(d.ded.bike);
+                colsToSum[36] += getVal(d.ded.welfare);
+                colsToSum[37] += getVal(d.ded.loan);
+                colsToSum[38] += getVal(d.ded.vehicle);
+                colsToSum[39] += getVal(d.ded.cpf);
+                colsToSum[40] += getVal(d.ded.adj);
+                colsToSum[41] += getVal(d.ded.attDed);
+                colsToSum[42] += getVal(d.ded.totalDeduction);
+                colsToSum[43] += getVal(d.cashPayment);
+                colsToSum[44] += getVal(d.netBankPayment);
+                colsToSum[45] += getVal(d.netPayment);
+            });
+
+            Object.keys(colsToSum).forEach(idx => {
+                const cell = totRow.getCell(parseInt(idx));
+                cell.value = colsToSum[idx];
+                cell.numFmt = accountingFmt0;
+            });
+        } else {
+            // Mapping column indices for Print Version totals
+            const colsToSumPrint = {
+                10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0
+            };
+
+            scEmployees.forEach(d => {
+                colsToSumPrint[10] += getVal(d.earn.grossSalary);
+                colsToSumPrint[11] += getVal(d.earn.totalBenefits);
+                colsToSumPrint[12] += getVal(d.earn.grossPayable);
+                colsToSumPrint[13] += 0; // Gratuity
+                colsToSumPrint[14] += getVal(d.ded.lunch);
+                colsToSumPrint[15] += getVal(d.ded.tds);
+                colsToSumPrint[16] += getVal(d.ded.bike);
+                colsToSumPrint[17] += getVal(d.ded.welfare);
+                colsToSumPrint[18] += getVal(d.ded.loan);
+                colsToSumPrint[19] += getVal(d.ded.vehicle);
+                colsToSumPrint[20] += getVal(d.ded.cpf);
+                colsToSumPrint[21] += getVal(d.ded.totalDeduction);
+                colsToSumPrint[22] += getVal(d.cashPayment);
+                colsToSumPrint[23] += getVal(d.netBankPayment);
+                colsToSumPrint[24] += getVal(d.netPayment);
+            });
+
+            Object.keys(colsToSumPrint).forEach(idx => {
+                const cell = totRow.getCell(parseInt(idx));
+                cell.value = colsToSumPrint[idx];
+                cell.numFmt = accountingFmt0;
+            });
+        }
 
         totRow.eachCell((c) => {
           c.font = { bold: true };
@@ -762,11 +822,19 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
 
     finalAdviceList.forEach(item => {
       const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
-      r.height = 27;
+      r.height = 36;
       r.eachCell((c, colNumber) => {
         c.font = { size: 14 };
         c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-        c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
+
+        // No wrap for Account No (Column 5)
+        const isAccountCol = (colNumber === 5);
+        c.alignment = {
+            vertical: 'middle',
+            horizontal: (colNumber === 3 ? 'left' : 'center'),
+            wrapText: !isAccountCol
+        };
+
         if (colNumber === 6) c.numFmt = accountingFmt0;
       });
     });
@@ -786,7 +854,6 @@ async function generateProjectWiseZip(employees, attendanceData, holderData, mon
     const buffer = await workbook.xlsx.writeBuffer();
     const safeName = project.replace(/[^a-z0-9]/gi, '_').substring(0, 30);
 
-    // Fix: ReferenceError fix for monthVal
     zip.file(`${safeName}_${monthVal}.xlsx`, buffer);
   }
 
