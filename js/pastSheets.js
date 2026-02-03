@@ -206,6 +206,8 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 projectGroups[p][s][listCategory].push(emp);
             });
 
+            // --- FUNCTION DEFINITIONS ---
+
             function addSalarySheetTab(workbook, sheetName, projectName, dataBySubCenter, categoryKey, isPrintVersion = false) {
                 const sheet = workbook.addWorksheet(sheetName, {
                     views: [{ state: 'frozen', ySplit: isPrintVersion ? 1 : 4, xSplit: 4 }],
@@ -557,6 +559,56 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                     sheet.addRow(["No Data Available for this category."]);
                 }
             }
+
+            function addLogSheet(workbook, sheetName, employees, type) {
+                const sheet = workbook.addWorksheet(sheetName);
+
+                const headers = type === 'hold'
+                    ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
+                    : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
+
+                const headerRow = sheet.addRow(headers);
+                headerRow.height = 27;
+                headerRow.eachCell((c) => {
+                    c.font = { bold: true };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                    c.alignment = { horizontal: 'center', vertical: 'middle' };
+                });
+
+                sheet.columns.forEach(col => col.width = 20);
+
+                if (employees.length === 0) {
+                    sheet.addRow(["No records found."]);
+                    return;
+                }
+
+                employees.forEach(emp => {
+                    let rowData = [];
+                    if (type === 'hold') {
+                        rowData = [
+                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
+                            formatDateForDisplay(emp.holdTimestamp) || '-',
+                            getStr(emp.holdRemarks || emp.remarks)
+                        ];
+                    } else {
+                        rowData = [
+                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
+                            formatDateForDisplay(emp.separationDate) || '-',
+                            getStr(emp.status),
+                            getStr(emp.remarks)
+                        ];
+                    }
+                    const r = sheet.addRow(rowData);
+                    r.height = 27;
+                    r.eachCell(c => {
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
+                    });
+                });
+            }
+
+            // --- EXECUTION LOOP ---
 
             for (const [project, subCenters] of Object.entries(projectGroups)) {
                 const workbook = new ExcelJS.Workbook();
