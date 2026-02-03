@@ -343,6 +343,16 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                 const sortedSubCenters = Object.keys(dataBySubCenter).sort();
                 let hasData = false;
 
+                // --- PROJECT TOTALS ACCUMULATORS ---
+                const projectTotalsStandard = {
+                    21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0, 30: 0, 31: 0,
+                    32: 0, 33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0,
+                    43: 0, 44: 0, 45: 0
+                };
+                const projectTotalsPrint = {
+                    10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0
+                };
+
                 for (const scName of sortedSubCenters) {
                   const scEmployees = dataBySubCenter[scName][categoryKey];
                   if (!scEmployees || scEmployees.length === 0) continue;
@@ -427,10 +437,84 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                   totRow.getCell(3).value = `Total for ${scName}`;
 
-                  const netColIdx = isPrintVersion ? 24 : 45;
-                  const netPayCell = totRow.getCell(netColIdx);
-                  netPayCell.value = scTotalNet;
-                  netPayCell.numFmt = accountingFmt0;
+                  if (!isPrintVersion) {
+                      // Mapping column indices for Standard Sheet totals
+                      const colsToSum = {
+                          21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0, 30: 0, 31: 0,
+                          32: 0, 33: 0, 34: 0, 35: 0, 36: 0, 37: 0, 38: 0, 39: 0, 40: 0, 41: 0, 42: 0,
+                          43: 0, 44: 0, 45: 0
+                      };
+
+                      scEmployees.forEach(d => {
+                          colsToSum[21] += getVal(d.earn.grossSalary);
+                          colsToSum[22] += getVal(d.earn.totalBenefits);
+                          colsToSum[23] += getVal(d.earn.maint);
+                          colsToSum[24] += getVal(d.earn.laptop);
+                          colsToSum[25] += getVal(d.earn.othersAll);
+                          colsToSum[26] += getVal(d.earn.arrear);
+                          colsToSum[27] += getVal(d.earn.food);
+                          colsToSum[28] += getVal(d.earn.station);
+                          colsToSum[29] += getVal(d.earn.hardship);
+                          colsToSum[30] += getVal(d.earn.otAmount);
+                          colsToSum[31] += getVal(d.earn.grossPayable);
+                          colsToSum[32] += 0; // Gratuity
+                          colsToSum[33] += getVal(d.ded.lunch);
+                          colsToSum[34] += getVal(d.ded.tds);
+                          colsToSum[35] += getVal(d.ded.bike);
+                          colsToSum[36] += getVal(d.ded.welfare);
+                          colsToSum[37] += getVal(d.ded.loan);
+                          colsToSum[38] += getVal(d.ded.vehicle);
+                          colsToSum[39] += getVal(d.ded.cpf);
+                          colsToSum[40] += getVal(d.ded.adj);
+                          colsToSum[41] += getVal(d.ded.attDed);
+                          colsToSum[42] += getVal(d.ded.totalDeduction);
+                          colsToSum[43] += getVal(d.cashPayment);
+                          colsToSum[44] += getVal(d.netBankPayment);
+                          colsToSum[45] += getVal(d.netPayment);
+                      });
+
+                      // Update Subcenter row AND Project Total Accumulators
+                      Object.keys(colsToSum).forEach(idx => {
+                          const val = colsToSum[idx];
+                          const cell = totRow.getCell(parseInt(idx));
+                          cell.value = val;
+                          cell.numFmt = accountingFmt0;
+                          projectTotalsStandard[idx] += val;
+                      });
+
+                  } else {
+                      // Mapping column indices for Print Version totals
+                      const colsToSumPrint = {
+                          10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0, 24: 0
+                      };
+
+                      scEmployees.forEach(d => {
+                          colsToSumPrint[10] += getVal(d.earn.grossSalary);
+                          colsToSumPrint[11] += getVal(d.earn.totalBenefits);
+                          colsToSumPrint[12] += getVal(d.earn.grossPayable);
+                          colsToSumPrint[13] += 0; // Gratuity
+                          colsToSumPrint[14] += getVal(d.ded.lunch);
+                          colsToSumPrint[15] += getVal(d.ded.tds);
+                          colsToSumPrint[16] += getVal(d.ded.bike);
+                          colsToSumPrint[17] += getVal(d.ded.welfare);
+                          colsToSumPrint[18] += getVal(d.ded.loan);
+                          colsToSumPrint[19] += getVal(d.ded.vehicle);
+                          colsToSumPrint[20] += getVal(d.ded.cpf);
+                          colsToSumPrint[21] += getVal(d.ded.totalDeduction);
+                          colsToSumPrint[22] += getVal(d.cashPayment);
+                          colsToSumPrint[23] += getVal(d.netBankPayment);
+                          colsToSumPrint[24] += getVal(d.netPayment);
+                      });
+
+                      // Update Subcenter row AND Project Total Accumulators
+                      Object.keys(colsToSumPrint).forEach(idx => {
+                          const val = colsToSumPrint[idx];
+                          const cell = totRow.getCell(parseInt(idx));
+                          cell.value = val;
+                          cell.numFmt = accountingFmt0;
+                          projectTotalsPrint[idx] += val;
+                      });
+                  }
 
                   totRow.eachCell((c) => {
                     c.font = { bold: true };
@@ -440,59 +524,38 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
                   });
                 }
 
-                if(!hasData) {
+                if(hasData) {
+                    // --- RENDER PROJECT TOTAL ROW ---
+                    const totalCols = headers.length;
+                    const pTotRow = sheet.addRow(new Array(totalCols).fill(''));
+                    pTotRow.height = 30;
+                    pTotRow.getCell(3).value = `Total for Project: ${projectName}`;
+
+                    if (!isPrintVersion) {
+                        Object.keys(projectTotalsStandard).forEach(idx => {
+                            const cell = pTotRow.getCell(parseInt(idx));
+                            cell.value = projectTotalsStandard[idx];
+                            cell.numFmt = accountingFmt0;
+                        });
+                    } else {
+                        Object.keys(projectTotalsPrint).forEach(idx => {
+                            const cell = pTotRow.getCell(parseInt(idx));
+                            cell.value = projectTotalsPrint[idx];
+                            cell.numFmt = accountingFmt0;
+                        });
+                    }
+
+                    pTotRow.eachCell((c) => {
+                        c.font = { bold: true, size: 11 };
+                        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6E0B4' } }; // Light Green
+                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+                        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    });
+                    // Align label to left
+                    pTotRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                } else {
                     sheet.addRow(["No Data Available for this category."]);
                 }
-            }
-
-            // --- [CHANGE HERE]: Logic updated to use 'holdRemarks' ---
-            function addLogSheet(workbook, sheetName, employees, type) {
-                const sheet = workbook.addWorksheet(sheetName);
-
-                const headers = type === 'hold'
-                    ? ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Hold Date", "Remarks"]
-                    : ["Employee ID", "Name", "Designation", "Project", "Sub Center", "Separation Date", "Status", "Remarks"];
-
-                const headerRow = sheet.addRow(headers);
-                headerRow.height = 27;
-                headerRow.eachCell((c) => {
-                    c.font = { bold: true };
-                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-                    c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    c.alignment = { horizontal: 'center', vertical: 'middle' };
-                });
-
-                sheet.columns.forEach(col => col.width = 20);
-
-                if (employees.length === 0) {
-                    sheet.addRow(["No records found."]);
-                    return;
-                }
-
-                employees.forEach(emp => {
-                    let rowData = [];
-                    if (type === 'hold') {
-                        rowData = [
-                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
-                            formatDateForDisplay(emp.holdTimestamp) || '-',
-                            // --- [UPDATED]: Check holdRemarks first ---
-                            getStr(emp.holdRemarks || emp.remarks)
-                        ];
-                    } else {
-                        rowData = [
-                            getStr(emp.employeeId), getStr(emp.name), getStr(emp.designation), getStr(emp.project), getStr(emp.subCenter),
-                            formatDateForDisplay(emp.separationDate) || '-',
-                            getStr(emp.status),
-                            getStr(emp.remarks)
-                        ];
-                    }
-                    const r = sheet.addRow(rowData);
-                    r.height = 27;
-                    r.eachCell(c => {
-                        c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                        c.alignment = { wrapText: true, vertical: 'middle', horizontal: 'left' };
-                    });
-                });
             }
 
             for (const [project, subCenters] of Object.entries(projectGroups)) {
@@ -615,11 +678,19 @@ export function setupPastSheetsModal(getEmployeesFunc, btnId) {
 
                 finalAdviceList.forEach(item => {
                   const r = adviceSheet.addRow([advSl++, item.id, item.name, item.designation, item.account, item.amount]);
-                  r.height = 27;
+                  r.height = 36;
                   r.eachCell((c, colNumber) => {
                     c.font = { size: 14 };
                     c.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
-                    c.alignment = { vertical: 'middle', horizontal: (colNumber === 3 ? 'left' : 'center'), wrapText: true };
+
+                    // No wrap for Account No (Column 5)
+                    const isAccountCol = (colNumber === 5);
+                    c.alignment = {
+                        vertical: 'middle',
+                        horizontal: (colNumber === 3 ? 'left' : 'center'),
+                        wrapText: !isAccountCol
+                    };
+
                     if (colNumber === 6) c.numFmt = accountingFmt0;
                   });
                 });
