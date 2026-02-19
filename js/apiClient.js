@@ -7,14 +7,21 @@ const getApiBase = () => {
     const customBase = localStorage.getItem('custom_api_base');
     if (customBase) return customBase;
 
-    // If running in Capacitor (native app)
+    // If running in Capacitor (native app) — use the LAN IP for WiFi access
     if (window.Capacitor || window.location.protocol.startsWith('http') === false) {
-        // Use Laptop IP for stable WiFi connection
         return 'http://192.168.12.175:5000/api';
     }
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '192.168.12.175') {
+
+    // If accessed from the LAN IP directly (e.g. from another device on WiFi)
+    if (window.location.hostname === '192.168.12.175') {
         return 'http://192.168.12.175:5000/api';
     }
+
+    // localhost / 127.0.0.1 → use local server directly
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+    }
+
     return '/api';
 };
 
@@ -164,19 +171,22 @@ export async function apiCall(action, method = 'GET', body = null, params = null
 
         const response = await fetch(url, options);
 
-        // Handle non-JSON responses (or empty)
+        // Try to parse JSON regardless of status code
         const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            if (response.ok) return { success: true };
-            throw new Error(`Server returned boolean/non-json: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const isJson = contentType && contentType.includes("application/json");
 
         if (!response.ok) {
-            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+            if (isJson) {
+                const errData = await response.json();
+                throw new Error(errData.error || errData.message || `HTTP ${response.status}`);
+            }
+            // Non-JSON error (network proxy, HTML error page, etc)
+            throw new Error(`Server error ${response.status}: ${await response.text().catch(() => 'No response body')}`);
         }
 
+        if (!isJson) return { success: true };
+
+        const data = await response.json();
         return data;
 
     } catch (error) {
