@@ -28,6 +28,7 @@ async function initializeAppModules() {
     const { setupEmployeeForm, openEmployeeModal } = await import('./employeeForm.js');
     const { setupStatusChangeModal, openStatusChangeModal } = await import('./statusChange.js');
     const { setupFileCloseModal } = await import('./fileClosingModal.js');
+    const { initLeaveModal, openLeaveModal } = await import('./leaveModal.js');
     const { setupBulkUploadModal } = await import('./bulkUpload.js');
     const { setupSalarySheetModal } = await import('./salarySheet.js');
     const { setupPastSheetsModal } = await import('./pastSheets.js');
@@ -152,10 +153,10 @@ async function initializeAppModules() {
             }
 
         } catch (error) {
-             removeSkeletons();
-             customAlert("Error", `Failed to load employee data: ${error.message}`);
-             if(countDisplay) countDisplay.textContent = 'Error loading data.';
-             if(listContainer && !isLoadMore) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
+            removeSkeletons();
+            customAlert("Error", `Failed to load employee data: ${error.message}`);
+            if (countDisplay) countDisplay.textContent = 'Error loading data.';
+            if (listContainer && !isLoadMore) listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Could not load employee data.</p></div>`;
         } finally {
             isLoading = false;
         }
@@ -202,7 +203,7 @@ async function initializeAppModules() {
             }
         }
 
-        if(tomSelects.status) {
+        if (tomSelects.status) {
             tomSelects.status.setValue(currentFilters.status, true);
         }
 
@@ -239,7 +240,7 @@ async function initializeAppModules() {
     }
 
     async function handleExportData() {
-         try {
+        try {
             const fullData = await apiCall('getEmployees', 'GET', null, { limit: 5000 });
             const employeesToExport = fullData.employees;
 
@@ -288,9 +289,9 @@ async function initializeAppModules() {
 
             await downloadXLSX(dataToExport, "employee_data_export.xlsx", "Employees");
 
-         } catch (error) {
-             customAlert("Error", `Failed to export data: ${error.message}`);
-         }
+        } catch (error) {
+            customAlert("Error", `Failed to export data: ${error.message}`);
+        }
     }
 
     async function handleLogReportDownload(logName, apiAction, fileName) {
@@ -304,6 +305,25 @@ async function initializeAppModules() {
             closeModal('reportModal');
         } catch (error) {
             customAlert("Error", `Failed to download ${logName}: ${error.message}`);
+        }
+    }
+
+    async function handleAttendanceReportDownload() {
+        try {
+            const monthInput = prompt("Enter Month (1-12):", new Date().getMonth() + 1);
+            const yearInput = prompt("Enter Year (YYYY):", new Date().getFullYear());
+
+            if (!monthInput || !yearInput) return;
+
+            const logData = await apiCall('getAttendanceReport', 'GET', null, { month: monthInput, year: yearInput });
+            if (!logData || logData.length === 0) {
+                customAlert("No Data", `No attendance data found for ${monthInput}/${yearInput}.`);
+                return;
+            }
+            await downloadXLSX(logData, `attendance_report_${monthInput}_${yearInput}.xlsx`, "Attendance");
+            closeModal('reportModal');
+        } catch (error) {
+            customAlert("Error", `Failed to download Attendance Report: ${error.message}`);
         }
     }
 
@@ -375,7 +395,7 @@ async function initializeAppModules() {
             }
 
             if (!Array.isArray(allRawData) || allRawData.length === 0) {
-                 throw new Error("Corrupted or empty data in salary archive.");
+                throw new Error("Corrupted or empty data in salary archive.");
             }
 
             // === FIX: Strict Filtering for Payslips (Issue 1) ===
@@ -454,20 +474,25 @@ async function initializeAppModules() {
         resetTimer();
     }
 
-     function setupGlobalListeners() {
-         const reportBtn = $('reportBtn');
-         if (reportBtn) {
-             reportBtn.addEventListener('click', () => openModal('reportModal'));
-         }
+    function setupGlobalListeners() {
+        const reportBtn = $('reportBtn');
+        if (reportBtn) {
+            reportBtn.addEventListener('click', () => openModal('reportModal'));
+        }
+        if ($('applyLeaveBtn')) {
+            $('applyLeaveBtn').addEventListener('click', () => {
+                import('./leaveModal.js').then(m => m.openLeaveModal());
+            });
+        }
 
-         const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
-         const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmAction);
-         const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
-         const logoutBtn = $('logoutBtn');
-         if (logoutBtn) {
-             logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
-         }
-     }
+        const alertOk = $('alertOkBtn'); if (alertOk) alertOk.addEventListener('click', () => closeModal('alertModal'));
+        const confirmCancel = $('confirmCancelBtn'); if (confirmCancel) confirmCancel.addEventListener('click', handleConfirmAction);
+        const confirmOk = $('confirmOkBtn'); if (confirmOk) confirmOk.addEventListener('click', handleConfirmAction);
+        const logoutBtn = $('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => { sessionStorage.removeItem('isLoggedIn'); sessionStorage.removeItem('loggedInUser'); window.location.href = '/login.html'; });
+        }
+    }
 
     function initializeApp() {
         console.log("Initializing HRMS App (Modular & Authenticated)...");
@@ -496,6 +521,8 @@ async function initializeAppModules() {
                 handleLogReportDownload('File Close Log', 'getFileCloseLog', 'file_close_log.xlsx');
             });
 
+            $('downloadAttendanceReport').addEventListener('click', handleAttendanceReportDownload);
+
             // Generate Payslip Listener
             $('generatePayslipBtn').addEventListener('click', handlePayslipGeneration);
         }
@@ -511,6 +538,7 @@ async function initializeAppModules() {
         }
         if (typeof setupViewDetailsModal === 'function') setupViewDetailsModal();
         if (typeof setupTransferModal === 'function') setupTransferModal(fetchAndRenderEmployees);
+        if (typeof initLeaveModal === 'function') initLeaveModal();
 
         fetchAndRenderEmployees(false);
     }

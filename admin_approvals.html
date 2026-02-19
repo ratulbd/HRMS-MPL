@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRMS - Admin Approvals</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+
+    <nav class="bg-white border-b border-gray-100 p-4 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-shield-alt text-green-600 mr-2"></i> Approval Dashboard
+            </h1>
+            <div id="approverInfo" class="text-sm font-medium text-gray-500"></div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-8">
+
+        <!-- Stats & Tabs -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div id="tabPending" onclick="switchTab('Pending')"
+                class="cursor-pointer bg-white p-6 rounded-2xl shadow-sm border-2 border-green-500">
+                <div class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Waiting Action</div>
+                <div id="countPending" class="text-3xl font-bold text-gray-800">0</div>
+            </div>
+            <div id="tabApproved" onclick="switchTab('Approved')"
+                class="cursor-pointer bg-white p-6 rounded-2xl shadow-sm border border-gray-100 opacity-60 hover:opacity-100 transition-opacity">
+                <div class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Approved History</div>
+                <div id="countApproved" class="text-3xl font-bold text-gray-800">-</div>
+            </div>
+            <div id="tabRejected" onclick="switchTab('Rejected')"
+                class="cursor-pointer bg-white p-6 rounded-2xl shadow-sm border border-gray-100 opacity-60 hover:opacity-100 transition-opacity">
+                <div class="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Rejected History</div>
+                <div id="countRejected" class="text-3xl font-bold text-gray-800">-</div>
+            </div>
+        </div>
+
+        <!-- Approval List -->
+        <div class="space-y-4" id="approvalList">
+            <div class="text-center py-20 text-gray-400">
+                <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                <p>Loading requests...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Approval Modal -->
+    <div id="actionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
+            <h2 id="modalTitle" class="text-xl font-bold text-gray-800 mb-2">Process Request</h2>
+            <p id="modalSub" class="text-sm text-gray-500 mb-6"></p>
+
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Comments (Optional)</label>
+            <textarea id="modalComments"
+                class="w-full border border-gray-100 bg-gray-50 p-4 rounded-2xl mb-6 focus:outline-none focus:ring-2 focus:ring-green-500"
+                rows="3" placeholder="Add a note..."></textarea>
+
+            <div class="flex space-x-4">
+                <button onclick="closeModal()"
+                    class="flex-1 px-6 py-3 text-gray-500 font-semibold rounded-2xl hover:bg-gray-50 transition-colors">Cancel</button>
+                <button id="confirmActionBtn"
+                    class="flex-1 px-6 py-3 bg-gray-800 text-white font-semibold rounded-2xl shadow-lg hover:bg-gray-900 transition-all">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin_approvals.js"></script>
+</body>
+
+</html>

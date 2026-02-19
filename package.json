@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "HR Management System with Google Sheets backend",
   "dependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/core": "^8.0.2",
     "googleapis": "^105.0.0"
   }
 }

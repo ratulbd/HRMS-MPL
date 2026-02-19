@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HRMS - Mobile Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+        }
+
+        h1,
+        h2,
+        h3,
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .login-bg {
+            background-image: radial-gradient(at 0% 0%, hsla(161, 72%, 91%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 0%, hsla(180, 60%, 95%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(200, 50%, 92%, 1) 0, transparent 50%);
+        }
+    </style>
+</head>
+
+<body class="login-bg min-h-screen flex flex-col items-center justify-center p-6 pb-12">
+
+    <div class="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
+        <!-- Logo Area -->
+        <div class="text-center">
+            <div onclick="handleLogoClick()"
+                class="h-20 w-20 bg-emerald-500 rounded-[30px] mx-auto flex items-center justify-center shadow-2xl shadow-emerald-200 rotate-3 transition-transform hover:rotate-0 duration-500 cursor-pointer active:scale-95">
+                <i class="fas fa-fingerprint text-4xl text-white"></i>
+            </div>
+            <h1 class="mt-8 text-3xl font-black text-slate-900 tracking-tight">HRMS Mobile</h1>
+            <p class="mt-2 text-slate-400 font-medium text-sm px-8">Secure your workspace and join your team seamlessly.
+            </p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="glass-card rounded-[40px] p-8 space-y-6">
+            <form id="loginForm" class="space-y-4">
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Employee
+                        ID</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                            <i
+                                class="fas fa-id-card text-slate-300 group-focus-within:text-emerald-500 transition-colors"></i>
+                        </div>
+                        <input type="text" id="employeeId" required
+                            class="block w-full pl-12 pr-6 py-5 bg-slate-50/50 border-2 border-slate-100 rounded-3xl outline-none focus:border-emerald-500 focus:bg-white transition-all text-slate-700 font-semibold text-sm"
+                            placeholder="EMP001">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Secure
+                        Password</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                            <i
+                                class="fas fa-lock text-slate-300 group-focus-within:text-emerald-500 transition-colors"></i>
+                        </div>
+                        <input type="password" id="password" required
+                            class="block w-full pl-12 pr-6 py-5 bg-slate-50/50 border-2 border-slate-100 rounded-3xl outline-none focus:border-emerald-500 focus:bg-white transition-all text-slate-700 font-semibold text-sm"
+                            placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="gradient-btn w-full py-5 text-white font-bold rounded-3xl shadow-2xl shadow-emerald-100 mt-4 active:scale-95 transition-transform flex items-center justify-center space-x-3">
+                    <span>Unlock Workspace</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <p class="text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+            Powered by Metal HRMS &bull; v2.0
+        </p>
+    </div>
+
+    <!-- Developer Settings Modal -->
+    <div id="devSettingsModal"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] hidden items-center justify-center p-6">
+        <div class="glass-card w-full max-w-sm rounded-[40px] p-8 space-y-6 border-white/20">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-slate-800">Developer Settings</h3>
+                <button onclick="toggleDevSettings()"
+                    class="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><i
+                        class="fas fa-times text-slate-400"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="space-y-1">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Server API
+                        Base</label>
+                    <input type="text" id="customApiInput"
+                        class="block w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 transition-all text-slate-600 font-mono text-xs"
+                        placeholder="http://192.168.0.103:5000/api">
+                    <p class="text-[10px] text-slate-400 mt-2 italic px-1">Tip: Use 'http://localhost:5000/api' for ADB
+                        reverse.</p>
+                </div>
+                <button onclick="saveDevSettings()"
+                    class="w-full py-4 bg-slate-800 text-white font-bold rounded-2xl active:scale-95 transition-transform">
+                    Save and Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium Toast -->
+    <div id="toast"
+        class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-4 rounded-3xl text-xs font-bold bg-opacity-95 hidden transition-all duration-300 z-50 shadow-2xl border border-white/10">
+    </div>
+
+    <script>
+        // Auto-Login Check
+        (function () {
+            const user = localStorage.getItem('mobile_user');
+            if (user) window.location.href = 'mobile_dashboard.html';
+        })();
+
+        let clickCount = 0;
+        function handleLogoClick() {
+            clickCount++;
+            if (clickCount >= 5) {
+                toggleDevSettings();
+                clickCount = 0;
+            }
+            setTimeout(() => { clickCount = 0; }, 2000);
+        }
+
+        function toggleDevSettings() {
+            const modal = document.getElementById('devSettingsModal');
+            modal.classList.toggle('hidden');
+            modal.classList.toggle('flex');
+            document.getElementById('customApiInput').value = localStorage.getItem('custom_api_base') || '';
+        }
+
+        function saveDevSettings() {
+            const ip = document.getElementById('customApiInput').value.trim();
+            if (ip) localStorage.setItem('custom_api_base', ip);
+            else localStorage.removeItem('custom_api_base');
+            window.location.reload();
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i>';
+
+            const employeeId = document.getElementById('employeeId').value;
+
+            try {
+                // Determine API Base with Developer Override
+                const customBase = localStorage.getItem('custom_api_base');
+                const API_BASE = customBase || ((window.Capacitor || window.location.protocol.startsWith('http') === false)
+                    ? 'http://192.168.12.175:5000/api'
+                    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '192.168.12.175' ? 'http://192.168.12.175:5000/api' : '/api'));
+
+                const res = await fetch(`${API_BASE}/employees/${employeeId}`);
+                if (!res.ok) throw new Error('Identity not verified');
+                const emp = await res.json();
+
+                localStorage.setItem('mobile_user', JSON.stringify({
+                    id: emp.id || emp._id,
+                    name: emp.name,
+                    employeeId: emp.employeeId,
+                    designation: emp.designation,
+                    project: emp.project
+                }));
+
+                window.location.href = 'mobile_dashboard.html';
+
+            } catch (err) {
+                showToast(err.message || 'Verification Failed');
+                console.error(err);
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        });
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('hidden', 'opacity-0', 'translate-y-10');
+            t.classList.add('animate-bounce');
+            setTimeout(() => {
+                t.classList.add('opacity-0', 'translate-y-10');
+                setTimeout(() => t.classList.add('hidden'), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

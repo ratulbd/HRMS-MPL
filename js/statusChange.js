@@ -19,7 +19,7 @@ export function openStatusChangeModal(employee, newStatusOrAction) {
 
     $('statusChangeEmployeeId').value = employee.employeeId;
     $('statusChangeNewStatus').value = newStatusOrAction; // This will be 'Resigned', 'Terminated', 'Hold', or 'Unhold'
-    
+
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
 
@@ -28,7 +28,7 @@ export function openStatusChangeModal(employee, newStatusOrAction) {
         separationDateContainer.classList.remove('hidden');
         titleEl.textContent = `Mark as ${newStatusOrAction}`;
         dateLabelEl.textContent = newStatusOrAction === 'Resigned' ? 'Resignation Date' : 'Termination Date';
-        
+
         // Use existing separation date or today
         $('separationDate').value = employee.separationDate ? formatDateForInput(employee.separationDate) : today;
         remarksInput.value = employee.remarks || ''; // Use existing remarks if available
@@ -38,7 +38,7 @@ export function openStatusChangeModal(employee, newStatusOrAction) {
         // Hide the separation date field as it's not relevant
         separationDateContainer.classList.add('hidden');
         $('separationDate').value = today; // Set to today, but it won't be used
-        
+
         titleEl.textContent = (newStatusOrAction === 'Hold') ? 'Hold Salary' : 'Unhold Salary';
         remarksInput.value = ''; // Always require new remarks for hold/unhold
         remarksInput.placeholder = 'Remarks are mandatory...';
@@ -57,7 +57,7 @@ export function setupStatusChangeModal(fetchEmployeesFunc) {
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const employeeId = $('statusChangeEmployeeId').value;
             const statusOrAction = $('statusChangeNewStatus').value;
             const separationDate = $('separationDate').value;
@@ -82,16 +82,16 @@ export function setupStatusChangeModal(fetchEmployeesFunc) {
                 }
                 apiPayload.status = statusOrAction;
                 apiPayload.separationDate = separationDate;
-                apiPayload.remarks = remarks; // <-- 'remarks' key ONLY for separation
+                apiPayload.remarks = remarks;
 
             } else if (statusOrAction === 'Hold') {
                 apiPayload.salaryHeld = true;
-                apiPayload.holdRemarks = remarks; // <-- Use 'holdRemarks' key for hold
+                apiPayload.holdRemarks = remarks;
 
             } else if (statusOrAction === 'Unhold') {
                 apiPayload.salaryHeld = false;
-                apiPayload.holdRemarks = remarks; // <-- Use 'holdRemarks' key for unhold
-                
+                apiPayload.holdRemarks = remarks;
+
             } else {
                 customAlert("Error", "Unknown action.");
                 return;
@@ -100,10 +100,10 @@ export function setupStatusChangeModal(fetchEmployeesFunc) {
 
             try {
                 await apiCall('updateStatus', 'POST', apiPayload);
-                
+
                 customAlert("Success", "Employee status updated successfully.");
                 closeModal('statusChangeModal');
-                
+
                 if (mainFetchEmployeesFunc) {
                     mainFetchEmployeesFunc(); // Refresh the list
                 }

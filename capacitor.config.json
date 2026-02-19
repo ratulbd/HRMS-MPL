@@ -1,0 +1,8 @@
+{
+  "appId": "com.metal.hrms",
+  "appName": "HRMS",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http"
+  }
+}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #log {
+            background: #f4f4f4;
+            padding: 10px;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Attendance API Tester</h1>
+
+    <div class="section">
+        <h3>1. Configuration</h3>
+        <label>Employee ID:</label>
+        <input type="text" id="employeeId" placeholder="Enter valid Employee ID used in Database">
+    </div>
+
+    <div class="section">
+        <h3>2. Check-In</h3>
+        <label>Selfie Image:</label>
+        <input type="file" id="checkInFile">
+        <label>Location (Lat, Lng):</label>
+        <input type="text" id="checkInLat" value="23.8103">
+        <input type="text" id="checkInLng" value="90.4125">
+        <button onclick="checkIn()">Check In</button>
+    </div>
+
+    <div class="section">
+        <h3>3. Check-Out</h3>
+        <label>Selfie Image:</label>
+        <input type="file" id="checkOutFile">
+        <button onclick="checkOut()">Check Out</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/attendance';
+
+        async function checkIn() {
+            const empId = document.getElementById('employeeId').value;
+            const file = document.getElementById('checkInFile').files[0];
+
+            if (!empId) return alert('Enter Employee ID');
+
+            const formData = new FormData();
+            formData.append('employeeId', empId);
+            formData.append('lat', document.getElementById('checkInLat').value);
+            formData.append('lng', document.getElementById('checkInLng').value);
+            formData.append('address', 'Test Location');
+            if (file) formData.append('selfie', file);
+
+            try {
+                const res = await fetch(`${API_URL}/check-in`, { method: 'POST', body: formData });
+                const data = await res.json();
+                document.getElementById('log').innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('log').innerText = err.message;
+            }
+        }
+
+        async function checkOut() {
+            const empId = document.getElementById('employeeId').value;
+            const file = document.getElementById('checkOutFile').files[0];
+
+            if (!empId) return alert('Enter Employee ID');
+
+            const formData = new FormData();
+            formData.append('employeeId', empId);
+            formData.append('lat', '0');
+            formData.append('lng', '0');
+            formData.append('address', 'Test Checkout Location');
+            if (file) formData.append('selfie', file);
+
+            try {
+                const res = await fetch(`${API_URL}/check-out`, { method: 'POST', body: formData });
+                const data = await res.json();
+                document.getElementById('log').innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('log').innerText = err.message;
+            }
+        }
+    </script>
+</body>
+
+</html>

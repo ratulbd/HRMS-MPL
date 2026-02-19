@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>HRMS - Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        h1,
+        h2,
+        h3,
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .safe-area-bottom {
+            padding-bottom: calc(85px + env(safe-area-inset-bottom));
+        }
+
+        /* Smooth tab switching */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="safe-area-bottom">
+
+    <!-- Premium Header -->
+    <header class="glass-nav sticky top-0 z-40 px-6 py-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold text-slate-800" id="welcomeMsg">Hello!</h1>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider" id="currentDate">Loading...</p>
+        </div>
+        <div class="relative">
+            <div class="h-11 w-11 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-200 border-2 border-white"
+                id="userAvatar">U</div>
+            <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 border-2 border-white rounded-full"></div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="tabContainer" class="px-6 py-4">
+
+        <!-- Tab 1: Attendance (Home) -->
+        <div id="attendanceTab" class="tab-content active space-y-6">
+
+            <!-- Quick Status Banner -->
+            <div id="statusBanner"
+                class="hidden glass-card rounded-2xl p-4 flex items-center space-x-4 border-l-4 border-l-emerald-500">
+                <div class="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">Today's Status</p>
+                    <p id="todayStatusText" class="text-sm font-semibold text-slate-700">Checking...</p>
+                </div>
+            </div>
+
+            <!-- Main Punch Card -->
+            <div class="glass-card rounded-3xl p-8 text-center relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 h-32 w-32 bg-emerald-50 rounded-full opacity-50"></div>
+
+                <div class="relative z-10">
+                    <div class="h-20 w-20 bg-emerald-50 rounded-3xl mx-auto flex items-center justify-center mb-4">
+                        <i class="fas fa-fingerprint text-4xl text-emerald-500"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800 mb-1">Time Attendance</h2>
+                    <p class="text-sm text-slate-500 mb-8">Mark your daily presence</p>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="checkInBtn"
+                            class="gradient-btn group py-6 rounded-2xl flex flex-col items-center justify-center text-white">
+                            <i class="fas fa-sign-in-alt text-2xl mb-2 group-active:scale-90 transition-transform"></i>
+                            <span class="text-xs font-bold uppercase tracking-widest">Check In</span>
+                        </button>
+                        <button id="checkOutBtn"
+                            class="bg-white border-2 border-slate-100 py-6 rounded-2xl flex flex-col items-center justify-center text-slate-600 active:bg-slate-50 transition-colors">
+                            <i class="fas fa-sign-out-alt text-2xl mb-2"></i>
+                            <span class="text-xs font-bold uppercase tracking-widest">Check Out</span>
+                        </button>
+                    </div>
+
+                    <p id="locationStatus"
+                        class="text-[10px] font-semibold text-slate-400 mt-6 flex items-center justify-center uppercase tracking-widest">
+                        <i class="fas fa-location-dot text-emerald-500 mr-2"></i>
+                        GPS: Waiting...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card border-slate-200/50 rounded-2xl p-5">
+                    <div class="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 mb-3">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="text-slate-400 text-[10px] font-bold uppercase mb-1">Leaves Left</div>
+                    <div id="leavesBalanceText" class="text-2xl font-bold text-slate-800">-</div>
+                </div>
+                <div class="glass-card border-slate-200/50 rounded-2xl p-5" onclick="switchTab('payslipTab')">
+                    <div
+                        class="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500 mb-3">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <div class="text-slate-400 text-[10px] font-bold uppercase mb-1">Net Pay</div>
+                    <div class="text-2xl font-bold text-slate-800" id="latestPayslipMonth">Jan</div>
+                </div>
+            </div>
+
+            <!-- Action Card -->
+            <div
+                class="glass-card bg-slate-900 border-none rounded-3xl p-6 flex justify-between items-center text-white shadow-xl shadow-slate-200">
+                <div>
+                    <h3 class="font-bold text-lg">Leave Request</h3>
+                    <p class="text-slate-400 text-xs">Apply for time off easily</p>
+                </div>
+                <button id="openLeaveBtn"
+                    class="h-12 w-12 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center transition-colors">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab 2: Attendance History -->
+        <div id="historyTab" class="tab-content space-y-4">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-slate-800">Attendance Log</h2>
+                <div class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg uppercase">This
+                    Month</div>
+            </div>
+
+            <div id="attendanceHistoryList" class="space-y-3 pb-4">
+                <!-- History Items Injected by JS -->
+                <div class="animate-pulse space-y-3">
+                    <div class="h-20 bg-slate-100 rounded-2xl"></div>
+                    <div class="h-20 bg-slate-100 rounded-2xl"></div>
+                    <div class="h-20 bg-slate-100 rounded-2xl"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Leaves -->
+        <div id="leavesTab" class="tab-content space-y-4">
+            <h2 class="text-xl font-bold text-slate-800">Leave Requests</h2>
+            <div id="leaveHistoryList" class="space-y-4"></div>
+        </div>
+
+        <!-- Tab 4: Profile -->
+        <div id="profileTab" class="tab-content space-y-6">
+            <div class="glass-card rounded-[40px] p-8 text-center">
+                <div class="h-32 w-32 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-[40px] mx-auto flex items-center justify-center text-4xl font-bold text-white mb-6 shadow-2xl shadow-emerald-100 border-4 border-white"
+                    id="profileAvatarLarge">U</div>
+                <h2 class="text-2xl font-bold text-slate-800" id="profileName">-</h2>
+                <p class="text-slate-500 font-medium" id="profileDesignation">-</p>
+            </div>
+
+            <div class="glass-card rounded-3xl p-2">
+                <div class="p-4 flex items-center space-x-4 border-b border-slate-50">
+                    <div class="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><i
+                            class="fas fa-id-badge"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">Employee ID</p>
+                        <p class="font-bold text-slate-700" id="profileId">-</p>
+                    </div>
+                </div>
+                <div class="p-4 flex items-center space-x-4">
+                    <div class="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><i
+                            class="fas fa-building"></i></div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">Department</p>
+                        <p class="font-bold text-slate-700" id="profileDept">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="logout()"
+                class="w-full py-5 bg-rose-50 text-rose-500 font-bold rounded-3xl active:bg-rose-100 transition-colors">
+                <i class="fas fa-power-off mr-2"></i> Log Out
+            </button>
+        </div>
+
+    </main>
+
+    <!-- !!! PREMIUM CAMERA MODAL !!! -->
+    <div id="cameraModal" class="fixed inset-0 bg-slate-900 z-[100] hidden flex flex-col">
+        <!-- Close Button -->
+        <button id="closeCameraBtn"
+            class="absolute top-8 right-6 h-12 w-12 bg-white/10 rounded-full text-white flex items-center justify-center z-50">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+
+        <!-- Camera Feed -->
+        <div class="relative flex-1 bg-black flex items-center justify-center">
+            <video id="cameraFeed" autoplay playsinline class="w-full h-full object-cover"></video>
+
+            <!-- Face Guide Overlay -->
+            <div
+                class="absolute inset-x-8 top-1/2 -translate-y-1/2 aspect-[4/5] border-2 border-white/30 rounded-[100px] pointer-events-none flex flex-col items-center justify-center">
+                <div class="text-white/30 text-xs font-bold uppercase tracking-widest mb-4">Position your face</div>
+            </div>
+
+            <!-- Toast-like instruction -->
+            <div class="absolute bottom-32 left-0 w-full px-10">
+                <div
+                    class="bg-slate-900/80 backdrop-blur-md text-white px-6 py-4 rounded-3xl text-center text-sm font-medium border border-white/10 shadow-2xl">
+                    <i class="fas fa-camera mr-2 text-emerald-400"></i> Place your face within the frame
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="h-40 bg-slate-900 flex items-center justify-center px-6 relative">
+            <!-- Shutter Button -->
+            <button id="captureBtn"
+                class="h-20 w-20 bg-white rounded-full p-2 active:scale-90 transition-transform shadow-2xl shadow-white/20">
+                <div class="h-full w-full border-4 border-slate-900 rounded-full flex items-center justify-center">
+                    <div class="h-12 w-12 bg-emerald-500 rounded-full"></div>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- !!! PREVIEW MODAL !!! -->
+    <div id="previewModal" class="fixed inset-0 bg-slate-900 z-[110] hidden flex flex-col">
+        <div class="flex-1 relative bg-black">
+            <img id="capturedImage" class="w-full h-full object-cover">
+            <div class="absolute bottom-8 left-0 w-full px-8">
+                <div
+                    class="bg-emerald-500 text-white px-6 py-4 rounded-3xl text-center font-bold shadow-2xl border-2 border-emerald-400 animate-bounce">
+                    LOOKS GOOD! ✨
+                </div>
+            </div>
+        </div>
+        <div class="h-40 bg-slate-900 flex items-center justify-evenly px-6">
+            <button id="retakeBtn"
+                class="text-white font-bold px-8 py-4 rounded-2xl border border-white/20 active:bg-white/10">Retake</button>
+            <button id="confirmAttendanceBtn"
+                class="bg-white text-slate-900 font-bold px-10 py-5 rounded-3xl shadow-2xl active:scale-95 transition-transform flex items-center">
+                Confirm & Submit <i class="fas fa-paper-plane ml-3"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Justification Modal Redesign -->
+    <div id="justificationModal"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-end justify-center z-[120]">
+        <div class="bg-white w-full rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom duration-300">
+            <div class="h-1.5 w-12 bg-slate-100 rounded-full mx-auto mb-6"></div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2">Justification Needed</h3>
+            <p class="text-slate-500 text-sm mb-6">You're submitting attendance with validation issues.</p>
+
+            <div id="validationDetails"
+                class="mb-6 space-y-2 p-4 bg-slate-50 rounded-2xl text-xs font-semibold text-slate-500 border border-slate-100">
+                <!-- Details injected here -->
+            </div>
+
+            <textarea id="justificationInput"
+                class="w-full border-2 border-slate-100 p-5 rounded-3xl mb-6 focus:outline-none focus:border-emerald-500 transition-colors text-slate-700 font-medium"
+                rows="3" placeholder="Explain the reason (e.g. Traffic, Site Work)..."></textarea>
+
+            <div class="flex space-x-3">
+                <button id="cancelJustification" class="flex-1 py-5 text-slate-400 font-bold">Cancel</button>
+                <button id="submitJustification"
+                    class="flex-[2] py-5 bg-emerald-500 text-white rounded-3xl font-bold shadow-xl shadow-emerald-100">Submit
+                    Attendance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Nav Redesign -->
+    <nav
+        class="glass-nav fixed bottom-0 left-0 right-0 h-[85px] border-t border-slate-100 flex items-start justify-around px-2 pt-3 z-40">
+        <button onclick="switchTab('attendanceTab')" id="nav-attendanceTab"
+            class="nav-item group flex flex-col items-center flex-1 active">
+            <div
+                class="h-10 w-12 rounded-xl group-[.active]:bg-emerald-500/10 flex items-center justify-center mb-1 group-[.active]:text-emerald-500 text-slate-400 transition-all">
+                <i class="fas fa-home-alt text-lg"></i>
+            </div>
+            <span
+                class="text-[10px] font-bold group-[.active]:text-emerald-500 text-slate-400 uppercase tracking-tighter">Home</span>
+        </button>
+        <button onclick="switchTab('historyTab')" id="nav-historyTab"
+            class="nav-item group flex flex-col items-center flex-1">
+            <div
+                class="h-10 w-12 rounded-xl group-[.active]:bg-emerald-500/10 flex items-center justify-center mb-1 group-[.active]:text-emerald-500 text-slate-400 transition-all">
+                <i class="fas fa-list-check text-lg"></i>
+            </div>
+            <span
+                class="text-[10px] font-bold group-[.active]:text-emerald-500 text-slate-400 uppercase tracking-tighter">Log</span>
+        </button>
+        <button onclick="switchTab('leavesTab')" id="nav-leavesTab"
+            class="nav-item group flex flex-col items-center flex-1">
+            <div
+                class="h-10 w-12 rounded-xl group-[.active]:bg-emerald-500/10 flex items-center justify-center mb-1 group-[.active]:text-emerald-500 text-slate-400 transition-all">
+                <i class="fas fa-calendar-alt text-lg"></i>
+            </div>
+            <span
+                class="text-[10px] font-bold group-[.active]:text-emerald-500 text-slate-400 uppercase tracking-tighter">Leaves</span>
+        </button>
+        <button onclick="switchTab('profileTab')" id="nav-profileTab"
+            class="nav-item group flex flex-col items-center flex-1">
+            <div
+                class="h-10 w-12 rounded-xl group-[.active]:bg-emerald-500/10 flex items-center justify-center mb-1 group-[.active]:text-emerald-500 text-slate-400 transition-all">
+                <i class="fas fa-circle-user text-lg"></i>
+            </div>
+            <span
+                class="text-[10px] font-bold group-[.active]:text-emerald-500 text-slate-400 uppercase tracking-tighter">Profile</span>
+        </button>
+    </nav>
+
+    <!-- Leave Application Modal Redesign -->
+    <div id="leaveModal"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden flex items-end justify-center z-[150]">
+        <div class="bg-white w-full rounded-t-[40px] p-8 pb-12 overflow-y-auto max-h-[90vh]">
+            <div class="h-1.5 w-12 bg-slate-100 rounded-full mx-auto mb-6"></div>
+            <h3 class="text-2xl font-bold text-slate-800 mb-6">Apply for Leave</h3>
+
+            <form id="mobileLeaveForm" class="space-y-6">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Leave
+                        Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button"
+                            class="type-btn py-3 px-2 border-2 border-slate-50 rounded-2xl text-xs font-bold text-slate-600 bg-slate-50 active:bg-emerald-50 active:border-emerald-500 active:text-emerald-600 transition-all">Casual</button>
+                        <button type="button"
+                            class="type-btn py-3 px-2 border-2 border-slate-50 rounded-2xl text-xs font-bold text-slate-600 bg-slate-50">Sick</button>
+                        <button type="button"
+                            class="type-btn py-3 px-2 border-2 border-slate-50 rounded-2xl text-xs font-bold text-slate-600 bg-slate-50">Earned</button>
+                        <button type="button"
+                            class="type-btn py-3 px-2 border-2 border-slate-50 rounded-2xl text-xs font-bold text-slate-600 bg-slate-50">LWP</button>
+                    </div>
+                    <input type="hidden" id="leaveType" value="Casual">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Start
+                            Date</label>
+                        <input type="date" id="leaveStartDate"
+                            class="w-full bg-slate-50 border-2 border-slate-50 p-4 rounded-2xl font-bold text-slate-700 outline-none focus:border-emerald-500"
+                            required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">End
+                            Date</label>
+                        <input type="date" id="leaveEndDate"
+                            class="w-full bg-slate-50 border-2 border-slate-50 p-4 rounded-2xl font-bold text-slate-700 outline-none focus:border-emerald-500"
+                            required>
+                    </div>
+                </div>
+
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Reason</label>
+                    <textarea id="leaveReason"
+                        class="w-full bg-slate-50 border-2 border-slate-50 p-4 rounded-2xl font-medium text-slate-700 outline-none focus:border-emerald-500"
+                        rows="3" placeholder="Why are you applying?"></textarea>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" id="closeLeaveModal"
+                        class="flex-1 py-5 text-slate-400 font-bold">Cancel</button>
+                    <button type="submit"
+                        class="flex-[2] py-5 bg-emerald-500 text-white rounded-3xl font-bold shadow-xl shadow-emerald-100">Send
+                        Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('mobile_user'));
+        if (!user) window.location.href = 'mobile_login.html';
+
+        document.getElementById('welcomeMsg').textContent = `Hello, ${user.name.split(' ')[0]}!`;
+        document.getElementById('userAvatar').textContent = user.name.charAt(0).toUpperCase();
+        document.getElementById('profileAvatarLarge').textContent = user.name.charAt(0).toUpperCase();
+
+        const dateOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', dateOptions);
+
+        // Type Button Logic for Leave
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.type-btn').forEach(b => {
+                    b.classList.remove('bg-emerald-50', 'border-emerald-500', 'text-emerald-600');
+                    b.classList.add('bg-slate-50', 'border-slate-50', 'text-slate-600');
+                });
+                btn.classList.add('bg-emerald-50', 'border-emerald-500', 'text-emerald-600');
+                btn.classList.remove('bg-slate-50', 'border-slate-50', 'text-slate-600');
+                document.getElementById('leaveType').value = btn.textContent;
+            });
+        });
+
+        function logout() {
+            localStorage.removeItem('mobile_user');
+            window.location.href = 'mobile_login.html';
+        }
+    </script>
+    <script src="js/mobile_app.js"></script>
+</body>
+
+</html>
