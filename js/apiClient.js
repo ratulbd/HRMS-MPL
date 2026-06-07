@@ -1,25 +1,32 @@
 // js/apiClient.js
 import { showLoading, hideLoading } from './utils.js';
 
+// Configuration
+const CONFIG = {
+    DEFAULT_PORT: 5000,
+    FALLBACK_IP: '192.168.0.107' // Updated with your current Wi-Fi IP
+};
+
 // Detect API Base
 const getApiBase = () => {
-    // Check for Developer Override (Dynamic IP Workaround)
     const customBase = localStorage.getItem('custom_api_base');
     if (customBase) return customBase;
 
-    // If running in Capacitor (native app) — use the LAN IP for WiFi access
-    if (window.Capacitor || window.location.protocol.startsWith('http') === false) {
-        return 'http://192.168.12.175:5000/api';
+    const { hostname, protocol } = window.location;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isLAN = hostname.startsWith('192.168.') || hostname.startsWith('10.');
+    const isNative = window.Capacitor || protocol.startsWith('http') === false;
+
+    if (isNative) {
+        return `http://${CONFIG.FALLBACK_IP}:${CONFIG.DEFAULT_PORT}/api`;
     }
 
-    // If accessed from the LAN IP directly (e.g. from another device on WiFi)
-    if (window.location.hostname === '192.168.12.175') {
-        return 'http://192.168.12.175:5000/api';
+    if (isLocal) {
+        return `http://localhost:${CONFIG.DEFAULT_PORT}/api`;
     }
 
-    // localhost / 127.0.0.1 → use local server directly
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:5000/api';
+    if (isLAN) {
+        return `http://${hostname}:${CONFIG.DEFAULT_PORT}/api`;
     }
 
     return '/api';
@@ -27,102 +34,55 @@ const getApiBase = () => {
 
 const API_BASE_URL = getApiBase();
 
+/**
+ * Enhanced API Call utility with Token support and standardized routing
+ */
 export async function apiCall(action, method = 'GET', body = null, params = null, useSpinner = true) {
     if (useSpinner) showLoading();
+
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     try {
         let url = '';
         let fetchMethod = method;
         let fetchBody = body;
 
-        // === ROUTING LOGIC: Map Legacy Actions to REST Endpoints ===
+        // Routing Logic
         switch (action) {
-            case 'getEmployees':
-                url = `${API_BASE_URL}/employees`;
-                break;
-
+            case 'login': url = `${API_BASE_URL}/auth/login`; fetchMethod = 'POST'; break;
+            case 'getMe': url = `${API_BASE_URL}/auth/me`; break;
+            case 'getEmployees': url = `${API_BASE_URL}/employees`; break;
             case 'saveEmployee':
                 if (body && body.originalEmployeeId) {
-                    // Update existing
                     url = `${API_BASE_URL}/employees/${body.originalEmployeeId}`;
                     fetchMethod = 'PUT';
-                    // We keep body as is, the server should handle extra fields or we clean them.
-                    // Ideally, remove originalEmployeeId from body?
-                    // const { originalEmployeeId, ...rest } = body;
-                    // fetchBody = rest;
                 } else {
-                    // Create new
                     url = `${API_BASE_URL}/employees`;
                     fetchMethod = 'POST';
                 }
                 break;
-
-            case 'getSalaryArchive':
-                url = `${API_BASE_URL}/payroll/archive`;
-                break;
-
-            case 'saveSalaryArchive':
-                url = `${API_BASE_URL}/payroll/archive`;
-                fetchMethod = 'POST';
-                break;
-
-            case 'logRejoin':
-                url = `${API_BASE_URL}/employees/log-rejoin`; // Placeholder
-                // Mock
-                if (useSpinner) hideLoading();
-                return { success: true };
-
-            case 'getHoldLog':
-                url = `${API_BASE_URL}/employees/logs/hold`;
-                break;
-            case 'getSeparationLog':
-                url = `${API_BASE_URL}/employees/logs/separation`;
-                break;
-            case 'getTransferLog':
-                url = `${API_BASE_URL}/employees/logs/transfer`;
-                break;
-            case 'getAttendanceReport':
-                url = `${API_BASE_URL}/attendance/report`;
-                break;
-            case 'applyLeave':
-                url = `${API_BASE_URL}/leave/apply`;
-                break;
-            case 'getLeaveHistory':
-                url = `${API_BASE_URL}/leave/history/${payload}`; // payload is empId
-                break;
-            case 'getPendingLeaves':
-                url = `${API_BASE_URL}/leave/pending/${payload}`; // payload is approverId
-                break;
-            case 'approveLeave':
-                url = `${API_BASE_URL}/leave/approve`;
-                break;
-            case 'getFileCloseLog':
-                url = `${API_BASE_URL}/employees/logs/file-close`;
-                break;
-
-            case 'getStats':
-                url = `${API_BASE_URL}/employees/stats`;
-                break;
-
+            case 'getSalaryArchive': url = `${API_BASE_URL}/payroll/archive`; break;
+            case 'saveSalaryArchive': url = `${API_BASE_URL}/payroll/archive`; fetchMethod = 'POST'; break;
+            case 'getAttendanceReport': url = `${API_BASE_URL}/attendance/report`; break;
+            case 'applyLeave': url = `${API_BASE_URL}/leave/apply`; fetchMethod = 'POST'; break;
+            case 'getLeaveHistory': url = `${API_BASE_URL}/leave/history/${body?.employeeId || ''}`; break;
+            case 'getPendingLeaves': url = `${API_BASE_URL}/leave/pending/${body?.approverId || ''}`; break;
+            case 'approveLeave': url = `${API_BASE_URL}/leave/approve`; fetchMethod = 'POST'; break;
+            case 'getStats': url = `${API_BASE_URL}/employees/stats`; break;
             case 'updateStatus':
-                if (body && body.employeeId) {
-                    if (body.status === 'Resigned' || body.status === 'Terminated') {
+                if (body?.employeeId) {
+                    if (['Resigned', 'Terminated'].includes(body.status)) {
                         url = `${API_BASE_URL}/employees/${body.employeeId}/separation`;
                         fetchMethod = 'POST';
                     } else {
-                        // Salary Held / Unhold
                         url = `${API_BASE_URL}/employees/${body.employeeId}`;
                         fetchMethod = 'PUT';
-                        fetchBody = {
-                            salaryHeld: body.salaryHeld,
-                            holdRemarks: body.holdRemarks
-                        };
+                        fetchBody = { salaryHeld: body.salaryHeld, holdRemarks: body.holdRemarks };
                     }
                 }
                 break;
-
             case 'transferEmployee':
-                if (body && body.employeeId) {
+                if (body?.employeeId) {
                     url = `${API_BASE_URL}/employees/${body.employeeId}/transfer`;
                     fetchMethod = 'POST';
                     fetchBody = {
@@ -135,28 +95,22 @@ export async function apiCall(action, method = 'GET', body = null, params = null
                     };
                 }
                 break;
-
             case 'closeFile':
-                if (body && body.employeeId) {
+                if (body?.employeeId) {
                     url = `${API_BASE_URL}/employees/${body.employeeId}/close-file`;
                     fetchMethod = 'POST';
-                    fetchBody = {
-                        date: body.fileClosingDate,
-                        remarks: body.fileClosingRemarks
-                    };
+                    fetchBody = { date: body.fileClosingDate, remarks: body.fileClosingRemarks };
                 }
                 break;
-
             default:
-                console.warn(`Unknown API action: ${action}`);
-                url = `${API_BASE_URL}/${action}`; // Fallback trial
+                url = `${API_BASE_URL}/${action}`;
                 break;
         }
 
-        const options = {
-            method: fetchMethod,
-            headers: { 'Content-Type': 'application/json' },
-        };
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const options = { method: fetchMethod, headers };
 
         if (fetchMethod === 'GET' && params) {
             const query = new URLSearchParams(params).toString();
@@ -167,11 +121,7 @@ export async function apiCall(action, method = 'GET', body = null, params = null
             options.body = JSON.stringify(fetchBody);
         }
 
-        console.log(`API Call (${action}): ${fetchMethod} ${url}`);
-
         const response = await fetch(url, options);
-
-        // Try to parse JSON regardless of status code
         const contentType = response.headers.get("content-type");
         const isJson = contentType && contentType.includes("application/json");
 
@@ -180,18 +130,14 @@ export async function apiCall(action, method = 'GET', body = null, params = null
                 const errData = await response.json();
                 throw new Error(errData.error || errData.message || `HTTP ${response.status}`);
             }
-            // Non-JSON error (network proxy, HTML error page, etc)
-            throw new Error(`Server error ${response.status}: ${await response.text().catch(() => 'No response body')}`);
+            throw new Error(`Server error ${response.status}`);
         }
 
-        if (!isJson) return { success: true };
-
-        const data = await response.json();
-        return data;
+        return isJson ? await response.json() : { success: true };
 
     } catch (error) {
-        console.error(`API Call Error (${action}):`, error);
-        throw new Error(error.message || 'An unknown API error occurred.');
+        console.error(`API Error [${action}]:`, error);
+        throw error;
     } finally {
         if (useSpinner) hideLoading();
     }

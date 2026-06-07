@@ -6,7 +6,7 @@ import { openViewDetailsModal } from './viewDetails.js';
 import { openTransferModal } from './transferModal.js';
 import { openFileClosingModal } from './fileClosingModal.js';
 
-// === NEW: Function to show Skeleton Cards ===
+// // === NEW: Function to show Skeleton Rows ===
 export function renderSkeletons(count = 3, append = false) {
     const listContainer = $('employee-list');
     if (!listContainer) return;
@@ -18,29 +18,48 @@ export function renderSkeletons(count = 3, append = false) {
     const loadingText = $('filterCountDisplay');
     if(loadingText) loadingText.classList.add('hidden');
 
-    // Create dummy skeleton cards
+    // Create dummy skeleton rows
     for (let i = 0; i < count; i++) {
-        const skel = document.createElement('div');
-        skel.className = 'skeleton-card';
+        const skel = document.createElement('tr');
+        skel.className = 'skeleton-row';
         skel.innerHTML = `
-            <div class="skeleton-pulse sk-title"></div>
-            <div class="skeleton-pulse sk-badge"></div>
-            <div class="skeleton-pulse sk-line"></div>
-            <div class="skeleton-pulse sk-line"></div>
-            <div class="skeleton-pulse sk-line-short"></div>
-            <div class="skeleton-pulse sk-footer"></div>
+            <td><div class="sk-row-pulse" style="width: 70px;"></div></td>
+            <td>
+                <div class="flex items-center gap-3">
+                    <div class="sk-row-pulse" style="width: 2.25rem; height: 2.25rem; border-radius: 50%;"></div>
+                    <div class="flex-grow space-y-1.5">
+                        <div class="sk-row-pulse" style="width: 120px; height: 0.75rem;"></div>
+                        <div class="sk-row-pulse" style="width: 150px; height: 0.625rem;"></div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="space-y-1.5">
+                    <div class="sk-row-pulse" style="width: 130px; height: 0.75rem;"></div>
+                    <div class="sk-row-pulse" style="width: 90px; height: 0.625rem;"></div>
+                </div>
+            </td>
+            <td>
+                <div class="space-y-1.5">
+                    <div class="sk-row-pulse" style="width: 110px; height: 0.75rem;"></div>
+                    <div class="sk-row-pulse" style="width: 140px; height: 0.625rem;"></div>
+                </div>
+            </td>
+            <td><div class="sk-row-pulse" style="width: 90px;"></div></td>
+            <td><div class="sk-row-pulse" style="width: 80px; height: 1.5rem; border-radius: 9999px;"></div></td>
+            <td style="text-align: center;"><div class="sk-row-pulse" style="width: 24px; height: 24px; border-radius: 4px; margin: auto;"></div></td>
         `;
         listContainer.appendChild(skel);
     }
 }
 
-// === NEW: Function to remove Skeleton Cards ===
+// === NEW: Function to remove Skeleton Rows ===
 export function removeSkeletons() {
     const listContainer = $('employee-list');
     if (!listContainer) return;
 
     // Remove all elements with the skeleton class
-    const skeletons = listContainer.querySelectorAll('.skeleton-card');
+    const skeletons = listContainer.querySelectorAll('.skeleton-row');
     skeletons.forEach(el => el.remove());
 
     // Show the count text again
@@ -67,7 +86,7 @@ export function renderEmployeeList(employeesToRender, append = false) {
 
     if (!employeesToRender || employeesToRender.length === 0) {
         if (!append) {
-             listContainer.innerHTML = `<div class="no-results col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-gray-500">No employees found matching the current filters.</p></div>`;
+             listContainer.innerHTML = `<tr class="no-results"><td colspan="7" class="text-center p-8 text-gray-500">No employees found matching the current filters.</td></tr>`;
         }
         return;
     }
@@ -86,104 +105,111 @@ export function renderEmployeeList(employeesToRender, append = false) {
             else if (statusText === 'Closed') { statusClass = 'status-closed'; }
             else if (statusText !== 'Active') { statusText = 'Terminated'; statusClass = 'status-terminated'; }
 
-
-            const card = document.createElement('div');
-            card.className = 'employee-card flex flex-col';
+            const card = document.createElement('tr');
+            card.className = 'employee-card hover:bg-gray-50/80 transition-colors';
             card.setAttribute('data-employee-row-id', emp.id);
 
-            // Use 'index' directly for animation delay
+            // Use 'index' directly for animation delay if needed
             card.style.setProperty('--card-index', index);
-
 
             // --- Info Tags ---
             let infoTagsHTML = '';
-
             if ((statusText === 'Resigned' || statusText === 'Terminated' || statusText === 'Closed') && emp.remarks) {
-                 infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800" title="Separation Remarks: ${emp.remarks}">Separation: ${emp.remarks.substring(0, 20)}...</span>`;
+                 infoTagsHTML += `<span class="mt-1 mr-1 text-[10px] font-semibold inline-block px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-100" title="Separation Remarks: ${emp.remarks}">Separation: ${emp.remarks.substring(0, 15)}...</span>`;
             }
             if (emp.lastTransferDate && emp.lastSubcenter) {
                 let displayDate = emp.lastTransferDate;
                 if (!String(displayDate).match(/^\d{2}-[A-Z]{3}-\d{2}/)) { displayDate = formatDateForDisplay(emp.lastTransferDate); }
-                infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-green-50 text-green-700" title="Transferred from ${emp.lastSubcenter} (${emp.lastTransferReason || ''})">Transfer: ${displayDate}</span>`;
+                infoTagsHTML += `<span class="mt-1 mr-1 text-[10px] font-semibold inline-block px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100" title="Transferred from ${emp.lastSubcenter} (${emp.lastTransferReason || ''})">Transfer: ${displayDate}</span>`;
             }
             if (statusText === 'Closed' && emp.fileClosingDate) {
-                 infoTagsHTML += `<span class="mt-2 mr-1 text-xs font-medium inline-block px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
+                 infoTagsHTML += `<span class="mt-1 mr-1 text-[10px] font-semibold inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200" title="File Closed: ${emp.fileClosingRemarks || ''}">Closed: ${formatDateForDisplay(emp.fileClosingDate)}</span>`;
             }
 
-            // --- Status and Date Stacking ---
-            let statusHtml = `
-                <div class="flex flex-col items-end">
-                    <span class="status-badge ${statusClass} flex-shrink-0 ml-2">${statusText}</span>
-                    ${(statusText === 'Salary Held' && emp.holdTimestamp)
-                        ? `<span class="text-xs text-red-600 mt-1 font-medium bg-red-50 px-2 py-0.5 rounded border border-red-100">Held: ${formatDateForDisplay(emp.holdTimestamp)}</span>`
-                        : ''}
-                </div>
-            `;
+            // Initials Avatar
+            const initials = (emp.name || 'N/A').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
+            const avatarHtml = `<div class="emp-table-avatar">${initials}</div>`;
 
-            // --- REQ: Added Functional Role and Project ---
             card.innerHTML = `
-                <div class="card-content p-5 pb-16 flex-grow">
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-poppins font-semibold text-lg text-green-800">${emp.name || 'N/A'}</h3>
-                        ${statusHtml}
-                    </div>
-
-                    <div class="mb-4 space-y-1.5">
-                        <p class="text-sm font-medium text-gray-900">${emp.designation || 'N/A'}</p>
-
-                        <p class="text-xs text-gray-600">${emp.functionalRole || 'N/A'}</p>
-
-                        <p class="text-xs text-gray-500">ID: ${emp.employeeId || 'N/A'}</p>
-
-                        <div class="flex items-center text-xs text-gray-600 pt-2">
-                            <i class="fas fa-briefcase w-4 mr-1.5 text-gray-400"></i>
-                            <span>${emp.project || 'N/A'}</span>
-                        </div>
-
-                        <div class="flex items-center text-xs text-gray-600">
-                            <i class="fas fa-map-marker-alt w-4 mr-1.5 text-gray-400"></i>
-                            <span>${emp.subCenter || 'N/A'}</span>
-                        </div>
-
-                        <div class="flex items-center text-xs text-gray-600">
-                            <i class="fas fa-calendar-alt w-4 mr-1.5 text-gray-400"></i>
-                            <span>Joined: ${formatDateForDisplay(emp.joiningDate)}</span>
+                <td>
+                    <span class="font-mono text-xs font-semibold text-gray-500">${emp.employeeId || 'N/A'}</span>
+                </td>
+                <td>
+                    <div class="flex items-center gap-3">
+                        ${avatarHtml}
+                        <div>
+                            <div class="font-semibold text-gray-900">${emp.name || 'N/A'}</div>
+                            <div class="text-xs text-gray-500">${emp.personalMobile || 'No Contact'}</div>
                         </div>
                     </div>
-
-                    <div class="flex flex-wrap">
-                        ${infoTagsHTML}
+                </td>
+                <td>
+                    <div class="font-semibold text-gray-800 text-[13px]">${emp.designation || 'N/A'}</div>
+                    <div class="text-xs text-gray-500">${emp.functionalRole || 'N/A'}</div>
+                </td>
+                <td>
+                    <div class="text-gray-800 font-medium text-[13px]">${emp.project || 'N/A'}</div>
+                    <div class="text-xs text-gray-500 flex items-center gap-1">
+                        <i class="fas fa-map-marker-alt text-gray-400"></i> ${emp.subCenter || 'N/A'}
                     </div>
-                </div>
-
-                <div class="card-footer flex flex-wrap gap-1.5 justify-end">
-                    <button class="view-details-btn btn-pill btn-pill-gray" data-id="${emp.id}">View Details</button>
-
-                    ${statusText !== 'Closed' ? `
-                        <button class="edit-btn btn-pill btn-pill-green" data-id="${emp.id}">Edit</button>
-                    ` : ''}
-
-                    ${statusText === 'Active' || statusText === 'Salary Held' ? `
-                        <button class="toggle-hold-btn btn-pill ${isHeld ? 'btn-pill-green' : 'btn-pill-orange'}" data-id="${emp.id}" data-held="${isHeld}">${isHeld ? 'Unhold Salary' : 'Hold Salary'}</button>
-                        <button class="transfer-btn btn-pill btn-pill-green" data-id="${emp.id}">Transfer</button>
-                        <button class="resign-btn btn-pill btn-pill-yellow" data-id="${emp.id}">Resign</button>
-                        <button class="terminate-btn btn-pill btn-pill-red" data-id="${emp.id}">Terminate</button>
-                    ` : ''}
-
-                    ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
-                        <button class="close-file-btn btn-pill btn-pill-gray border-gray-300 hover:bg-gray-200" data-id="${emp.id}">Close File</button>
-                    ` : ''}
-                </div>
-                `;
+                </td>
+                <td>
+                    <span class="text-xs text-gray-600 font-medium">${formatDateForDisplay(emp.joiningDate)}</span>
+                </td>
+                <td>
+                    <div class="flex flex-col items-start gap-1">
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        ${(statusText === 'Salary Held' && emp.holdTimestamp)
+                            ? `<span class="text-[10px] text-red-600 font-semibold bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Held: ${formatDateForDisplay(emp.holdTimestamp)}</span>`
+                            : ''}
+                        ${infoTagsHTML ? `<div class="flex flex-wrap">${infoTagsHTML}</div>` : ''}
+                    </div>
+                </td>
+                <td style="text-align: center; overflow: visible; position: relative;">
+                    <div class="action-menu-container">
+                        <button class="action-menu-btn" type="button" aria-label="Action menu">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="action-menu">
+                            <button class="action-menu-item view-details-btn" data-id="${emp.id}">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            ${statusText !== 'Closed' ? `
+                                <button class="action-menu-item edit-btn" data-id="${emp.id}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            ` : ''}
+                            ${statusText === 'Active' || statusText === 'Salary Held' ? `
+                                <button class="action-menu-item toggle-hold-btn" data-id="${emp.id}" data-held="${isHeld}">
+                                    <i class="fas ${isHeld ? 'fa-play' : 'fa-pause'}"></i> ${isHeld ? 'Unhold' : 'Hold Salary'}
+                                </button>
+                                <button class="action-menu-item transfer-btn" data-id="${emp.id}">
+                                    <i class="fas fa-exchange-alt"></i> Transfer
+                                </button>
+                                <button class="action-menu-item resign-btn" data-id="${emp.id}">
+                                    <i class="fas fa-user-minus"></i> Resign
+                                </button>
+                                <button class="action-menu-item terminate-btn danger" data-id="${emp.id}">
+                                    <i class="fas fa-user-slash"></i> Terminate
+                                </button>
+                            ` : ''}
+                            ${(statusText === 'Resigned' || statusText === 'Terminated') ? `
+                                <button class="action-menu-item close-file-btn" data-id="${emp.id}">
+                                    <i class="fas fa-folder-minus"></i> Close File
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </td>
+            `;
             listContainer.appendChild(card);
         });
     } catch (error) {
          console.error("Error during renderEmployeeList loop:", error);
-         listContainer.innerHTML = `<div class="col-span-full text-center p-8 bg-white rounded-lg shadow"><p class="text-red-500 font-semibold">Error rendering employee list: ${error.message}</p></div>`;
+         listContainer.innerHTML = `<tr><td colspan="7" class="text-center p-8"><p class="text-red-600 font-semibold">Error rendering employee list: ${error.message}</p></td></tr>`;
          customAlert("Render Error", `Failed to display employee list: ${error.message}`);
     }
 }
-
 
 // Helper to populate a <datalist>
 function populateDataList(elementId, values) {
@@ -220,42 +246,40 @@ export function populateFilterDropdowns(filterData) {
     populateDataList('identificationType-list', identificationTypes);
 }
 
-
 export function setupEmployeeListEventListeners(fetchEmployeesFunc, getEmployeesFunc) {
-     const listContainer = $('employee-list');
+    const listContainer = $('employee-list');
     if (!listContainer) { console.error("#employee-list not found for listeners."); return; }
 
-    listContainer.addEventListener('mousemove', (e) => {
-        const card = e.target.closest('.employee-card');
-        if (card) {
-            const rect = card.getBoundingClientRect();
-
-            // Spotlight effect
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            card.style.setProperty('--mouse-x', `${x}px`);
-            card.style.setProperty('--mouse-y', `${y}px`);
-
-            // 3D Tilt effect
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            const mouseX = x - centerX;
-            const mouseY = y - centerY;
-
-            const rotateX = (mouseY / centerY) * -8; // Invert Y for natural tilt
-            const rotateY = (mouseX / centerX) * 8;
-
-            card.style.setProperty('--rotate-x', `${rotateX}deg`);
-            card.style.setProperty('--rotate-y', `${rotateY}deg`);
+    // Toggle action dropdown menu
+    listContainer.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('.action-menu-btn');
+        if (toggleBtn) {
+            e.stopPropagation();
+            const container = toggleBtn.closest('.action-menu-container');
+            const menu = container.querySelector('.action-menu');
+            
+            // Close all other menus first
+            document.querySelectorAll('.action-menu.show').forEach(openMenu => {
+                if (openMenu !== menu) openMenu.classList.remove('show');
+            });
+            
+            menu.classList.toggle('show');
+            return;
+        }
+        
+        // If clicking on a menu item, close the menu
+        const menuItem = e.target.closest('.action-menu-item');
+        if (menuItem) {
+            const menu = menuItem.closest('.action-menu');
+            if (menu) menu.classList.remove('show');
         }
     });
 
-    listContainer.addEventListener('mouseleave', (e) => {
-         const card = e.target.closest('.employee-card');
-         if(card) {
-             card.style.setProperty('--rotate-x', `0deg`);
-             card.style.setProperty('--rotate-y', `0deg`);
-         }
+    // Close menus when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.action-menu.show').forEach(menu => {
+            menu.classList.remove('show');
+        });
     });
 
     listContainer.addEventListener('click', async (e) => {

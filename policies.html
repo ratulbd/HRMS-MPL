@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/assets/logo.png" type="image/png">
+    <title>Policies - HRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+<link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Sidebar Layout Styles */
+        .sidebar-expanded {
+            width: 240px;
+        }
+
+        .sidebar-collapsed {
+            width: 72px;
+        }
+
+        .sidebar-icon {
+            min-width: 1.25rem;
+            text-align: center;
+        }
+
+        .sidebar-collapsed .sidebar-text {
+            display: none;
+        }
+
+        .sidebar-collapsed .sidebar-btn {
+            justify-content: center;
+        }
+
+        .sidebar-collapsed .sidebar-section-label {
+            display: none;
+        }
+
+        .sidebar-section-label {
+            padding: 0.5rem 0.875rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .content-wrapper {
+            transition: margin-left 0.3s var(--ease-premium);
+        }
+
+        @media (min-width: 1024px) {
+            body:has(.sidebar-expanded) .content-wrapper {
+                margin-left: 240px;
+            }
+
+            body:has(.sidebar-collapsed) .content-wrapper {
+                margin-left: 72px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            #sidebar {
+                display: none;
+            }
+
+            #sidebar.sidebar-mobile-open {
+                display: block;
+            }
+
+            .content-wrapper {
+                margin-left: 0 !important;
+                margin-top: 56px;
+            }
+        }
+
+        /* Tabs */
+        .tab-btn {
+            padding: 0.6rem 1.5rem;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s var(--ease-premium);
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
+        .policy-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            transition: box-shadow 0.2s var(--ease-premium), transform 0.2s var(--ease-premium);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .policy-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Table */
+        .policy-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .policy-table th {
+            padding: 0.6rem 1rem;
+            background: #f9fafb;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        .policy-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.875rem;
+            color: #111827;
+        }
+
+        .policy-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .policy-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        /* Slab table */
+        .slab-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .slab-table th {
+            padding: 0.5rem 0.75rem;
+            background: var(--primary-light);
+            font-size: 0.78rem;
+            color: var(--primary-hover);
+            border: 1px solid var(--primary-light);
+            text-align: center;
+        }
+
+        .slab-table td {
+            padding: 0.4rem 0.5rem;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .slab-table input {
+            width: 100%;
+            border: none;
+            outline: none;
+            text-align: center;
+            background: transparent;
+            font-size: 0.875rem;
+        }
+
+        .slab-table input:focus {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .slab-table tr:hover td {
+            background: var(--bg-secondary);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2em 0.65em;
+            border-radius: 9999px;
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+
+        .badge-green { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
+        .badge-blue { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-amber { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .badge-red { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            animation: fadeIn 0.2s var(--ease-premium);
+        }
+        .modal-box {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: var(--radius-xl);
+            max-width: 560px;
+            width: 95%;
+            padding: 1.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            animation: scaleUp 0.3s var(--ease-premium);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-md);
+            color: white;
+            font-weight: 500;
+            font-size: 0.875rem;
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            animation: scaleUp 0.2s var(--ease-premium);
+        }
+
+        .toast-success { background: var(--primary); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25); }
+        .toast-error { background: #dc2626; box-shadow: 0 8px 25px rgba(220,38,38,0.3); }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .section-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        .btn-sm {
+            padding: 0.3rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-outline-blue {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline-blue:hover {
+            background: #dbeafe;
+        }
+
+        .btn-outline-green {
+            background: transparent;
+            border: 1px solid #059669;
+            color: #059669;
+        }
+
+        .btn-outline-green:hover {
+            background: #d1fae5;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="font-inter">
+
+    <!-- Sidebar Navigation -->
+    <div id="sidebar"
+        class="fixed left-0 top-0 h-screen transition-all duration-300 z-50 sidebar-expanded bg-[#0f1623] border-r border-[rgba(99,102,241,0.08)]">
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between p-4 border-b border-gray-800">
+                <div class="flex items-center space-x-3">
+                    <img src="/assets/logo.png" alt="Logo" class="h-8 w-auto drop-shadow-[0_0_8px_rgba(99,102,241,0.3)]">
+                    <span class="font-display text-lg font-bold text-white sidebar-text">HRMS</span>
+                </div>
+                <button id="sidebarToggle" class="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-4 px-2">
+                <div class="sidebar-section-label px-3 pb-2">Workspace</div>
+                <button onclick="window.location.href='index.html'" class="sidebar-btn">
+                    <i class="fas fa-home sidebar-icon"></i>
+                    <span class="sidebar-text">Dashboard</span>
+                </button>
+                <button onclick="window.location.href='admin_approvals.html'" class="sidebar-btn">
+                    <i class="fas fa-check-circle sidebar-icon"></i>
+                    <span class="sidebar-text">Approval</span>
+                </button>
+                <button onclick="window.location.href='analytics.html'" class="sidebar-btn">
+                    <i class="fas fa-chart-line sidebar-icon"></i>
+                    <span class="sidebar-text">Analytics</span>
+                </button>
+                <div class="sidebar-section-label px-3 pt-5 pb-2">Admin</div>
+                <button onclick="window.location.href='admin/index.html'" class="sidebar-btn">
+                    <i class="fas fa-cog sidebar-icon"></i>
+                    <span class="sidebar-text">Admin Panel</span>
+                </button>
+                <button class="sidebar-btn active">
+                    <i class="fas fa-file-contract sidebar-icon"></i>
+                    <span class="sidebar-text">Policies</span>
+                </button>
+            </nav>
+            <div class="border-t border-[rgba(99,102,241,0.08)] p-2">
+                <button id="logoutBtn" class="sidebar-btn sidebar-btn-danger">
+                    <i class="fas fa-sign-out-alt sidebar-icon"></i>
+                    <span class="sidebar-text">Logout</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Top Bar -->
+    <div
+        class="fixed top-0 left-0 right-0 h-14 flex items-center px-4 z-40 lg:hidden" style="background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-color);">
+        <button id="mobileMenuBtn" class="p-2 rounded-lg hover:bg-slate-50 mr-3 text-slate-400">
+            <i class="fas fa-bars"></i>
+        </button>
+        <img src="/assets/logo.png" alt="Logo" class="h-7 w-auto mr-2 drop-shadow-[0_0_6px_rgba(99,102,241,0.3)]">
+        <span class="font-display font-bold text-gray-900">Policies</span>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content-wrapper min-h-screen">
+        <div class="p-6 pt-8">
+
+            <!-- Page Header -->
+            <div class="mb-6 flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 class="font-display text-2xl font-bold text-slate-900">Policy Management</h1>
+                    <p class="text-slate-500 text-sm mt-0.5">Configure company-wide leave and salary calculation rules</p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="glass-card rounded-xl overflow-hidden" style="padding:0 !important;">
+                <div class="flex border-b border-gray-200 px-4">
+                    <button class="tab-btn active" data-tab="leave" onclick="switchTab('leave')">
+                        <i class="fas fa-calendar-alt mr-1.5"></i> Leave Policies
+                    </button>
+                    <button class="tab-btn" data-tab="salary" onclick="switchTab('salary')">
+                        <i class="fas fa-coins mr-1.5"></i> Salary Calculation Policy
+                    </button>
+                </div>
+
+                <!-- ===================== LEAVE POLICIES TAB ===================== -->
+                <div id="tab-leave" class="tab-content active p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="section-header mb-0">
+                            <div class="section-icon" style="background:rgba(37,99,235,0.1);">
+                                <i class="fas fa-umbrella-beach text-blue-500"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Leave Categories</h2>
+                                <p class="text-xs text-slate-500">Define leave types, entitlements, and applicability</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openLeaveModal()">
+                            <i class="fas fa-plus"></i> Add Leave Type
+                        </button>
+                    </div>
+
+                    <div id="leaveLoading" class="spinner"></div>
+                    <div id="leaveEmpty" class="hidden text-center py-10 text-slate-500">
+                        <i class="fas fa-folder-open text-4xl mb-3 block text-slate-600"></i>
+                        <p>No leave policies defined yet. Click "Add Leave Type" to create one.</p>
+                    </div>
+
+                    <div id="leavePoliciesContainer" class="table-responsive-wrapper hidden">
+                        <table class="enterprise-table">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Code</th>
+                                    <th>Days/Year</th>
+                                    <th>Applicable For</th>
+                                    <th>Gender</th>
+                                    <th>Carry Fwd</th>
+                                    <th>Status</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leavePoliciesTbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Leave Info Cards (quick summary) -->
+                    <div id="leaveCardGrid" class="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 hidden">
+                    </div>
+                </div>
+
+                <!-- ===================== SALARY POLICY TAB ===================== -->
+                <div id="tab-salary" class="tab-content p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="section-header mb-0">
+                            <div class="section-icon" style="background:rgba(245,158,11,0.1);">
+                                <i class="fas fa-percent text-amber-400"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Basic Salary Calculation Rules</h2>
+                                <p class="text-xs text-slate-500">Salary slab-based basic % with joining date cutoff (Metal Policy format)</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openSalaryModal()">
+                            <i class="fas fa-plus"></i> New Policy
+                        </button>
+                    </div>
+
+                    <div id="salaryLoading" class="spinner"></div>
+                    <div id="salaryEmpty" class="hidden text-center py-10 text-slate-500">
+                        <i class="fas fa-folder-open text-4xl mb-3 block text-slate-600"></i>
+                        <p>No salary policies defined yet. Click "New Policy" to create one.</p>
+                    </div>
+
+                    <div id="salaryPoliciesList" class="space-y-5"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== LEAVE MODAL ===================== -->
+    <div id="leaveModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-xl font-bold text-slate-900" id="leaveModalTitle">Add Leave Type</h2>
+                <button onclick="closeLeaveModal()" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="leaveForm" onsubmit="saveLeavePolicy(event)">
+                <input type="hidden" id="leavePolicyId">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="leaveName">Leave Type Name <span class="text-red-500">*</span></label>
+                        <input id="leaveName" class="input" type="text" placeholder="e.g. Sick Leave" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="leaveCode">Code <span class="text-red-500">*</span></label>
+                        <input id="leaveCode" class="input" type="text" placeholder="e.g. SL" maxlength="5" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="leaveDays">Days Allowed / Year <span class="text-red-500">*</span></label>
+                        <input id="leaveDays" class="input" type="number" min="0" placeholder="e.g. 14" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="leaveApplicable">Applicable For</label>
+                        <select id="leaveApplicable" class="input">
+                            <option value="All">All Employees</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Casual">Casual</option>
+                            <option value="Contractual">Contractual</option>
+                            <option value="Temporary">Temporary</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="leaveGender">Gender Restriction</label>
+                        <select id="leaveGender" class="input">
+                            <option value="All">No Restriction</option>
+                            <option value="Male">Male Only</option>
+                            <option value="Female">Female Only</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1 flex items-center gap-4 mt-5">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="leaveCarryFwd" class="w-4 h-4 accent-primary">
+                            <span class="text-sm font-medium text-slate-700">Carry Forward</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="leaveApproval" class="w-4 h-4 accent-primary" checked>
+                            <span class="text-sm font-medium text-slate-700">Requires Approval</span>
+                        </label>
+                    </div>
+                    <div class="col-span-2">
+                        <label for="leaveNotes">Notes / Conditions</label>
+                        <textarea id="leaveNotes" class="input" rows="2"
+                            placeholder="Any additional conditions or notes..."></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" class="btn btn-secondary" onclick="closeLeaveModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="leaveSaveBtn">
+                        <i class="fas fa-save"></i> Save Leave Policy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================== SALARY POLICY MODAL ===================== -->
+    <div id="salaryModal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:720px">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-xl font-bold text-slate-900" id="salaryModalTitle">Add Salary Calculation Policy</h2>
+                <button onclick="closeSalaryModal()" class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="salaryForm" onsubmit="saveSalaryPolicy(event)">
+                <input type="hidden" id="salaryPolicyId">
+                <div class="grid grid-cols-2 gap-4 mb-5">
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="salaryPolicyName">Policy Name <span class="text-red-500">*</span></label>
+                        <input id="salaryPolicyName" class="input" type="text"
+                            placeholder="e.g. Metal Basic Salary 2024" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="salaryJoinCutoff">Joining Date Cutoff <span class="text-red-500">*</span>
+                            <span class="text-slate-500 font-normal">(Pre vs Post %)</span></label>
+                        <input id="salaryJoinCutoff" class="input" type="date" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="salaryEffFrom">Effective From <span class="text-red-500">*</span></label>
+                        <input id="salaryEffFrom" class="input" type="date" required>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="salaryFestBonus">Festival & Incentive Bonus % (of Gross)</label>
+                        <input id="salaryFestBonus" class="input" type="number" min="0" max="100" value="50">
+                    </div>
+                    <div class="col-span-2">
+                        <label for="salaryDesc">Description</label>
+                        <input id="salaryDesc" class="input" type="text" placeholder="Brief description">
+                    </div>
+                </div>
+
+                <!-- Slab Table -->
+                <div class="mb-3 flex items-center justify-between">
+                    <h3 class="font-semibold text-slate-700 text-sm">Gross Salary Slabs</h3>
+                    <button type="button" class="btn btn-sm btn-outline-green" onclick="addSlabRow()">
+                        <i class="fas fa-plus"></i> Add Row
+                    </button>
+                </div>
+                <div class="table-responsive-wrapper">
+                    <table class="enterprise-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px">Sl#</th>
+                                <th>Min Gross (৳)</th>
+                                <th>Max Gross (৳)</th>
+                                <th>Basic % <small class="font-normal">(Pre-Cutoff)</small></th>
+                                <th>Basic % <small class="font-normal">(Post-Cutoff)</small></th>
+                                <th style="width:44px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="slabTbody"></tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-slate-500 mt-1.5">Leave Max Gross empty for the topmost slab ("and above").</p>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" class="btn btn-secondary" onclick="closeSalaryModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="salarySaveBtn">
+                        <i class="fas fa-save"></i> Save Policy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal (Required for utils.js) -->
+    <div id="alertModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden">
+        <div class="rounded-lg p-8 w-full max-w-sm modal" style="background:var(--bg-surface);border:1px solid var(--border-color);">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(37,99,235,0.1)">
+                <i class="fas fa-info-circle text-xl" style="color:var(--primary)"></i>
+            </div>
+            <h2 id="alertTitle" class="text-xl font-bold mb-4 text-gray-900 text-center">Alert</h2>
+            <p id="alertMessage" class="text-slate-500 mb-6 text-center"></p>
+            <div class="flex justify-end">
+                <button id="alertOkBtn" class="btn btn-primary w-full">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal (Required for utils.js) -->
+    <div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop hidden">
+        <div class="rounded-lg p-8 w-full max-w-sm modal" style="background:var(--bg-surface);border:1px solid var(--border-color);">
+            <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-xl text-red-400"></i>
+            </div>
+            <h2 id="confirmTitle" class="text-xl font-bold mb-4 text-gray-900 text-center">Confirm</h2>
+            <p id="confirmMessage" class="text-slate-500 mb-6 text-center"></p>
+            <div class="flex justify-end gap-3">
+                <button id="confirmCancelBtn" class="btn btn-secondary flex-1">Cancel</button>
+                <button id="confirmOkBtn" class="btn btn-primary flex-1">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { $, openModal, closeModal, customAlert, customConfirm, showLoading, hideLoading } from './js/utils.js';
+        import { apiCall } from './js/apiClient.js';
+
+        /* ============================================================
+           GLOBAL STATE
+        ============================================================ */
+        window.leavePolicies = [];
+        window.salaryPolicies = [];
+
+        /* ============================================================
+           TABS
+        ============================================================ */
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        };
+
+        /* ============================================================
+           TOAST
+        ============================================================ */
+        function showToast(msg, type = 'success') {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'}"></i> ${msg}`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3500);
+        }
+
+        /* ============================================================
+           LEAVE POLICIES
+        ============================================================ */
+        async function loadLeavePolicies() {
+            try {
+                const data = await apiCall('getLeavePolicies', 'GET', null, null, false);
+                window.leavePolicies = data;
+                renderLeavePolicies();
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load leave policies', 'error');
+            }
+        }
+
+        function renderLeavePolicies() {
+            const loading = document.getElementById('leaveLoading');
+            const empty = document.getElementById('leaveEmpty');
+            const container = document.getElementById('leavePoliciesContainer');
+            const cardGrid = document.getElementById('leaveCardGrid');
+            const tbody = document.getElementById('leavePoliciesTbody');
+
+            if (loading) loading.classList.add('hidden');
+
+            if (!window.leavePolicies.length) {
+                empty.classList.remove('hidden');
+                container.classList.add('hidden');
+                cardGrid.classList.add('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            container.classList.remove('hidden');
+            cardGrid.classList.remove('hidden');
+
+            // Table rows
+            tbody.innerHTML = window.leavePolicies.map(p => `
+                <tr>
+                    <td>
+                        <span class="font-semibold text-gray-900">${p.name}</span>
+                        ${p.notes ? `<p class="text-xs text-slate-500 mt-0.5">${p.notes}</p>` : ''}
+                    </td>
+                    <td><span class="badge badge-blue">${p.code}</span></td>
+                    <td class="font-semibold text-center text-gray-900">${p.daysAllowed}</td>
+                    <td class="text-slate-600">${p.applicableFor}</td>
+                    <td>${p.genderRestriction === 'All' ? '<span class="text-slate-500 text-xs">All</span>' : `<span class="badge badge-blue">${p.genderRestriction} Only</span>`}</td>
+                    <td>${p.carryForward ? '<span class="badge badge-amber">Yes</span>' : '<span class="text-slate-500 text-xs">No</span>'}</td>
+                    <td>${p.isActive ? '<span class="badge badge-blue">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
+                    <td class="text-right">
+                        <button class="btn btn-sm btn-secondary mr-1" onclick="editLeavePolicy('${p.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteLeavePolicy('${p.id}', '${p.name}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`).join('');
+
+            // Summary cards
+            const cardColors = ['border-blue-500/20 bg-blue-500/5', 'border-sky-500/20 bg-sky-500/5', 'border-rose-500/20 bg-rose-500/5', 'border-amber-500/20 bg-amber-500/5', 'border-gray-500/20 bg-gray-500/5'];
+            const iconColors = ['text-blue-500', 'text-sky-500', 'text-rose-400', 'text-amber-400', 'text-gray-400'];
+            cardGrid.innerHTML = window.leavePolicies.map((p, i) => {
+                const ci = i % cardColors.length;
+                return `
+                <div class="rounded-xl border p-3 ${cardColors[ci]} flex flex-col items-center text-center gap-1 backdrop-blur-sm">
+                    <i class="fas fa-${getLeaveIcon(p.code)} text-xl ${iconColors[ci]}"></i>
+                    <div class="font-semibold text-gray-900 text-sm leading-tight">${p.name}</div>
+                    <div class="text-2xl font-bold ${iconColors[ci]}">${p.daysAllowed}</div>
+                    <div class="text-xs text-slate-500">days / year</div>
+                    ${p.genderRestriction !== 'All' ? `<span class="badge badge-blue text-xs">${p.genderRestriction}</span>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function getLeaveIcon(code) {
+            const icons = { EL: 'star', CL: 'coffee', SL: 'user-injured', PL: 'baby', ML: 'heart', LWP: 'ban' };
+            return icons[code] || 'calendar-day';
+        }
+
+        window.openLeaveModal = (policy = null) => {
+            document.getElementById('leaveModal').classList.remove('hidden');
+            document.getElementById('leavePolicyId').value = '';
+            document.getElementById('leaveForm').reset();
+            if (policy) {
+                document.getElementById('leaveModalTitle').textContent = 'Edit Leave Type';
+                document.getElementById('leavePolicyId').value = policy.id;
+                document.getElementById('leaveName').value = policy.name;
+                document.getElementById('leaveCode').value = policy.code;
+                document.getElementById('leaveDays').value = policy.daysAllowed;
+                document.getElementById('leaveApplicable').value = policy.applicableFor;
+                document.getElementById('leaveGender').value = policy.genderRestriction;
+                document.getElementById('leaveCarryFwd').checked = policy.carryForward;
+                document.getElementById('leaveApproval').checked = policy.requiresApproval;
+                document.getElementById('leaveNotes').value = policy.notes || '';
+            } else {
+                document.getElementById('leaveModalTitle').textContent = 'Add Leave Type';
+            }
+        };
+
+        window.closeLeaveModal = () => {
+            document.getElementById('leaveModal').classList.add('hidden');
+        };
+
+        window.editLeavePolicy = (id) => {
+            const p = window.leavePolicies.find(x => x.id === id);
+            if (p) window.openLeaveModal(p);
+        };
+
+        window.saveLeavePolicy = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('leavePolicyId').value;
+            const body = {
+                id: id,
+                name: document.getElementById('leaveName').value.trim(),
+                code: document.getElementById('leaveCode').value.trim().toUpperCase(),
+                daysAllowed: parseFloat(document.getElementById('leaveDays').value),
+                applicableFor: document.getElementById('leaveApplicable').value,
+                genderRestriction: document.getElementById('leaveGender').value,
+                carryForward: document.getElementById('leaveCarryFwd').checked,
+                requiresApproval: document.getElementById('leaveApproval').checked,
+                notes: document.getElementById('leaveNotes').value.trim(),
+                isActive: true
+            };
+            const btn = document.getElementById('leaveSaveBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await apiCall('saveLeavePolicy', 'POST', body);
+                showToast(`Leave policy "${body.name}" saved!`);
+                window.closeLeaveModal();
+                await loadLeavePolicies();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Save Leave Policy';
+            }
+        };
+
+        window.deleteLeavePolicy = async (id, name) => {
+            const confirmed = await customConfirm('Delete Policy', `Are you sure you want to delete "${name}"?`);
+            if (confirmed) {
+                try {
+                    await apiCall('deleteLeavePolicy', 'DELETE', { id });
+                    showToast(`"${name}" deleted.`);
+                    await loadLeavePolicies();
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            }
+        };
+
+        /* ============================================================
+           SALARY POLICIES
+        ============================================================ */
+        async function loadSalaryPolicies() {
+            try {
+                const data = await apiCall('getSalaryPolicies', 'GET', null, null, false);
+                window.salaryPolicies = data;
+                renderSalaryPolicies();
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load salary policies', 'error');
+            }
+        }
+
+        function renderSalaryPolicies() {
+            const loading = document.getElementById('salaryLoading');
+            const empty = document.getElementById('salaryEmpty');
+            const list = document.getElementById('salaryPoliciesList');
+            if (loading) loading.classList.add('hidden');
+
+            if (!window.salaryPolicies.length) {
+                empty.classList.remove('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            empty.classList.add('hidden');
+
+            list.innerHTML = window.salaryPolicies.map(p => {
+                const cutoff = new Date(p.joiningDateCutoff).toLocaleDateString('en-BD', { day: '2-digit', month: 'short', year: 'numeric' });
+                const effFrom = new Date(p.effectiveFrom).toLocaleDateString('en-BD', { day: '2-digit', month: 'short', year: 'numeric' });
+                const slabRows = p.slabs.map(s => `
+                    <tr>
+                        <td class="font-medium text-slate-600">${s.slNo}</td>
+                        <td class="text-slate-600">৳${s.minGross.toLocaleString()}</td>
+                        <td>${s.maxGross != null ? '<span class="text-slate-600">৳' + s.maxGross.toLocaleString() + '</span>' : '<span class="text-slate-500">Above</span>'}</td>
+                        <td class="font-semibold" style="color:var(--primary)">${s.basicPercentagePre}%</td>
+                        <td class="font-semibold" style="color:var(--primary)">${s.basicPercentagePost}%</td>
+                    </tr>`).join('');
+
+                return `
+                <div class="policy-card">
+                    <div class="flex items-start justify-between flex-wrap gap-3 mb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-gray-900">${p.policyName}</h3>
+                                ${p.isActive ? '<span class="badge badge-blue">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}
+                            </div>
+                            ${p.description ? `<p class="text-xs text-slate-500 mt-0.5">${p.description}</p>` : ''}
+                            <div class="flex gap-4 mt-2 text-xs text-slate-500">
+                                <span><i class="fas fa-calendar-check mr-1 text-blue-500"></i>Effective: <strong class="text-slate-700">${effFrom}</strong></span>
+                                <span><i class="fas fa-cut mr-1 text-amber-400"></i>Cutoff: <strong class="text-slate-700">${cutoff}</strong></span>
+                                <span><i class="fas fa-gift mr-1 text-rose-400"></i>Festival/Incentive Bonus: <strong class="text-slate-700">${p.festivalBonusPercentage}%</strong> of Gross</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="editSalaryPolicy('${p.id}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSalaryPolicy('${p.id}', '${p.policyName}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded border border-gray-200" style="background:white;">
+                        <table class="slab-table">
+                            <thead>
+                                <tr>
+                                    <th>Sl#</th>
+                                    <th>Min Gross (৳)</th>
+                                    <th>Max Gross (৳)</th>
+                                    <th>Basic % <small class="font-normal">(Pre-${cutoff.split(' ')[2]})</small></th>
+                                    <th>Basic % <small class="font-normal">(Post-${cutoff.split(' ')[2]})</small></th>
+                                </tr>
+                            </thead>
+                            <tbody>${slabRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        let slabRowCount = 0;
+        window.addSlabRow = (slab = null) => {
+            slabRowCount++;
+            const sl = slab ? slab.slNo : slabRowCount;
+            const min = slab ? slab.minGross : '';
+            const max = slab ? (slab.maxGross != null ? slab.maxGross : '') : '';
+            const pre = slab ? slab.basicPercentagePre : '';
+            const post = slab ? slab.basicPercentagePost : '';
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input class="slab-sl" type="number" value="${sl}" min="1" style="width:45px"></td>
+                <td><input class="slab-min" type="number" value="${min}" placeholder="3000" min="0"></td>
+                <td><input class="slab-max" type="number" value="${max}" placeholder="Leave blank if top slab" min="0"></td>
+                <td><input class="slab-pre" type="number" value="${pre}" placeholder="50" min="0" max="100"></td>
+                <td><input class="slab-post" type="number" value="${post}" placeholder="35" min="0" max="100"></td>
+                <td>
+                    <button type="button" onclick="this.closest('tr').remove()" class="btn btn-sm btn-danger" style="padding:0.25rem 0.5rem;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>`;
+            document.getElementById('slabTbody').appendChild(row);
+        };
+
+        function getSlabs() {
+            const rows = document.querySelectorAll('#slabTbody tr');
+            return Array.from(rows).map(row => ({
+                slNo: parseInt(row.querySelector('.slab-sl').value) || 0,
+                minGross: parseFloat(row.querySelector('.slab-min').value) || 0,
+                maxGross: row.querySelector('.slab-max').value !== '' ? parseFloat(row.querySelector('.slab-max').value) : null,
+                basicPercentagePre: parseFloat(row.querySelector('.slab-pre').value) || 0,
+                basicPercentagePost: parseFloat(row.querySelector('.slab-post').value) || 0
+            }));
+        }
+
+        window.openSalaryModal = (policy = null) => {
+            slabRowCount = 0;
+            document.getElementById('slabTbody').innerHTML = '';
+            document.getElementById('salaryModal').classList.remove('hidden');
+            document.getElementById('salaryPolicyId').value = '';
+            document.getElementById('salaryForm').reset();
+
+            if (policy) {
+                document.getElementById('salaryModalTitle').textContent = 'Edit Salary Policy';
+                document.getElementById('salaryPolicyId').value = policy.id;
+                document.getElementById('salaryPolicyName').value = policy.policyName;
+                document.getElementById('salaryJoinCutoff').value = policy.joiningDateCutoff ? policy.joiningDateCutoff.split('T')[0] : '';
+                document.getElementById('salaryEffFrom').value = policy.effectiveFrom ? policy.effectiveFrom.split('T')[0] : '';
+                document.getElementById('salaryFestBonus').value = policy.festivalBonusPercentage || 50;
+                document.getElementById('salaryDesc').value = policy.description || '';
+                policy.slabs.forEach(s => window.addSlabRow(s));
+            } else {
+                document.getElementById('salaryModalTitle').textContent = 'Add Salary Calculation Policy';
+                // Pre-populate with Metal default slabs
+                const metalSlabs = [
+                    { slNo: 1, minGross: 3000, maxGross: 120000, basicPercentagePre: 50, basicPercentagePost: 35 },
+                    { slNo: 2, minGross: 120001, maxGross: 150000, basicPercentagePre: 45, basicPercentagePost: 35 },
+                    { slNo: 3, minGross: 150001, maxGross: 200000, basicPercentagePre: 40, basicPercentagePost: 35 },
+                    { slNo: 4, minGross: 200001, maxGross: 250000, basicPercentagePre: 35, basicPercentagePost: 35 },
+                    { slNo: 5, minGross: 250001, maxGross: null, basicPercentagePre: 30, basicPercentagePost: 30 },
+                ];
+                metalSlabs.forEach(s => window.addSlabRow(s));
+            }
+        };
+
+        window.closeSalaryModal = () => {
+            document.getElementById('salaryModal').classList.add('hidden');
+        };
+
+        window.editSalaryPolicy = (id) => {
+            const p = window.salaryPolicies.find(x => x.id === id);
+            if (p) window.openSalaryModal(p);
+        };
+
+        window.saveSalaryPolicy = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('salaryPolicyId').value;
+            const slabs = getSlabs();
+            if (!slabs.length) { showToast('Add at least one salary slab row.', 'error'); return; }
+
+            const body = {
+                id: id,
+                policyName: document.getElementById('salaryPolicyName').value.trim(),
+                joiningDateCutoff: document.getElementById('salaryJoinCutoff').value,
+                effectiveFrom: document.getElementById('salaryEffFrom').value,
+                festivalBonusPercentage: parseFloat(document.getElementById('salaryFestBonus').value) || 50,
+                incentiveBonusPercentage: parseFloat(document.getElementById('salaryFestBonus').value) || 50,
+                description: document.getElementById('salaryDesc').value.trim(),
+                slabs,
+                isActive: true
+            };
+            const btn = document.getElementById('salarySaveBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                await apiCall('saveSalaryPolicy', 'POST', body);
+                showToast(`"${body.policyName}" saved!`);
+                window.closeSalaryModal();
+                await loadSalaryPolicies();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Save Policy';
+            }
+        };
+
+        window.deleteSalaryPolicy = async (id, name) => {
+            const confirmed = await customConfirm('Delete Policy', `Are you sure you want to delete "${name}"?`);
+            if (confirmed) {
+                try {
+                    await apiCall('deleteSalaryPolicy', 'DELETE', { id });
+                    showToast(`"${name}" deleted.`);
+                    await loadSalaryPolicies();
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            }
+        };
+
+        /* ============================================================
+           SIDEBAR & INIT
+        ============================================================ */
+        document.getElementById('sidebarToggle').addEventListener('click', () => {
+            const s = document.getElementById('sidebar');
+            s.classList.toggle('sidebar-expanded');
+            s.classList.toggle('sidebar-collapsed');
+        });
+        document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('sidebar-mobile-open');
+        });
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('loggedInUser');
+            window.location.href = 'login.html';
+        });
+
+        // Initialize required modal listeners for utils.js
+        document.getElementById('alertOkBtn').onclick = () => closeModal('alertModal');
+        document.getElementById('confirmCancelBtn').onclick = () => window.handleConfirmCancel();
+        document.getElementById('confirmOkBtn').onclick = () => window.handleConfirmAction();
+
+        // Initial Load
+        loadLeavePolicies();
+        loadSalaryPolicies();
+    </script>
+</body>
+
+</html>

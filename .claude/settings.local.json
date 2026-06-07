@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from pptx import Presentation; prs = Presentation\\('HRMS_Presentation.pptx'\\); print\\(f'Slides: {len\\(prs.slides\\)}'\\); [print\\(f'  Slide {i+1}: {s.shapes.title.text if s.shapes.title else \\\\\"\\(no title\\)\\\\\"}'\\) for i, s in enumerate\\(prs.slides\\)]\")",
+      "Bash(python -c ':*)",
+      "Bash(pip show:*)",
+      "Bash(npx --help)",
+      "Bash(python enhance_presentation.py)"
+    ]
+  }
+}

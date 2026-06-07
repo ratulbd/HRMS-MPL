@@ -1,0 +1,733 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" output="build/intermediates/java_res/releaseUnitTest/processReleaseUnitTestJavaRes/out" path="src/testRelease/resources">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/releaseUnitTest/compileReleaseUnitTestJavaWithJavac/classes" path="src/testRelease/java">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/java_res/debugUnitTest/processDebugUnitTestJavaRes/out" path="src/testDebug/resources">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/debugUnitTest/compileDebugUnitTestJavaWithJavac/classes" path="src/testDebug/java">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/java_res/releaseUnitTest/processReleaseUnitTestJavaRes/out" path="src/test/resources">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/releaseUnitTest/compileReleaseUnitTestJavaWithJavac/classes" path="src/test/java">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/release/packageReleaseResources" path="src/release/resources">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/release/packageReleaseResources" path="src/release/res">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/release/compileReleaseJavaWithJavac/classes" path="src/release/java">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/debug/packageDebugResources" path="src/main/resources">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/debug/packageDebugResources" path="src/main/res">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/debug/compileDebugJavaWithJavac/classes" path="src/main/java">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/debug/packageDebugResources" path="src/debug/resources">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/packaged_res/debug/packageDebugResources" path="src/debug/res">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/debug/compileDebugJavaWithJavac/classes" path="src/debug/java">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources" path="src/androidTestDebug/resources">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources" path="src/androidTestDebug/res">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/debugAndroidTest/compileDebugAndroidTestJavaWithJavac/classes" path="src/androidTestDebug/java">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources" path="src/androidTest/resources">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources" path="src/androidTest/res">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="resource" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="build/intermediates/javac/debugAndroidTest/compileDebugAndroidTestJavaWithJavac/classes" path="src/androidTest/java">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.fragment/fragment/1.8.5/b35f54d151c376a42cf753bd5c285455452821ea/fragment-1.8.5.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.fragment/fragment/1.8.5/c4d0049faac4112e087521dfca0775aae964747f/fragment-1.8.5-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.fragment"/>
+			<attribute name="artifactId" value="fragment"/>
+			<attribute name="version" value="1.8.5"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.vectordrawable/vectordrawable-animated/1.1.0/fcda1161354501471c30a4e077af6b5c4d4eddc6/vectordrawable-animated-1.1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.vectordrawable/vectordrawable-animated/1.1.0/871a7705cd03bc246947638c712cdd11378233ff/vectordrawable-animated-1.1.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.vectordrawable"/>
+			<attribute name="artifactId" value="vectordrawable-animated"/>
+			<attribute name="version" value="1.1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.profileinstaller/profileinstaller/1.3.1/c0bac819b4f88a648011542273373d1e5093e3a7/profileinstaller-1.3.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.profileinstaller/profileinstaller/1.3.1/331c5e438d1bdcda02ef158a0151813b44259274/profileinstaller-1.3.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.profileinstaller"/>
+			<attribute name="artifactId" value="profileinstaller"/>
+			<attribute name="version" value="1.3.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.collection/collection/1.1.0/1f27220b47669781457de0d600849a5de0e89909/collection-1.1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.collection/collection/1.1.0/bae67b0019fbb38498198fcc2d0282a340b71c5b/collection-1.1.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.collection"/>
+			<attribute name="artifactId" value="collection"/>
+			<attribute name="version" value="1.1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.coordinatorlayout/coordinatorlayout/1.2.0/989c322ce569c805faadafc9e708984a8098fe40/coordinatorlayout-1.2.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.coordinatorlayout/coordinatorlayout/1.2.0/7a6b816ee556c56cacfa677a6fc98a5fd0e97373/coordinatorlayout-1.2.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.coordinatorlayout"/>
+			<attribute name="artifactId" value="coordinatorlayout"/>
+			<attribute name="version" value="1.2.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.versionedparcelable/versionedparcelable/1.1.1/18e18071e7715679e0593c570217edeb5ca48b9e/versionedparcelable-1.1.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.versionedparcelable/versionedparcelable/1.1.1/d9085927216387af679d18b6f472bc0fc5c7cc81/versionedparcelable-1.1.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.versionedparcelable"/>
+			<attribute name="artifactId" value="versionedparcelable"/>
+			<attribute name="version" value="1.1.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.webkit/webkit/1.12.1/952ea5c16ab05a40f3b95c68e38c56cdc1ef2e97/webkit-1.12.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.webkit/webkit/1.12.1/82c0dce697d9152d55ff84f29acb18588c13e534/webkit-1.12.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.webkit"/>
+			<attribute name="artifactId" value="webkit"/>
+			<attribute name="version" value="1.12.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-runtime/2.6.2/f0ef27053faa89b3ec06c4f118cea0a15edde35b/lifecycle-runtime-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-runtime/2.6.2/f653a171fc041d7062a83c81458c12f0201bcd6f/lifecycle-runtime-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-runtime"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-livedata-core/2.6.2/23f66885a260f0a2cd6540927ea8795484afd2da/lifecycle-livedata-core-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-livedata-core/2.6.2/3b4141d2e2e1ff6ddfd8f1990283d579d2e2f7a4/lifecycle-livedata-core-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-livedata-core"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Android/Sdk/platforms/android-35/android.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="UNKNOWN"/>
+			<attribute name="artifactId" value="UNKNOWN"/>
+			<attribute name="version" value="UNKNOWN"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.tracing/tracing/1.0.0/69cef34711dffbc517e7a0a419ec4a98f84f496a/tracing-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.tracing/tracing/1.0.0/aa6dafdce323d80a993c5427cf81d5072f023c8c/tracing-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.tracing"/>
+			<attribute name="artifactId" value="tracing"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.startup/startup-runtime/1.1.1/9d4ba67056aff98b69eadc1477c19a1e67cb9470/startup-runtime-1.1.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.startup/startup-runtime/1.1.1/714974d4ab4858eab9395d3b048002108b62cf0a/startup-runtime-1.1.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.startup"/>
+			<attribute name="artifactId" value="startup-runtime"/>
+			<attribute name="version" value="1.1.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-ktx/1.13.1/f595b8c10fad9099f71a3c1fc6ded1c9b5010190/core-ktx-1.13.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-ktx/1.13.1/2ebeecb97d5b1557fc7b3e3758447b8176e322e8/core-ktx-1.13.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.core"/>
+			<attribute name="artifactId" value="core-ktx"/>
+			<attribute name="version" value="1.13.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.6.4/2c997cd1c0ef33f3e751d3831929aeff1390cb30/kotlinx-coroutines-core-jvm-1.6.4.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.6.4/f6a09bbc88df97983306c692aa43889ac78b98ef/kotlinx-coroutines-core-jvm-1.6.4-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.jetbrains.kotlinx"/>
+			<attribute name="artifactId" value="kotlinx-coroutines-core-jvm"/>
+			<attribute name="version" value="1.6.4"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/5991ca87ef1fb5544943d9abc5a9a37583fabe03/annotations-13.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.jetbrains"/>
+			<attribute name="artifactId" value="annotations"/>
+			<attribute name="version" value="13.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-runtime/2.2.0/39705982680d78556b679ef9d5400d4f17509b0b/core-runtime-2.2.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-runtime/2.2.0/48630ad88f438e5a603ae74cf4858203d1a595c5/core-runtime-2.2.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.arch.core"/>
+			<attribute name="artifactId" value="core-runtime"/>
+			<attribute name="version" value="2.2.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-common/2.6.2/10f354fdb64868baecd67128560c5a0d6312c495/lifecycle-common-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-common/2.6.2/a2a417e26f5d4c961d9621d0540014e1706d0c52/lifecycle-common-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-common"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Android/Sdk/build-tools/35.0.0/core-lambda-stubs.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="UNKNOWN"/>
+			<attribute name="artifactId" value="UNKNOWN"/>
+			<attribute name="version" value="UNKNOWN"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.customview/customview/1.0.0/30f5ff6075d112f8076e733b24410e68159735b6/customview-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.customview/customview/1.0.0/61f6a717d144dff3a6bda413d9abeeb2bca71581/customview-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.customview"/>
+			<attribute name="artifactId" value="customview"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-viewmodel/2.6.2/fa35bfdbbe0e7df1573e377cbdd15de35176141d/lifecycle-viewmodel-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-viewmodel/2.6.2/dc2aa94a7174f4b67e6923496dc195cbf726a63b/lifecycle-viewmodel-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-viewmodel"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.savedstate/savedstate/1.2.1/e364fc9dec32aa569d855f85864e50250318a093/savedstate-1.2.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.savedstate/savedstate/1.2.1/58d4c9fd35e826d3bce813974006451ee9ba4344/savedstate-1.2.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.savedstate"/>
+			<attribute name="artifactId" value="savedstate"/>
+			<attribute name="version" value="1.2.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.viewpager/viewpager/1.0.0/1f90e13820f96c2fb868f9674079a551678d68b2/viewpager-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.viewpager/viewpager/1.0.0/db045f92188b9d247d5f556866f8861ab68528f0/viewpager-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.viewpager"/>
+			<attribute name="artifactId" value="viewpager"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-splashscreen/1.0.1/fadbb3c79d38f185997886b932b93278a4d8c2c1/core-splashscreen-1.0.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-splashscreen/1.0.1/e033216357e9111d8d520996527bbd098bd81a66/core-splashscreen-1.0.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.core"/>
+			<attribute name="artifactId" value="core-splashscreen"/>
+			<attribute name="version" value="1.0.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.cursoradapter/cursoradapter/1.0.0/74014983a86b83cbce534dec4e7aa9312f5f5d82/cursoradapter-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.cursoradapter/cursoradapter/1.0.0/1e323083b41c31fd4d45510dfce50614963c3c6c/cursoradapter-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.cursoradapter"/>
+			<attribute name="artifactId" value="cursoradapter"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.8.22/636bf8b320e7627482771bbac9ed7246773c02bd/kotlin-stdlib-1.8.22.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.8.22/6a8d4dfebb88f951bcd9f58636f085bf24ff3e8b/kotlin-stdlib-1.8.22-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.jetbrains.kotlin"/>
+			<attribute name="artifactId" value="kotlin-stdlib"/>
+			<attribute name="version" value="1.8.22"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-common/2.2.0/5e1b8b81dfd5f52c56a8d53b18ca759c19a301f3/core-common-2.2.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-common/2.2.0/f3ac1460fc6844d5441595a34591af7fc04fd2e5/core-common-2.2.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.arch.core"/>
+			<attribute name="artifactId" value="core-common"/>
+			<attribute name="version" value="2.2.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-common/1.8.22/1a8e3601703ae14bb58757ea6b2d8e8e5935a586/kotlin-stdlib-common-1.8.22.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-common/1.8.22/ae313b979b8e620a6497cd323f9c5861f7aebef/kotlin-stdlib-common-1.8.22-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.jetbrains.kotlin"/>
+			<attribute name="artifactId" value="kotlin-stdlib-common"/>
+			<attribute name="version" value="1.8.22"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.emoji2/emoji2-views-helper/1.3.0/7bef7c1117bb40ef41ee0641cd1d2d605e2d607c/emoji2-views-helper-1.3.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.emoji2/emoji2-views-helper/1.3.0/70bc75b8c5681fc8d0a4026648950c1cfd90a72/emoji2-views-helper-1.3.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.emoji2"/>
+			<attribute name="artifactId" value="emoji2-views-helper"/>
+			<attribute name="version" value="1.3.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-process/2.6.2/1cda99630dfe13ea65f63d05821187bfe87a5967/lifecycle-process-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-process/2.6.2/dd039c5f2bbb7b39abdef48c2144039069b7bd7/lifecycle-process-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-process"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.apache.cordova/framework/14.0.1/4112ec6b3f3784cefce81a6467a7beb96297d8bc/framework-14.0.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.apache.cordova/framework/14.0.1/5e08ad6ed43404944f78113b86af9b62a25632d1/framework-14.0.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.apache.cordova"/>
+			<attribute name="artifactId" value="framework"/>
+			<attribute name="version" value="14.0.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.concurrent/concurrent-futures/1.1.0/50b7fb98350d5f42a4e49704b03278542293ba48/concurrent-futures-1.1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.concurrent/concurrent-futures/1.1.0/a27842adf6c42f3d80893bd46e1de4ac024218e7/concurrent-futures-1.1.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.concurrent"/>
+			<attribute name="artifactId" value="concurrent-futures"/>
+			<attribute name="version" value="1.1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.resourceinspection/resourceinspection-annotation/1.0.1/8c21f8ff5d96d5d52c948707f7e4d6ca6773feef/resourceinspection-annotation-1.0.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.resourceinspection/resourceinspection-annotation/1.0.1/a1c91a3cf63fd51a8e755747186d97585f955ae3/resourceinspection-annotation-1.0.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.resourceinspection"/>
+			<attribute name="artifactId" value="resourceinspection-annotation"/>
+			<attribute name="version" value="1.0.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="D:/AI Project/HRMS/hr-management-system/android/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/debug/processDebugResources/R.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="UNKNOWN"/>
+			<attribute name="artifactId" value="UNKNOWN"/>
+			<attribute name="version" value="UNKNOWN"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat-resources/1.7.0/2a42c0283578a8a40fc83b45b5cd06924bd1a385/appcompat-resources-1.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat-resources/1.7.0/cb084bf039d2b49e02cb58e0da0044fed264a4fb/appcompat-resources-1.7.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.appcompat"/>
+			<attribute name="artifactId" value="appcompat-resources"/>
+			<attribute name="version" value="1.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.guava/listenablefuture/1.0/c949a840a6acbc5268d088e47b04177bf90b3cad/listenablefuture-1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.guava/listenablefuture/1.0/be1234988ac73d61e52e35a912169b06020caa7/listenablefuture-1.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="com.google.guava"/>
+			<attribute name="artifactId" value="listenablefuture"/>
+			<attribute name="version" value="1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.emoji2/emoji2/1.3.0/37ed42991ddf77924510472dba632314aab1c9d9/emoji2-1.3.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.emoji2/emoji2/1.3.0/788179fcab96cd6ec9a3e284e2a509545dc0fb8d/emoji2-1.3.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.emoji2"/>
+			<attribute name="artifactId" value="emoji2"/>
+			<attribute name="version" value="1.3.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-viewmodel-savedstate/2.6.2/483115c35b2926c3780dfdaf3f5d0342855e73b1/lifecycle-viewmodel-savedstate-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-viewmodel-savedstate/2.6.2/2d3519967d6ad4b68af5219e6a2bf015c1ed6287/lifecycle-viewmodel-savedstate-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-viewmodel-savedstate"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-experimental/1.4.1/7851235e2a16ce50270a74b555edaf9209b42864/annotation-experimental-1.4.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-experimental/1.4.1/4dc003cb3c5ff16a1c3d09f3d1f7ae7b2d14a9c4/annotation-experimental-1.4.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.annotation"/>
+			<attribute name="artifactId" value="annotation-experimental"/>
+			<attribute name="version" value="1.4.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.activity/activity/1.9.3/643a69bf29d8eaedac8bd2974296d15a8748ba54/activity-1.9.3.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.activity/activity/1.9.3/f03633494401aa419966552d45ed3efb0bbd99e8/activity-1.9.3-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.activity"/>
+			<attribute name="artifactId" value="activity"/>
+			<attribute name="version" value="1.9.3"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.loader/loader/1.0.0/8af8b6cec0da85c207d03e15840e0722cbc71e70/loader-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.loader/loader/1.0.0/b9ef587f3e46c7fe5b00264989764e43ff45cada/loader-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.loader"/>
+			<attribute name="artifactId" value="loader"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.drawerlayout/drawerlayout/1.0.0/dd02c7e207136e1272b33815cc61e57676ed13a2/drawerlayout-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.drawerlayout/drawerlayout/1.0.0/9ecd4ecb7da215ba4c5c3e00bf8d290dad6f2bc5/drawerlayout-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.drawerlayout"/>
+			<attribute name="artifactId" value="drawerlayout"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-livedata/2.6.2/e7f6d9e232bf035af69c030917c1ccda8e840b57/lifecycle-livedata-2.6.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.lifecycle/lifecycle-livedata/2.6.2/7ee67be9804a0951093b89b1115f95facb1d823/lifecycle-livedata-2.6.2-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.lifecycle"/>
+			<attribute name="artifactId" value="lifecycle-livedata"/>
+			<attribute name="version" value="2.6.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.interpolator/interpolator/1.0.0/8a01fa254a23b9388571eb6334b03707c7d122d7/interpolator-1.0.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.interpolator/interpolator/1.0.0/fefd5e3cbc479b6b4a9532d05688a1e659e8d3d2/interpolator-1.0.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.interpolator"/>
+			<attribute name="artifactId" value="interpolator"/>
+			<attribute name="version" value="1.0.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/1.7.0/d44656e67ab2123393e5f3e957ecc3641a600c7b/appcompat-1.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/1.7.0/c66c25a939bfe4b18249922dc4e7a19caca8bf68/appcompat-1.7.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.appcompat"/>
+			<attribute name="artifactId" value="appcompat"/>
+			<attribute name="version" value="1.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.vectordrawable/vectordrawable/1.1.0/eac7a364fff534035a2a6cb17770a1288315f69f/vectordrawable-1.1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.vectordrawable/vectordrawable/1.1.0/1e0694477eed874c50c54b547cc3e5a62a57a62b/vectordrawable-1.1.0-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.vectordrawable"/>
+			<attribute name="artifactId" value="vectordrawable"/>
+			<attribute name="version" value="1.1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core/1.13.1/4606d420282fe1e5c8d5c4e647ec188e1045b7be/core-1.13.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core/1.13.1/b0c9edc0bc9e5113630fbaca0967ef604097ba6f/core-1.13.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.core"/>
+			<attribute name="artifactId" value="core"/>
+			<attribute name="version" value="1.13.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-jvm/1.8.1/b8a16fe526014b7941c1debaccaf9c5153692dbb/annotation-jvm-1.8.1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-jvm/1.8.1/38ef8b544da94401882fb3abac556f26f46bc046/annotation-jvm-1.8.1-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.annotation"/>
+			<attribute name="artifactId" value="annotation-jvm"/>
+			<attribute name="version" value="1.8.1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-android/1.6.4/f955fc8b2ad196e2f4429598440e15f7492eeb2b/kotlinx-coroutines-android-1.6.4.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-android/1.6.4/1f1dc4b0cdd9695aa300378bc244702abb94312d/kotlinx-coroutines-android-1.6.4-sources.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.jetbrains.kotlinx"/>
+			<attribute name="artifactId" value="kotlinx-coroutines-android"/>
+			<attribute name="version" value="1.6.4"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="D:/AI Project/HRMS/hr-management-system/android/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/release/processReleaseResources/R.jar">
+		<attributes>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="UNKNOWN"/>
+			<attribute name="artifactId" value="UNKNOWN"/>
+			<attribute name="version" value="UNKNOWN"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/42a25dc3219429f0e5d060061f71acb49bf010a0/hamcrest-core-1.3.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-core/1.3/1dc37250fbc78e23a65a67fbbaf71d2e9cbc3c0b/hamcrest-core-1.3-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.hamcrest"/>
+			<attribute name="artifactId" value="hamcrest-core"/>
+			<attribute name="version" value="1.3"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/8ac9e16d933b6fb43bc7f576336b8f4d7eb5ba12/junit-4.13.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/junit/junit/4.13.2/33987872a811fe4d4001ed494b07854822257f42/junit-4.13.2-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="junit"/>
+			<attribute name="artifactId" value="junit"/>
+			<attribute name="version" value="4.13.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-experimental/1.4.0/c7a2038d831d0cfbfb9a440890b287c2e839ecf/annotation-experimental-1.4.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.annotation/annotation-experimental/1.4.0/4dc003cb3c5ff16a1c3d09f3d1f7ae7b2d14a9c4/annotation-experimental-1.4.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.annotation"/>
+			<attribute name="artifactId" value="annotation-experimental"/>
+			<attribute name="version" value="1.4.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.espresso/espresso-core/3.7.0/9f54800d1df0414ce8584a05637f8004b344bd12/espresso-core-3.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.espresso/espresso-core/3.7.0/8954e2704fa0d63081a6f95e8644472667567fed/espresso-core-3.7.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test.espresso"/>
+			<attribute name="artifactId" value="espresso-core"/>
+			<attribute name="version" value="3.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.espresso/espresso-idling-resource/3.7.0/70b1e522e90b228d9d1aad1b22409ebb7657f43e/espresso-idling-resource-3.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.espresso/espresso-idling-resource/3.7.0/77a86d3b8d6399211eaa422174f17011978567bb/espresso-idling-resource-3.7.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test.espresso"/>
+			<attribute name="artifactId" value="espresso-idling-resource"/>
+			<attribute name="version" value="3.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.ext/junit/1.3.0/1461515f981eb6342553074fc9ffa0528c083f86/junit-1.3.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.ext/junit/1.3.0/3beee303ec5f7bb9c2acfd04b10403494df90b9d/junit-1.3.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test.ext"/>
+			<attribute name="artifactId" value="junit"/>
+			<attribute name="version" value="1.3.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.code.findbugs/jsr305/3.0.2/25ea2e8b0c338a877313bd4672d3fe056ea78f0d/jsr305-3.0.2.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.code.findbugs/jsr305/3.0.2/b19b5927c2c25b6c70f093767041e641ae0b1b35/jsr305-3.0.2-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="com.google.code.findbugs"/>
+			<attribute name="artifactId" value="jsr305"/>
+			<attribute name="version" value="3.0.2"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-runtime/2.1.0/2df0e03029caae7863ccb4825addaadc8ab6780c/core-runtime-2.1.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.arch.core/core-runtime/2.1.0/f19886651c9946b39f83d8c184fd0e2ce9f43c16/core-runtime-2.1.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.arch.core"/>
+			<attribute name="artifactId" value="core-runtime"/>
+			<attribute name="version" value="2.1.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.fragment/fragment/1.5.4/de58ea6b5ffbf3ede9ba6919eb448e23353f1e19/fragment-1.5.4.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.fragment/fragment/1.5.4/5404b0f8aeccb2fe882bee99ef8843711c01c156/fragment-1.5.4-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.fragment"/>
+			<attribute name="artifactId" value="fragment"/>
+			<attribute name="version" value="1.5.4"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core/1.13.0/ec9d4e1da0dc84ff6a644624447a99ad136de21d/core-1.13.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core/1.13.0/9ae580505557c829bed91310494b3ccd0a386dfd/core-1.13.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.core"/>
+			<attribute name="artifactId" value="core"/>
+			<attribute name="version" value="1.13.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.activity/activity/1.7.0/7c28313e2f754db008beb3e8f57118c62c2d080d/activity-1.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.activity/activity/1.7.0/6f06f057eb5dedb1247cecd29b77a1ab826a0712/activity-1.7.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.activity"/>
+			<attribute name="artifactId" value="activity"/>
+			<attribute name="version" value="1.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/runner/1.7.0/ad0c5f9cec6021f875a7bd1ed9599083b144f58d/runner-1.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/runner/1.7.0/98be1207f313bdf344a95ac60c576d578e36bc17/runner-1.7.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test"/>
+			<attribute name="artifactId" value="runner"/>
+			<attribute name="version" value="1.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="D:/AI Project/HRMS/hr-management-system/android/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/debugAndroidTest/processDebugAndroidTestResources/R.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="UNKNOWN"/>
+			<attribute name="artifactId" value="UNKNOWN"/>
+			<attribute name="version" value="UNKNOWN"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/core/1.7.0/442a8eec92a3a26cd48e9605b161611520efd586/core-1.7.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/core/1.7.0/19265db3d61aefc72269a069817d44f818ee9ca/core-1.7.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test"/>
+			<attribute name="artifactId" value="core"/>
+			<attribute name="version" value="1.7.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/javax.inject/javax.inject/1/6975da39a7040257bd51d21a231b76c915872d38/javax.inject-1.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/javax.inject/javax.inject/1/a00123f261762a7c5e0ec916a2c7c8298d29c400/javax.inject-1-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="javax.inject"/>
+			<attribute name="artifactId" value="javax.inject"/>
+			<attribute name="version" value="1"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-library/1.3/4785a3c21320980282f9f33d0d1264a69040538f/hamcrest-library-1.3.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/org.hamcrest/hamcrest-library/1.3/47a7ee46628ab7133129cd7cef1e92657bc275e/hamcrest-library-1.3-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="org.hamcrest"/>
+			<attribute name="artifactId" value="hamcrest-library"/>
+			<attribute name="version" value="1.3"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-ktx/1.2.0/6756534f262c845d4d06b55aaf8b751db0e48822/core-ktx-1.2.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.core/core-ktx/1.2.0/75eb613f7dec270f611d0adff5fcb0e8b617fe0a/core-ktx-1.2.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.core"/>
+			<attribute name="artifactId" value="core-ktx"/>
+			<attribute name="version" value="1.2.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.errorprone/error_prone_annotations/2.30.0/ff171acb7fb9cbe2b9f50b391e1d52459d30ee62/error_prone_annotations-2.30.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/com.google.errorprone/error_prone_annotations/2.30.0/5fd807da9cc296152cdc37b1692a6f7616d6b2c5/error_prone_annotations-2.30.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="com.google.errorprone"/>
+			<attribute name="artifactId" value="error_prone_annotations"/>
+			<attribute name="version" value="2.30.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.concurrent/concurrent-futures-ktx/1.2.0/13b49fdb58c74bdfb12eb131b5e22d6d09683e30/concurrent-futures-ktx-1.2.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.concurrent/concurrent-futures-ktx/1.2.0/34891c54204e087f47c3009c15b688deb81dbdc/concurrent-futures-ktx-1.2.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.concurrent"/>
+			<attribute name="artifactId" value="concurrent-futures-ktx"/>
+			<attribute name="version" value="1.2.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.services/storage/1.6.0/25ee07e80508898ef0fb74ddec44f56fd7221011/storage-1.6.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test.services/storage/1.6.0/e79382cf7d1d44ef6b4b32533d10379ed3cbc656/storage-1.6.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test.services"/>
+			<attribute name="artifactId" value="storage"/>
+			<attribute name="version" value="1.6.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/monitor/1.8.0/3b49e700fa301ccfc2126d60d0a2064836cfec85/monitor-1.8.0.jar" sourcepath="C:/Users/Ratul Islam/.gradle/caches/modules-2/files-2.1/androidx.test/monitor/1.8.0/c901f94f9f176d3a922d88e1a24a3a16ac085ece/monitor-1.8.0-sources.jar">
+		<attributes>
+			<attribute name="test" value="true"/>
+			<attribute name="gradle.buildServer" value="true"/>
+			<attribute name="groupId" value="androidx.test"/>
+			<attribute name="artifactId" value="monitor"/>
+			<attribute name="version" value="1.8.0"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

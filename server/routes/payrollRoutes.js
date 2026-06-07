@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Payroll = require('../models/Payroll');
+const { protect, authorize } = require('../middleware/authMiddleware');
+
+// Protect all routes
+router.use(protect);
+router.use(authorize('Admin', 'Manager'));
 
 // POST /api/payroll/archive - Save a generated salary sheet
 router.post('/archive', async (req, res) => {

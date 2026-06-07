@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Shifts - HRMS Admin</title>
+    <link rel="stylesheet" href="admin_style.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Dashboard</a>
+        </div>
+        <h1>Shift Management</h1>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Create/Edit Shift</h2>
+                <form id="shiftForm">
+                    <input type="hidden" id="shiftId">
+                    <div class="form-group">
+                        <label>Shift Name</label>
+                        <input type="text" id="name" placeholder="e.g. Morning Shift" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="startTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="endTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Grace Time (Minutes)</label>
+                        <input type="number" id="graceTime" value="15" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Shift</button>
+                    <button type="button" id="resetBtn" class="btn btn-secondary" style="margin-left: 0.5rem;">Reset</button>
+                </form>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <h2>Active Shifts</h2>
+                <table id="shiftTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Hours</th>
+                            <th>Grace</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/shifts';
+        const form = document.getElementById('shiftForm');
+        const tableBody = document.querySelector('#shiftTable tbody');
+
+        async function loadShifts() {
+            const res = await fetch(API_BASE);
+            const shifts = await res.json();
+            tableBody.innerHTML = shifts.map(s => `
+                <tr>
+                    <td>${s.name}</td>
+                    <td>${s.startTime} - ${s.endTime}</td>
+                    <td>${s.graceTime} min</td>
+                    <td>
+                        <button onclick="editShift('${s._id}')" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; margin-right: 0.5rem;">Edit</button>
+                        <button onclick="deleteShift('${s._id}')" class="btn btn-danger" style="padding: 0.4rem 0.8rem;">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('shiftId').value;
+            const data = {
+                name: document.getElementById('name').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                graceTime: document.getElementById('graceTime').value
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_BASE}/${id}` : API_BASE;
+
+            await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            form.reset();
+            document.getElementById('shiftId').value = '';
+            loadShifts();
+        };
+
+        async function editShift(id) {
+            const res = await fetch(`${API_BASE}`);
+            const shifts = await res.json();
+            const shift = shifts.find(s => s._id === id);
+
+            document.getElementById('shiftId').value = shift._id;
+            document.getElementById('name').value = shift.name;
+            document.getElementById('startTime').value = shift.startTime;
+            document.getElementById('endTime').value = shift.endTime;
+            document.getElementById('graceTime').value = shift.graceTime;
+        }
+
+        async function deleteShift(id) {
+            if (!confirm('Delete this shift?')) return;
+            await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+            loadShifts();
+        }
+
+        document.getElementById('resetBtn').onclick = () => {
+            form.reset();
+            document.getElementById('shiftId').value = '';
+        };
+
+        loadShifts();
+    </script>
+</body>
+
+</html>

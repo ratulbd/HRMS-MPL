@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duty Roster Management - HRMS Admin</title>
+    <link rel="stylesheet" href="admin_style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Dashboard</a>
+        </div>
+        <h1>Duty Roster Management</h1>
+
+        <div class="dashboard-grid">
+            <!-- Download Template Card -->
+            <div class="card">
+                <h2>1. Download Template</h2>
+                <p>Generate a pre-filled roster template for your team.</p>
+                <form id="templateForm" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label>Sub-Center</label>
+                        <select id="subCenter" required>
+                            <!-- Loaded via JS -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Month</label>
+                        <select id="tempMonth" required>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <select id="tempYear" required>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-download mr-2"></i> &nbsp; Download Template (Excel)
+                    </button>
+                </form>
+            </div>
+
+            <!-- Upload Roster Card -->
+            <div class="card">
+                <h2>2. Upload Roster</h2>
+                <p>Upload the filled template (Excel or JSON) to apply shifts.</p>
+                <div id="dropZone"
+                    style="border: 2px dashed var(--card-border); border-radius: 1rem; padding: 2rem; text-align: center; margin-top: 1rem; cursor: pointer; transition: 0.3s; background: var(--card-bg); backdrop-filter: blur(12px);">
+                    <i class="fas fa-file-excel fa-3x" style="color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                    <p style="color: var(--text-secondary);">Click or Drag & Drop Roster File</p>
+                    <input type="file" id="rosterFile" accept=".json,.xlsx,.xls" style="display: none;">
+                </div>
+                <div id="uploadStatus" style="margin-top: 1rem; display: none;">
+                    <div class="progress-bar"
+                        style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                        <div id="progressFill"
+                            style="width: 0%; height: 100%; background: var(--primary); transition: 0.3s;"></div>
+                    </div>
+                    <p id="statusMsg" style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUB_CENTER_API = '/api/subcenters';
+        const ROSTER_TEMPLATE_API = '/api/roster/template';
+        const ROSTER_UPLOAD_API = '/api/roster/upload';
+
+        // Load Sub-Centers
+        async function loadSubCenters() {
+            const res = await fetch(SUB_CENTER_API);
+            const centers = await res.json();
+            const select = document.getElementById('subCenter');
+            select.innerHTML = centers.map(c => `<option value="${c.subCenterName}">${c.subCenterName}</option>`).join('');
+        }
+
+        // Template Download
+        document.getElementById('templateForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const sc = document.getElementById('subCenter').value;
+            const month = document.getElementById('tempMonth').value;
+            const year = document.getElementById('tempYear').value;
+
+            const url = `${ROSTER_TEMPLATE_API}?subCenter=${encodeURIComponent(sc)}&month=${month}&year=${year}`;
+            window.location.href = url;
+        };
+
+        // File Selection
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('rosterFile');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        };
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('roster', file);
+
+            const status = document.getElementById('uploadStatus');
+            const progressFill = document.getElementById('progressFill');
+            const statusMsg = document.getElementById('statusMsg');
+
+            status.style.display = 'block';
+            progressFill.style.width = '50%';
+            statusMsg.textContent = 'Uploading...';
+
+            try {
+                const res = await fetch(ROSTER_UPLOAD_API, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+                progressFill.style.width = '100%';
+                statusMsg.style.color = 'var(--primary)';
+                statusMsg.textContent = `Success! ${data.count} records updated.`;
+                setTimeout(() => { status.style.display = 'none'; }, 5000);
+            } catch (err) {
+                progressFill.style.background = '#ef4444';
+                statusMsg.style.color = '#ef4444';
+                statusMsg.textContent = err.message;
+            }
+        }
+
+        loadSubCenters();
+    </script>
+</body>
+
+</html>

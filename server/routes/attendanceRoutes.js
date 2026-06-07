@@ -5,6 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const Attendance = require('../models/Attendance');
 const Employee = require('../models/Employee');
+const { verifyBiometrics } = require('../utils/biometricMatchEngine');
+const { protect } = require('../middleware/authMiddleware');
 
 // === Multer Setup for Selfie Uploads ===
 const storage = multer.diskStorage({
@@ -27,6 +29,9 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
+// Protect all routes
+router.use(protect);
+
 // Helper: Get today's date normalized to midnight
 const getTodayDate = () => {
     const d = new Date();
@@ -45,6 +50,36 @@ router.post('/check-in', upload.single('selfie'), async (req, res) => {
         // Verify Employee Exists
         const employee = await Employee.findOne({ employeeId });
         if (!employee) return res.status(404).json({ error: "Employee not found" });
+
+        // Biometric Face & Eye Check
+        if (employee.isBiometricRegistered) {
+            const checkInSelfieLocalPath = req.file ? req.file.path : null;
+            if (!checkInSelfieLocalPath) {
+                return res.status(400).json({ error: "Biometric verification failed: Selfie is required for check-in." });
+            }
+            
+            const testMismatch = req.body.testMismatch === 'true' || req.query.testMismatch === 'true';
+            const refLocalPath = employee.biometricRefImage.startsWith('/') 
+                ? employee.biometricRefImage.substring(1) 
+                : employee.biometricRefImage;
+
+            const verification = await verifyBiometrics(
+                employee.employeeId, 
+                refLocalPath, 
+                checkInSelfieLocalPath, 
+                { testMismatch }
+            );
+
+            if (!verification.success) {
+                if (fs.existsSync(checkInSelfieLocalPath)) {
+                    fs.unlinkSync(checkInSelfieLocalPath);
+                }
+                return res.status(400).json({ 
+                    error: `Biometric Mismatch: ${verification.error}`,
+                    code: "BIOMETRIC_MISMATCH"
+                });
+            }
+        }
 
         const today = getTodayDate();
 
@@ -164,6 +199,36 @@ router.post('/check-out', upload.single('selfie'), async (req, res) => {
         const employee = await Employee.findOne({ employeeId });
         if (!employee) return res.status(404).json({ error: "Employee not found" });
 
+        // Biometric Face & Eye Check
+        if (employee.isBiometricRegistered) {
+            const checkOutSelfieLocalPath = req.file ? req.file.path : null;
+            if (!checkOutSelfieLocalPath) {
+                return res.status(400).json({ error: "Biometric verification failed: Selfie is required for check-out." });
+            }
+            
+            const testMismatch = req.body.testMismatch === 'true' || req.query.testMismatch === 'true';
+            const refLocalPath = employee.biometricRefImage.startsWith('/') 
+                ? employee.biometricRefImage.substring(1) 
+                : employee.biometricRefImage;
+
+            const verification = await verifyBiometrics(
+                employee.employeeId, 
+                refLocalPath, 
+                checkOutSelfieLocalPath, 
+                { testMismatch }
+            );
+
+            if (!verification.success) {
+                if (fs.existsSync(checkOutSelfieLocalPath)) {
+                    fs.unlinkSync(checkOutSelfieLocalPath);
+                }
+                return res.status(400).json({ 
+                    error: `Biometric Mismatch: ${verification.error}`,
+                    code: "BIOMETRIC_MISMATCH"
+                });
+            }
+        }
+
         const today = getTodayDate();
 
         // Find today's attendance
@@ -280,7 +345,7 @@ router.get('/pending/:approverId', async (req, res) => {
         const pending = await Attendance.find({
             currentApprover: approverId,
             approvalStatus: 'Pending'
-        }).populate('employeeId', 'name designation employeeId');
+        }).populate('employeeId', 'name designation employeeId biometricRefImage isBiometricRegistered');
 
         res.json(pending);
     } catch (err) {

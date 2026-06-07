@@ -1,380 +1,523 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRMS Login</title>
+    <title>Sign in to HRMS - Metal Group</title>
     <link rel="icon" href="/assets/logo.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: #f9fafb;
+            color: #111827;
         }
-
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 24px;
-            height: 24px;
+        .font-display {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: -0.02em;
+        }
+        
+        .split-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Left Brand Panel */
+        .brand-panel {
+            width: 45%;
+            background: linear-gradient(135deg, #f3f0ff 0%, #e0d4fc 100%);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4rem;
+            overflow: hidden;
+        }
+        
+        /* Decorative glass orb */
+        .glass-orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.1) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.4);
             border-radius: 50%;
-            border-left-color: #fff;
-            animation: spin 1s ease infinite;
+            top: -100px;
+            right: -150px;
+            z-index: 1;
+            box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.1);
+        }
+        
+        .glass-orb-2 {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%);
+            border-radius: 50%;
+            bottom: 10%;
+            left: -50px;
+            z-index: 1;
+        }
+        
+        .brand-content {
+            position: relative;
+            z-index: 2;
         }
 
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
+        .logo-container img {
+            height: 40px;
         }
 
-        .login-card-animation {
-            animation: fadeInScale 0.5s ease-out forwards;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .input {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.375rem;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            outline: none;
-            margin-top: 0.25rem;
-            display: block;
-            width: 100%;
-            font-size: 0.875rem;
-            line-height: 1.25rem;
-        }
-
-        .input:focus {
-            border-color: #166531;
-            --tw-ring-color: #166531;
-            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-        }
-
-        .btn {
-            display: inline-flex;
+        /* Right Login Panel */
+        .login-panel {
+            width: 55%;
+            display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            background: #ffffff;
+            padding: 2rem;
+        }
+        
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
             font-size: 0.875rem;
-            line-height: 1.25rem;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background-color: #15803d;
-            color: white;
-            box-shadow: 0 4px 14px 0 rgba(21, 128, 61, 0.3);
-        }
-
-        .btn-primary:hover {
-            background-color: #166531;
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px 0 rgba(21, 128, 61, 0.3);
-        }
-
-        .btn-secondary {
-            background-color: white;
+            font-weight: 500;
             color: #374151;
-            border: 1px solid #d1d5db;
+            margin-bottom: 0.5rem;
         }
-
-        .btn-secondary:hover {
-            background-color: #f9fafb;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .input-container {
+        
+        .input-wrapper {
             position: relative;
         }
-
+        
         .input-icon {
             position: absolute;
-            left: 0.75rem;
+            left: 1rem;
             top: 50%;
             transform: translateY(-50%);
             color: #9ca3af;
-            margin-top: 0.125rem;
+            font-size: 1rem;
+            pointer-events: none;
+            transition: color 0.2s;
         }
-
-        .toggle-password {
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9375rem;
+            color: #111827;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            outline: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .form-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+        
+        .form-input:focus + .input-icon, 
+        .input-wrapper:focus-within .input-icon {
+            color: #6366f1;
+        }
+        
+        .password-toggle {
             position: absolute;
-            right: 0.75rem;
+            right: 1rem;
             top: 50%;
             transform: translateY(-50%);
+            color: #9ca3af;
             cursor: pointer;
-            color: #6b7280;
-            margin-top: 0.125rem;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+        
+        .password-toggle:hover {
+            color: #4b5563;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            background: #4f46e5;
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -1px rgba(79, 70, 229, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.25), 0 4px 6px -1px rgba(79, 70, 229, 0.15);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border-left-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .error-alert {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .brand-panel { width: 40%; padding: 3rem; }
+            .login-panel { width: 60%; }
+        }
+        
+        @media (max-width: 768px) {
+            .split-layout { flex-direction: column; }
+            .brand-panel { width: 100%; padding: 2rem; min-height: 300px; flex: none; }
+            .login-panel { width: 100%; padding: 2rem; flex: 1; align-items: flex-start; padding-top: 3rem; }
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .feature-icon-box {
+            width: 40px;
+            height: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6366f1;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
+<body>
 
-<body class="bg-gradient-to-br from-green-50 to-gray-50 flex items-center justify-center min-h-screen p-4">
-
-    <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-sm login-card-animation">
-        <img src="/assets/logo.png" alt="Metal Logo" class="w-48 mx-auto mb-4">
-        <h1 class="text-2xl font-bold text-center text-green-800 mb-2">HRMS TELECOM</h1>
-        <h2 class="text-lg font-semibold text-center text-gray-600 mb-8">Login to your account</h2>
-
-        <form id="loginForm" class="space-y-5">
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                <div class="input-container mt-1">
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" id="username" name="username" required class="input pl-10">
-                </div>
+<div class="split-layout">
+    <!-- Left Brand Panel -->
+    <div class="brand-panel">
+        <div class="glass-orb"></div>
+        <div class="glass-orb-2"></div>
+        
+        <div class="brand-content logo-container">
+            <div class="flex items-center gap-3">
+                <img src="/assets/logo.png" alt="Metal Logo" onerror="this.style.display='none'">
+                <span class="font-display text-2xl font-bold text-gray-900 tracking-tight">HRMS</span>
             </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-                <div class="input-container mt-1">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="password" name="password" required class="input pl-10 pr-10">
-                    <span class="toggle-password" onclick="togglePasswordVisibility('password', 'toggleIconLogin')">
-                        <i class="fa-regular fa-eye" id="toggleIconLogin"></i>
-                    </span>
-                </div>
-            </div>
-            <div id="loginError" class="text-red-600 text-sm mt-2 hidden"></div>
-
-            <div class="pt-2">
-                <button type="submit" id="loginSubmitBtn"
-                    class="btn btn-primary w-full flex items-center justify-center">
-                    <span id="loginSubmitText">Login</span>
-                    <div id="loginSpinner" class="spinner ml-2 hidden"></div>
-                </button>
-            </div>
-
-            <p class="text-xs text-gray-500 text-center mt-4">
-                Forgot password? Please contact the system administrator.
-            </p>
-        </form>
-
-        <div id="changePasswordSection" class="mt-6 pt-6 border-t hidden">
-            <h2 class="text-xl font-semibold text-center text-green-700 mb-4">Change Required</h2>
-            <p class="text-sm text-gray-600 mb-4 text-center">Please set a new password.</p>
-            <form id="changePasswordForm" class="space-y-5">
-                <input type="hidden" id="changeUsername">
-                <div>
-                    <label for="newPassword" class="block text-sm font-medium text-gray-700">New Password</label>
-                    <div class="input-container mt-1">
-                        <i class="fas fa-key input-icon"></i>
-                        <input type="password" id="newPassword" name="newPassword" required class="input pl-10 pr-10">
-                        <span class="toggle-password"
-                            onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')">
-                            <i class="fa-regular fa-eye" id="toggleIconNew"></i>
-                        </span>
-                    </div>
-                </div>
-                <div>
-                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm
-                        Password</label>
-                    <div class="input-container mt-1">
-                        <i class="fas fa-key input-icon"></i>
-                        <input type="password" id="confirmPassword" name="confirmPassword" required
-                            class="input pl-10 pr-10">
-                        <span class="toggle-password"
-                            onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')">
-                            <i class="fa-regular fa-eye" id="toggleIconConfirm"></i>
-                        </span>
-                    </div>
-                </div>
-                <div id="changePasswordError" class="text-red-600 text-sm mt-2 hidden"></div>
-                <div class="pt-2">
-                    <button type="submit" id="changeSubmitBtn"
-                        class="btn btn-primary w-full flex items-center justify-center">
-                        <span id="changeSubmitText">Set New Password</span>
-                        <div id="changeSpinner" class="spinner ml-2 hidden"></div>
-                    </button>
-                </div>
-            </form>
         </div>
-
-        <footer class="text-center text-xs text-gray-500 mt-8 border-t pt-4">
-            &copy; 2025 Md. Rakibul Islam Ratul <br>
-            Sr. Manager, Telecom Service, Metal
-        </footer>
+        
+        <div class="brand-content mt-12 mb-12">
+            <div class="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full mb-6 text-indigo-700 text-xs font-semibold tracking-wide uppercase">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                Enterprise Edition
+            </div>
+            <h1 class="font-display text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-6 tracking-tight">
+                Empower your <br>
+                <span class="text-indigo-600">workforce</span> today.
+            </h1>
+            
+            <ul class="feature-list mt-10">
+                <li class="feature-item">
+                    <div class="feature-icon-box"><i class="fas fa-fingerprint"></i></div>
+                    <div>
+                        <h3 class="text-gray-900 font-semibold text-sm">Biometric Integration</h3>
+                        <p class="text-gray-600 text-xs mt-0.5">Seamless ZKTeco sync and location verification</p>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div>
+                        <h3 class="text-gray-900 font-semibold text-sm">Automated Payroll</h3>
+                        <p class="text-gray-600 text-xs mt-0.5">Dynamic slab calculations and deduction handling</p>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon-box"><i class="fas fa-chart-pie"></i></div>
+                    <div>
+                        <h3 class="text-gray-900 font-semibold text-sm">Advanced Analytics</h3>
+                        <p class="text-gray-600 text-xs mt-0.5">Real-time headcount and compliance tracking</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="brand-content">
+            <p class="text-gray-500 text-xs">&copy; 2025 Metal Group Telecom Services.</p>
+        </div>
     </div>
+    
+    <!-- Right Login Panel -->
+    <div class="login-panel">
+        <div class="login-card">
+            <div class="mb-8">
+                <h2 class="font-display text-3xl font-bold text-gray-900 tracking-tight">Sign in</h2>
+                <p class="text-gray-500 text-sm mt-2">Welcome back! Please enter your details.</p>
+            </div>
+            
+            <div id="loginError" class="error-alert hidden">
+                <i class="fas fa-exclamation-circle mt-0.5"></i>
+                <span id="loginErrorText">Invalid credentials. Please try again.</span>
+            </div>
 
-    <script>
-        function togglePasswordVisibility(inputId, iconId) {
-            const input = document.getElementById(inputId);
-            const icon = document.getElementById(iconId);
-            if (input && icon) {
-                if (input.type === "password") {
-                    input.type = "text";
-                    icon.classList.remove("fa-eye");
-                    icon.classList.add("fa-eye-slash");
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username" class="form-label">Username or Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="username" name="username" class="form-input" placeholder="Enter your username" required autocomplete="username">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="password" class="form-label !mb-0">Password</label>
+                        <a href="#" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500">Forgot password?</a>
+                    </div>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" name="password" class="form-input pr-10" placeholder="••••••••" required autocomplete="current-password">
+                        <i class="far fa-eye password-toggle" id="toggleIconLogin" onclick="togglePasswordVisibility('password', 'toggleIconLogin')"></i>
+                    </div>
+                </div>
+                
+                <div class="form-group flex items-center mt-4 mb-6">
+                    <input type="checkbox" id="remember" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer">
+                    <label for="remember" class="ml-2 block text-sm text-gray-700 cursor-pointer">Remember for 30 days</label>
+                </div>
+                
+                <button type="submit" id="loginSubmitBtn" class="btn-primary">
+                    <span id="loginSubmitText">Sign in</span>
+                    <div id="loginSpinner" class="spinner hidden ml-2"></div>
+                </button>
+            </form>
+            
+            <!-- Change Password Form -->
+            <div id="changePasswordSection" class="hidden mt-4">
+                <div class="mb-6 pb-6 border-b border-gray-100">
+                    <h3 class="font-display text-xl font-bold text-gray-900">Update Password</h3>
+                    <p class="text-sm text-gray-500 mt-1">For security reasons, you must change your password.</p>
+                </div>
+                
+                <form id="changePasswordForm">
+                    <input type="hidden" id="changeUsername">
+                    
+                    <div class="form-group">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-key input-icon"></i>
+                            <input type="password" id="newPassword" name="newPassword" class="form-input pr-10" placeholder="Min. 6 characters" required>
+                            <i class="far fa-eye password-toggle" id="toggleIconNew" onclick="togglePasswordVisibility('newPassword', 'toggleIconNew')"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-check-circle input-icon"></i>
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-input pr-10" placeholder="Re-enter new password" required>
+                            <i class="far fa-eye password-toggle" id="toggleIconConfirm" onclick="togglePasswordVisibility('confirmPassword', 'toggleIconConfirm')"></i>
+                        </div>
+                    </div>
+                    
+                    <div id="changePasswordError" class="error-alert hidden mt-4 mb-4">
+                        <i class="fas fa-exclamation-circle mt-0.5"></i>
+                        <span id="changeErrorText">Passwords do not match.</span>
+                    </div>
+                    
+                    <button type="submit" id="changeSubmitBtn" class="btn-primary">
+                        <span id="changeSubmitText">Set New Password</span>
+                        <div id="changeSpinner" class="spinner hidden ml-2"></div>
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePasswordVisibility(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (input && icon) {
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                input.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+    }
+</script>
+
+<script type="module">
+    async function apiCallLogin(action, body) {
+        const isLoginAction = action === 'loginUser';
+        const submitBtn = document.getElementById(isLoginAction ? 'loginSubmitBtn' : 'changeSubmitBtn');
+        const spinner = document.getElementById(isLoginAction ? 'loginSpinner' : 'changeSpinner');
+        const btnText = document.getElementById(isLoginAction ? 'loginSubmitText' : 'changeSubmitText');
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (spinner) spinner.classList.remove('hidden');
+        if (btnText) btnText.style.opacity = '0';
+
+        try {
+            const endpoint = isLoginAction ? '/api/auth/login' : '/api/auth/change-password';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const responseText = await response.text();
+
+            if (!response.ok) {
+                let errorMsg = `Error: ${response.status}`;
+                try {
+                    const errData = JSON.parse(responseText);
+                    errorMsg = errData.error || errData.message || errorMsg;
+                } catch (e) { /* Ignore */ }
+                throw new Error(errorMsg);
+            }
+            if (!responseText) return { success: true };
+            return JSON.parse(responseText);
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+            if (spinner) spinner.classList.add('hidden');
+            if (btnText) btnText.style.opacity = '1';
+        }
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const loginErrorText = document.getElementById('loginErrorText');
+    const changePasswordSection = document.getElementById('changePasswordSection');
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const changePasswordError = document.getElementById('changePasswordError');
+    const changeErrorText = document.getElementById('changeErrorText');
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.classList.add('hidden');
+        changePasswordSection.classList.add('hidden');
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const result = await apiCallLogin('loginUser', { username, password });
+
+            if (result.success) {
+                if (result.changePasswordRequired) {
+                    document.getElementById('changeUsername').value = username;
+                    changePasswordSection.classList.remove('hidden');
+                    loginForm.classList.add('hidden');
                 } else {
-                    input.type = "password";
-                    icon.classList.remove("fa-eye-slash");
-                    icon.classList.add("fa-eye");
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('loggedInUser', username);
+                    if (result.token) localStorage.setItem('token', result.token);
+                    if (result.user) localStorage.setItem('user', JSON.stringify(result.user));
+                    window.location.href = '/index.html';
                 }
             }
+        } catch (error) {
+            console.error('Login failed:', error.message);
+            loginErrorText.textContent = error.message || 'Login failed. Please try again.';
+            if (error.message.includes('User not found') || error.message.includes('Incorrect password')) {
+                loginErrorText.textContent += ' Contact administrator if issues persist.';
+            }
+            loginError.classList.remove('hidden');
         }
-    </script>
+    });
 
-    <script type="module">
-        // --- AUTHENTICATION LOGIC ---
+    changePasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        changePasswordError.classList.add('hidden');
 
-        // Generic API Call
-        async function apiCallLogin(action, body) {
-            const loginBtn = $('loginSubmitBtn');
-            const changeBtn = $('changeSubmitBtn');
-            const loginSpinner = $('loginSpinner');
-            const changeSpinner = $('changeSpinner');
-            const loginText = $('loginSubmitText');
-            const changeText = $('changeSubmitText');
+        const username = document.getElementById('changeUsername').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
 
-            const isLoginAction = action === 'loginUser';
-            const submitBtn = isLoginAction ? loginBtn : changeBtn;
-            const spinner = isLoginAction ? loginSpinner : changeSpinner;
-            const btnText = isLoginAction ? loginText : changeText;
-
-            if (submitBtn) submitBtn.disabled = true;
-            if (spinner) spinner.classList.remove('hidden');
-            if (btnText) btnText.classList.add('hidden');
-
-            try {
-                // Map legacy actions to new routes
-                const endpoint = action === 'loginUser' ? '/api/auth/login' : '/api/auth/change-password';
-
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                const responseText = await response.text();
-
-                if (!response.ok) {
-                    let errorMsg = `Error: ${response.status}`;
-                    try {
-                        const errData = JSON.parse(responseText);
-                        errorMsg = errData.error || errData.message || errorMsg;
-                    } catch (e) { /* Ignore */ }
-                    throw new Error(errorMsg);
-                }
-                if (!responseText) return { success: true };
-                return JSON.parse(responseText);
-            } finally {
-                if (submitBtn) submitBtn.disabled = false;
-                if (spinner) spinner.classList.add('hidden');
-                if (btnText) btnText.classList.remove('hidden');
-            }
+        if (newPassword !== confirmPassword) {
+            changeErrorText.textContent = 'New passwords do not match.';
+            changePasswordError.classList.remove('hidden');
+            return;
+        }
+        if (newPassword.length < 6) {
+            changeErrorText.textContent = 'Password must be at least 6 characters.';
+            changePasswordError.classList.remove('hidden');
+            return;
         }
 
-        const $ = (id) => document.getElementById(id);
-        const loginForm = $('loginForm');
-        const loginError = $('loginError');
-        const changePasswordSection = $('changePasswordSection');
-        const changePasswordForm = $('changePasswordForm');
-        const changePasswordError = $('changePasswordError');
+        try {
+            const result = await apiCallLogin('changePassword', { username, newPassword });
 
-        // Login Submit
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            loginError.classList.add('hidden');
-            changePasswordSection.classList.add('hidden');
-
-            const username = $('username').value;
-            const password = $('password').value;
-
-            try {
-                const loginData = { username, password };
-                const result = await apiCallLogin('loginUser', loginData);
-
-                if (result.success) {
-                    if (result.changePasswordRequired) {
-                        $('changeUsername').value = username;
-                        changePasswordSection.classList.remove('hidden');
-                        loginForm.classList.add('hidden');
-                    } else {
-                        sessionStorage.setItem('isLoggedIn', 'true');
-                        sessionStorage.setItem('loggedInUser', username);
-                        window.location.href = '/index.html';
-                    }
-                }
-            } catch (error) {
-                console.error('Login failed:', error.message);
-                loginError.textContent = error.message || 'Login failed. Please try again.';
-                if (error.message.includes('User not found') || error.message.includes('Incorrect password')) {
-                    loginError.textContent += ' Forgot password? Contact administrator.';
-                }
-                loginError.classList.remove('hidden');
+            if (result.success) {
+                alert("Password changed successfully. Please log in with your new password.");
+                window.location.href = '/login.html';
             }
-        });
-
-        // Change Password Submit
-        changePasswordForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (changePasswordError) changePasswordError.classList.add('hidden');
-
-            const username = $('changeUsername').value;
-            const newPassword = $('newPassword').value;
-            const confirmPassword = $('confirmPassword').value;
-
-            // --- SECURITY UPDATE: oldPassword is removed from here ---
-
-            if (newPassword !== confirmPassword) {
-                if (changePasswordError) {
-                    changePasswordError.textContent = 'New passwords do not match.';
-                    changePasswordError.classList.remove('hidden');
-                }
-                return;
-            }
-            if (newPassword.length < 6) {
-                if (changePasswordError) {
-                    changePasswordError.textContent = 'Password must be at least 6 characters.';
-                    changePasswordError.classList.remove('hidden');
-                }
-                return;
-            }
-
-            try {
-                // We only send username and newPassword.
-                // The server checks if the user is allowed to change it.
-                const changeData = { username, newPassword };
-                const result = await apiCallLogin('changePassword', changeData);
-
-                if (result.success) {
-                    alert("Password changed successfully. Please log in with your new password.");
-                    window.location.href = '/login.html';
-                }
-            } catch (error) {
-                console.error('Password change failed:', error.message);
-                if (changePasswordError) {
-                    changePasswordError.textContent = error.message || 'Failed to change password.';
-                    changePasswordError.classList.remove('hidden');
-                }
-            }
-        });
-    </script>
+        } catch (error) {
+            console.error('Password change failed:', error.message);
+            changeErrorText.textContent = error.message || 'Failed to change password.';
+            changePasswordError.classList.remove('hidden');
+        }
+    });
+</script>
 </body>
-
 </html>

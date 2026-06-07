@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Hierarchies - HRMS Admin</title>
+    <link rel="stylesheet" href="admin_style.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Dashboard</a>
+        </div>
+        <h1>Hierarchy Management</h1>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Sub-Center Defaults</h2>
+                <p>Set default approval chains for a whole sub-center. Note: Individual employee settings will still
+                    override these.</p>
+                <form id="hierarchyForm">
+                    <div class="form-group">
+                        <label>Sub-Center Name</label>
+                        <select id="subCenterName" required>
+                            <option value="">Select Sub-Center</option>
+                            <!-- Loaded from Employees -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Leave Approval Chain (Comma separated IDs)</label>
+                        <input type="text" id="leaveHierarchy" placeholder="e.g. EMP-001, EMP-002">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Check-In Approval Chain (Comma separated IDs)</label>
+                        <input type="text" id="attendanceInHierarchy" placeholder="e.g. EMP-001">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Check-Out Approval Chain (Comma separated IDs)</label>
+                        <input type="text" id="attendanceOutHierarchy" placeholder="e.g. EMP-001">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                    <p id="statusMsg" style="margin-top: 1rem; font-size: 0.8rem;"></p>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Existing Defaults</h2>
+                <div id="settingsList">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_SUB = '/api/subcenters';
+        const API_EMP = '/api/employees';
+        const form = document.getElementById('hierarchyForm');
+        const statusMsg = document.getElementById('statusMsg');
+
+        async function init() {
+            // Load sub-centers from employee data filters
+            const empRes = await fetch(API_EMP);
+            const { filters } = await empRes.json();
+            const select = document.getElementById('subCenterName');
+            filters.subCenter.forEach(sc => {
+                const opt = document.createElement('option');
+                opt.value = sc;
+                opt.textContent = sc;
+                select.appendChild(opt);
+            });
+
+            loadSettings();
+        }
+
+        async function loadSettings() {
+            const res = await fetch(API_SUB);
+            const settings = await res.json();
+            const list = document.getElementById('settingsList');
+            list.innerHTML = settings.map(s => `
+                <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); backdrop-filter: blur(12px);">
+                    <strong style="color: var(--primary)">${s.subCenterName}</strong>
+                    <div style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-secondary);">
+                        <div>Leave: ${s.defaultLeaveHierarchy.join(', ') || 'N/A'}</div>
+                        <div>In: ${s.defaultAttendanceInHierarchy.join(', ') || 'N/A'}</div>
+                        <div>Out: ${s.defaultAttendanceOutHierarchy.join(', ') || 'N/A'}</div>
+                    </div>
+                </div>
+            `).join('') || '<p style="color: var(--text-muted);">No defaults set yet.</p>';
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const data = {
+                subCenterName: document.getElementById('subCenterName').value,
+                defaultLeaveHierarchy: document.getElementById('leaveHierarchy').value.split(',').map(s => s.trim()).filter(s => s),
+                defaultAttendanceInHierarchy: document.getElementById('attendanceInHierarchy').value.split(',').map(s => s.trim()).filter(s => s),
+                defaultAttendanceOutHierarchy: document.getElementById('attendanceOutHierarchy').value.split(',').map(s => s.trim()).filter(s => s)
+            };
+
+            const res = await fetch(API_SUB, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                statusMsg.textContent = 'Settings saved successfully!';
+                statusMsg.style.color = '#4ade80';
+                loadSettings();
+            } else {
+                statusMsg.textContent = 'Error saving settings.';
+                statusMsg.style.color = '#f87171';
+            }
+        };
+
+        init();
+    </script>
+</body>
+
+</html>

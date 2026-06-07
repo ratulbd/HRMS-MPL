@@ -89,6 +89,11 @@ const EmployeeSchema = new mongoose.Schema({
     fileClosingDate: { type: Date },
     fileClosingRemarks: { type: String },
 
+    // Biometric Data
+    isBiometricRegistered: { type: Boolean, default: false },
+    biometricRefImage: { type: String },
+    biometricSignature: { type: Object },
+
 }, {
     timestamps: true,
     toJSON: {

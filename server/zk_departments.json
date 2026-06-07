@@ -1,0 +1,92 @@
+[
+    {
+        "id": 1,
+        "dept_code": "1",
+        "dept_name": "Department",
+        "parent_dept": null
+    },
+    {
+        "id": 2,
+        "dept_code": "2",
+        "dept_name": "HR & Admin",
+        "parent_dept": null
+    },
+    {
+        "id": 3,
+        "dept_code": "3",
+        "dept_name": "IT Services",
+        "parent_dept": null
+    },
+    {
+        "id": 5,
+        "dept_code": "5",
+        "dept_name": "Executive",
+        "parent_dept": null
+    },
+    {
+        "id": 9,
+        "dept_code": "9",
+        "dept_name": "Operations",
+        "parent_dept": null
+    },
+    {
+        "id": 10,
+        "dept_code": "10",
+        "dept_name": "Billing",
+        "parent_dept": null
+    },
+    {
+        "id": 11,
+        "dept_code": "11",
+        "dept_name": "Security",
+        "parent_dept": null
+    },
+    {
+        "id": 12,
+        "dept_code": "12",
+        "dept_name": "Rollout",
+        "parent_dept": null
+    },
+    {
+        "id": 14,
+        "dept_code": "14",
+        "dept_name": "Store & Warehouse",
+        "parent_dept": null
+    },
+    {
+        "id": 16,
+        "dept_code": "16",
+        "dept_name": "Visitors",
+        "parent_dept": null
+    },
+    {
+        "id": 18,
+        "dept_code": "18",
+        "dept_name": "Generator Service",
+        "parent_dept": null
+    },
+    {
+        "id": 19,
+        "dept_code": "19",
+        "dept_name": "Procurement",
+        "parent_dept": null
+    },
+    {
+        "id": 20,
+        "dept_code": "20",
+        "dept_name": "Vendor",
+        "parent_dept": null
+    },
+    {
+        "id": 21,
+        "dept_code": "21",
+        "dept_name": "NOC",
+        "parent_dept": null
+    },
+    {
+        "id": 22,
+        "dept_code": "22",
+        "dept_name": "Robi",
+        "parent_dept": null
+    }
+]

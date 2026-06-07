@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Overrides - HRMS Admin</title>
+    <link rel="stylesheet" href="admin_style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="index.html">← Dashboard</a>
+        </div>
+        <h1>Global Schedules</h1>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Create Override</h2>
+                <p>Set special hours for all employees for a specific date range (e.g. Ramadan).</p>
+                <form id="scheduleForm">
+                    <div class="form-group">
+                        <label>Event Name</label>
+                        <input type="text" id="name" placeholder="e.g. Ramadan 2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="endDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Override Start Time</label>
+                        <input type="time" id="startTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Override End Time</label>
+                        <input type="time" id="endTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Apply to Shifts (Leave empty for All)</label>
+                        <select id="appliedShifts" multiple style="height: 100px; padding: 0.5rem; width: 100%;">
+                            <!-- Loaded via JS -->
+                        </select>
+                        <small style="color: var(--text-muted); font-size: 0.75rem;">Hold Ctrl/Cmd to select multiple.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Schedule</button>
+                </form>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <h2>Active Overrides</h2>
+                <table id="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Dates</th>
+                            <th>Hours</th>
+                            <th>Applied Shifts</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="modal-title">Confirm Deletion</h3>
+            <p class="modal-text">Are you sure you want to delete this global schedule? This action cannot be undone.
+            </p>
+            <div class="modal-actions">
+                <button id="cancelBtn" class="modal-btn modal-btn-cancel">Cancel</button>
+                <button id="confirmBtn" class="modal-btn modal-btn-confirm">Delete Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/global-schedules';
+        const SHIFT_API = '/api/shifts';
+        const form = document.getElementById('scheduleForm');
+        const tableBody = document.querySelector('#scheduleTable tbody');
+        const shiftSelect = document.getElementById('appliedShifts');
+
+        async function loadShifts() {
+            const res = await fetch(SHIFT_API);
+            const shifts = await res.json();
+            shiftSelect.innerHTML = shifts.map(s => `
+                <option value="${s._id}">${s.name}</option>
+            `).join('');
+        }
+
+        async function loadSchedules() {
+            const res = await fetch(API_BASE);
+            const schedules = await res.json();
+
+            // Fetch shift names for display
+            const sRes = await fetch(SHIFT_API);
+            const allShifts = await sRes.json();
+            const shiftMap = Object.fromEntries(allShifts.map(s => [s._id, s.name]));
+
+            tableBody.innerHTML = schedules.map(s => {
+                const shiftNames = (s.appliedShifts && s.appliedShifts.length > 0)
+                    ? s.appliedShifts.map(id => shiftMap[id] || 'Unknown').join(', ')
+                    : 'All Shifts';
+
+                return `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${new Date(s.startDate).toLocaleDateString()} to ${new Date(s.endDate).toLocaleDateString()}</td>
+                        <td>${s.startTime} - ${s.endTime}</td>
+                        <td><small>${shiftNames}</small></td>
+                        <td>
+                            <button onclick="deleteSchedule('${s._id}')" class="btn btn-danger" style="padding: 0.4rem 0.8rem;">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="5" style="color: var(--text-muted);">No overrides set.</td></tr>';
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const selectedShifts = Array.from(shiftSelect.selectedOptions).map(opt => opt.value);
+            const data = {
+                name: document.getElementById('name').value,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                appliedShifts: selectedShifts
+            };
+
+            await fetch(API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            form.reset();
+            loadSchedules();
+        };
+
+        async function showConfirm(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmModal');
+                const confirmBtn = document.getElementById('confirmBtn');
+                const cancelBtn = document.getElementById('cancelBtn');
+                const titleEl = modal.querySelector('.modal-title');
+                const textEl = modal.querySelector('.modal-text');
+
+                titleEl.textContent = title;
+                textEl.textContent = message;
+
+                modal.classList.add('active');
+
+                const handleConfirm = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                const cleanup = () => {
+                    confirmBtn.removeEventListener('click', handleConfirm);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                    modal.classList.remove('active');
+                };
+
+                confirmBtn.addEventListener('click', handleConfirm);
+                cancelBtn.addEventListener('click', handleCancel);
+            });
+        }
+
+        async function deleteSchedule(id) {
+            console.log('Attempting to delete schedule:', id);
+            const confirmed = await showConfirm('Delete Override?', 'Are you sure you want to remove this global override? Employee shifts will revert to their standard hours.');
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Server returned an error');
+                }
+                console.log('Deletion successful');
+                loadSchedules();
+            } catch (err) {
+                console.error('Delete error:', err);
+                alert('Error deleting schedule: ' + err.message);
+            }
+        }
+
+        loadShifts();
+        loadSchedules();
+    </script>
+</body>
+
+</html>

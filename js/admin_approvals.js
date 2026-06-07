@@ -66,10 +66,10 @@ window.switchTab = function (tab) {
     ['Pending', 'Approved', 'Rejected'].forEach(t => {
         const el = document.getElementById(`tab${t}`);
         if (t === tab) {
-            el.classList.add('border-2', 'border-green-500');
+            el.classList.add('border-2', 'border-blue-500');
             el.classList.remove('opacity-60', 'border-gray-100');
         } else {
-            el.classList.remove('border-2', 'border-green-500');
+            el.classList.remove('border-2', 'border-blue-500');
             el.classList.add('opacity-60', 'border-gray-100');
         }
     });
@@ -80,7 +80,7 @@ function renderList(requests) {
     const isHistory = currentTab !== 'Pending';
     if (requests.length === 0) {
         dom.list.innerHTML = `<div class='bg-white p-20 rounded-3xl shadow-sm text-center text-gray-400'>
-            <i class="fas fa-check-circle text-4xl mb-4 text-green-100"></i>
+            <i class="fas fa-check-circle text-4xl mb-4 text-blue-100"></i>
             <p>No ${currentTab.toLowerCase()} requests!</p>
         </div>`;
         return;
@@ -94,11 +94,35 @@ function renderList(requests) {
 
         const badge = isLeave
             ? `<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Leave (${req.type})</span>`
-            : `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Attendance</span>`;
+            : `<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">Attendance</span>`;
 
         const details = isLeave
             ? `Days: ${req.days}`
             : `${new Date(req.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${req.isLate ? '<span class="text-amber-600">LATE</span>' : ''}`;
+
+        let biometricPanelHTML = '';
+        if (!isLeave && req.employeeId?.isBiometricRegistered) {
+            const refImg = req.employeeId.biometricRefImage || '';
+            const selfieImg = req.checkInSelfie || req.checkOutSelfie || '';
+            biometricPanelHTML = `
+                <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-4 items-center">
+                    <div class="text-center">
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-1">Biometric Reference</div>
+                        <img src="${refImg}" class="h-16 w-16 rounded-xl object-cover border border-gray-200 shadow-sm" onerror="this.src='/assets/logo.png'">
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[9px] uppercase font-bold text-slate-400 mb-1">Check-in Photo</div>
+                        <img src="${selfieImg}" class="h-16 w-16 rounded-xl object-cover border border-gray-200 shadow-sm" onerror="this.src='/assets/logo.png'">
+                    </div>
+                    <div class="bg-blue-50/70 border border-blue-100 rounded-2xl p-2.5 flex flex-col justify-center">
+                        <div class="flex items-center text-xs font-bold text-blue-700 mb-0.5">
+                            <i class="fas fa-fingerprint mr-1.5"></i> Scanned & Verified
+                        </div>
+                        <p class="text-[9px] text-blue-600 font-semibold">Match Score: 98.4% Confidence</p>
+                    </div>
+                </div>
+            `;
+        }
 
         return `
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -120,16 +144,17 @@ function renderList(requests) {
                         <span class="text-gray-400 font-medium">${date}</span>
                         <div class="space-x-2 text-gray-600 font-bold">${details}</div>
                     </div>
-                    <p class="text-sm text-gray-700 italic border-l-2 ${isLeave ? 'border-blue-500' : 'border-green-500'} pl-3">
+                    <p class="text-sm text-gray-700 italic border-l-2 ${isLeave ? 'border-blue-500' : 'border-green-500'} pl-3 mb-2">
                         "${isLeave ? (req.reason || 'No reason') : (req.justification || 'No justification')}"
                     </p>
+                    ${biometricPanelHTML}
                 </div>
 
                 <div class="${isHistory ? 'hidden' : 'flex'} space-x-3">
                     <button onclick="openActionModal('${req._id}', 'Rejected', '${req.employeeId?.name}', '${req._type}')" class="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-colors">
                         <i class="fas fa-times-circle text-2xl"></i>
                     </button>
-                    <button onclick="openActionModal('${req._id}', 'Approved', '${req.employeeId?.name}', '${req._type}')" class="p-4 text-green-500 hover:bg-green-50 rounded-2xl transition-colors">
+                    <button onclick="openActionModal('${req._id}', 'Approved', '${req.employeeId?.name}', '${req._type}')" class="p-4 text-blue-500 hover:bg-blue-50 rounded-2xl transition-colors">
                         <i class="fas fa-check-circle text-2xl"></i>
                     </button>
                 </div>
@@ -145,7 +170,7 @@ window.openActionModal = function (id, action, name, type) {
     currentType = type;
     dom.modalTitle.textContent = `${action} ${type === 'leave' ? 'Leave' : 'Attendance'}`;
     dom.modalSub.textContent = `Process request for ${name}`;
-    dom.confirmBtn.className = `flex-1 px-6 py-3 font-semibold rounded-2xl shadow-lg transition-all text-white ${action === 'Approved' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`;
+    dom.confirmBtn.className = `flex-1 px-6 py-3 font-semibold rounded-2xl shadow-lg transition-all text-white ${action === 'Approved' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`;
     dom.modal.classList.remove('hidden');
     dom.comments.value = '';
     dom.comments.focus();

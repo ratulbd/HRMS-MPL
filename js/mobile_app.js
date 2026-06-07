@@ -2,11 +2,38 @@ const getMobileApiBase = () => {
     const custom = localStorage.getItem('custom_api_base');
     if (custom) return custom;
     return (window.Capacitor || window.location.protocol.startsWith('http') === false)
-        ? 'http://192.168.12.175:5000/api'
-        : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '192.168.12.175' ? 'http://192.168.12.175:5000/api' : '/api');
+        ? 'http://192.168.12.106:5000/api'
+        : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '192.168.12.106' ? 'http://192.168.12.106:5000/api' : '/api');
 };
 
 const API_BASE_URL = getMobileApiBase();
+
+/**
+ * Helper for Mobile API Calls with Token
+ */
+async function mobileApiCall(endpoint, method = 'GET', body = null) {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const options = { method, headers };
+    if (body instanceof FormData) {
+        delete headers['Content-Type'];
+        options.body = body;
+    } else if (body) {
+        options.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    const data = await res.json();
+    if (!res.ok) {
+        const err = new Error(data.error || data.message || `HTTP ${res.status}`);
+        err.code = data.code;
+        err.details = data.details;
+        throw err;
+    }
+    return data;
+}
 
 let videoStream = null;
 let currentPosition = null;
@@ -78,7 +105,7 @@ function initGeolocation() {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-                    dom.locationStatus.innerHTML = `<i class="fas fa-location-dot text-emerald-500 mr-2"></i> GPS: ${currentPosition.lat.toFixed(4)}, ${currentPosition.lng.toFixed(4)}`;
+                    dom.locationStatus.innerHTML = `<i class="fas fa-location-dot text-blue-500 mr-2"></i> GPS: ${currentPosition.lat.toFixed(4)}, ${currentPosition.lng.toFixed(4)}`;
                     resolve(true);
                 },
                 (error) => {
@@ -86,7 +113,7 @@ function initGeolocation() {
                     dom.locationStatus.innerHTML = '<i class="fas fa-triangle-exclamation text-amber-500 mr-2"></i> GPS: Offline';
                     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                         currentPosition = { lat: 23.8103, lng: 90.4125 };
-                        dom.locationStatus.innerHTML = `<i class="fas fa-location-dot text-emerald-500 mr-2"></i> GPS: MOCK (DHAKA)`;
+                        dom.locationStatus.innerHTML = `<i class="fas fa-location-dot text-blue-500 mr-2"></i> GPS: MOCK (DHAKA)`;
                     }
                     resolve(false);
                 },
@@ -177,25 +204,16 @@ async function submitAttendance(justification = null) {
 
     // UI state
     dom.confirmAttendanceBtn.disabled = true;
-    dom.confirmAttendanceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    dom.confirmAttendanceBtn.innerHTML = '<i class="fas fa-fingerprint fa-spin mr-2"></i> Verifying Biometrics...';
+
+    // Append test mismatch option if developer enabled it
+    if (localStorage.getItem('test_biometric_mismatch') === 'true') {
+        formData.append('testMismatch', 'true');
+    }
 
     try {
         const endpoint = type === 'check-in' ? '/attendance/check-in' : '/attendance/check-out';
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            if (data.code === 'JUSTIFICATION_REQUIRED') {
-                dom.previewModal.classList.add('hidden');
-                showJustificationModal(type, data.details);
-                return;
-            }
-            throw new Error(data.error || "Submission failed");
-        }
+        const data = await mobileApiCall(endpoint, 'POST', formData);
 
         showToast(`${type === 'check-in' ? 'Checked In' : 'Checked Out'} Successful! ✨`);
 
@@ -207,7 +225,12 @@ async function submitAttendance(justification = null) {
 
     } catch (err) {
         console.error(err);
-        showToast(err.message, "error");
+        if (err.code === "JUSTIFICATION_REQUIRED") {
+            dom.previewModal.classList.add('hidden');
+            showJustificationModal(type, err.details);
+        } else {
+            showToast(err.message, "error");
+        }
     } finally {
         dom.confirmAttendanceBtn.disabled = false;
         dom.confirmAttendanceBtn.innerHTML = 'Confirm & Submit <i class="fas fa-paper-plane ml-3"></i>';
@@ -265,8 +288,7 @@ async function fetchAttendanceHistory() {
     dom.historyList.innerHTML = '<div class="animate-pulse space-y-3"><div class="h-20 bg-slate-100 rounded-2xl"></div><div class="h-20 bg-slate-100 rounded-2xl"></div></div>';
 
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/history/${user.employeeId}`);
-        const data = await res.json();
+        const data = await mobileApiCall(`/attendance/history/${user.employeeId}`);
 
         if (data.length === 0) {
             dom.historyList.innerHTML = '<p class="text-center py-10 text-slate-400 text-sm font-medium">No records found for this month.</p>';
@@ -316,16 +338,14 @@ async function loadHomeData() {
 
     // Load Balance
     try {
-        const res = await fetch(`${API_BASE_URL}/employees/${user.employeeId}`);
-        const emp = await res.json();
+        const emp = await mobileApiCall(`/employees/${user.employeeId}`);
         const total = (emp.leaveBalance?.sick || 0) + (emp.leaveBalance?.casual || 0) + (emp.leaveBalance?.earned || 0);
         document.getElementById('leavesBalanceText').textContent = total;
     } catch (e) { }
 
     // Load Today
     try {
-        const res = await fetch(`${API_BASE_URL}/attendance/today/${user.employeeId}`);
-        const data = await res.json();
+        const data = await mobileApiCall(`/attendance/today/${user.employeeId}`);
 
         if (data && data.checkInTime) {
             dom.statusBanner.classList.remove('hidden');
@@ -344,8 +364,7 @@ async function fetchLeaveHistory() {
     list.innerHTML = '<div class="animate-pulse space-y-3"><div class="h-20 bg-slate-100 rounded-2xl"></div></div>';
 
     try {
-        const res = await fetch(`${API_BASE_URL}/leave/history/${user.employeeId}`);
-        const data = await res.json();
+        const data = await mobileApiCall(`/leave/history/${user.employeeId}`);
 
         if (data.length === 0) {
             list.innerHTML = '<p class="text-center text-slate-400 py-10 text-sm">No leave history.</p>';
@@ -353,7 +372,7 @@ async function fetchLeaveHistory() {
         }
 
         list.innerHTML = data.map(l => {
-            const statusColor = l.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (l.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
+            const statusColor = l.status === 'Approved' ? 'bg-blue-100 text-blue-700' : (l.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
             return `
                 <div class="glass-card rounded-2xl p-4 border-slate-50">
                     <div class="flex justify-between items-start mb-2">

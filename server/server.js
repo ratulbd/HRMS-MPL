@@ -3,7 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const path = require('path');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
+// Initialize Express
 const app = express();
 
 // Connect to Database
@@ -13,35 +15,43 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
-// Serve Static Files
-// 1. Serve Uploads
+// Logger (Optional: could add Winston/Morgan here)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log(`${req.method} ${req.originalUrl}`);
+        next();
+    });
+}
+
+// Static Folders
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// 2. Serve Frontend (Parent Directory)
 app.use(express.static(path.join(__dirname, '..')));
 
 // API Routes
-console.log('Registering API routes...');
-app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/payroll', require('./routes/payrollRoutes'));
+app.use('/api/leave', require('./routes/leaveRoutes'));
+app.use('/api/shifts', require('./routes/shiftRoutes'));
+app.use('/api/subcenters', require('./routes/subCenterRoutes'));
+app.use('/api/policies', require('./routes/policyRoutes'));
+app.use('/api/global-schedules', require('./routes/globalScheduleRoutes'));
+app.use('/api/roster', require('./routes/rosterRoutes'));
+app.use('/api/sync', require('./routes/syncRoutes'));
 
-console.log('Registering leave routes...');
-const leaveRoutes = require('./routes/leaveRoutes');
-app.use('/api/leave', leaveRoutes);
-console.log('Leave routes registered successfully');
-
-// Fallback Route: Serve index.html for root or unknown routes (SPA style, though we have specific htmls)
+// Root / Frontend Fallback
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-// Explicitly serve specific HTMLs if needed, but express.static covers them if they are in root
-// e.g. localhost:5000/test_attendance.html works automatically
+// Error Handling Middlewares
+app.use(notFound);
+app.use(errorHandler);
 
+// Start Server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Frontend accessible at http://localhost:${PORT}`);
+    console.log(`\n🚀 HRMS Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    console.log(`🔗 Local: http://localhost:${PORT}`);
 });

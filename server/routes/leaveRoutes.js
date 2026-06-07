@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Leave = require('../models/Leave');
 const Employee = require('../models/Employee');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all routes
+router.use(protect);
 
 // POST /api/leave/apply - Apply for leave
 router.post('/apply', async (req, res) => {

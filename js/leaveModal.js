@@ -57,7 +57,16 @@ export function initLeaveModal() {
     const empInput = document.getElementById('leaveEmpId');
 
     // Auto-fill from session if available
-    const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
+    let loggedInUser = null;
+    const rawUser = sessionStorage.getItem('loggedInUser');
+    if (rawUser) {
+        try {
+            loggedInUser = JSON.parse(rawUser);
+        } catch {
+            // Stored as plain string (e.g. "admin")
+            loggedInUser = { employeeId: rawUser, name: rawUser };
+        }
+    }
     if (loggedInUser && loggedInUser.employeeId) {
         empInput.value = loggedInUser.employeeId;
         empInput.readOnly = true;
@@ -133,7 +142,15 @@ export function openLeaveModal(empId = '') {
         if (empId) {
             empInput.value = empId;
         } else {
-            const loggedInUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
+            let loggedInUser = null;
+            const rawUser = sessionStorage.getItem('loggedInUser');
+            if (rawUser) {
+                try {
+                    loggedInUser = JSON.parse(rawUser);
+                } catch {
+                    loggedInUser = { employeeId: rawUser, name: rawUser };
+                }
+            }
             if (loggedInUser && loggedInUser.employeeId) {
                 empInput.value = loggedInUser.employeeId;
             }
